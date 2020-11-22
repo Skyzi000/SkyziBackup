@@ -12,6 +12,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using Skyzi000.Cryptography;
 
 namespace SkyziBackup
 {
@@ -23,6 +24,12 @@ namespace SkyziBackup
         public MainWindow()
         {
             InitializeComponent();
+        }
+
+        private void encryptButton_Click(object sender, RoutedEventArgs e)
+        {
+            OpensslCompatibleAesCrypter crypter = new OpensslCompatibleAesCrypter(password.Text);
+            crypter.EncryptFile(inputPath.Text, inputPath.Text + ".gui.aes256");
         }
     }
 }
