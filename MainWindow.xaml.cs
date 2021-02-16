@@ -26,17 +26,27 @@ namespace SkyziBackup
             InitializeComponent();
             ContentRendered += (s, e) =>
             {
-                dataPath.TextChanged += LogPath_TextChanged;
+                dataPath.TextChanged += DataPath_TextChanged;
                 dataPath.Text = Properties.Settings.Default.AppDataPath;
             };
         }
 
-        private void LogPath_TextChanged(object sender, TextChangedEventArgs e)
+        private void DataPath_TextChanged(object sender, TextChangedEventArgs e)
         {
-            Properties.Settings.Default.AppDataPath = dataPath.Text == "" ? System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "Skyzi000", "SkyziBackup") : dataPath.Text;
-            Properties.Settings.Default.Save();
-            dataPath.Text = Properties.Settings.Default.AppDataPath;
-            System.Diagnostics.Debug.WriteLine("DataPath : " + dataPath.Text);
+            if (dataPath.Text == "")
+            {
+                Properties.Settings.Default.AppDataPath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "Skyzi000", "SkyziBackup");
+                System.IO.Directory.CreateDirectory(Properties.Settings.Default.AppDataPath);
+                dataPath.Text = Properties.Settings.Default.AppDataPath;
+            }
+            if (System.IO.Directory.Exists(dataPath.Text))
+            {
+                Properties.Settings.Default.AppDataPath = dataPath.Text;
+                Properties.Settings.Default.Save();
+                dataPath.Text = Properties.Settings.Default.AppDataPath;
+                System.Diagnostics.Debug.WriteLine("DataPath : " + dataPath.Text);
+                NLog.GlobalDiagnosticsContext.Set("AppDataPath", dataPath.Text);
+            }
         }
 
         private void encryptButton_Click(object sender, RoutedEventArgs e)
