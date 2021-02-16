@@ -24,6 +24,19 @@ namespace SkyziBackup
         public MainWindow()
         {
             InitializeComponent();
+            ContentRendered += (s, e) =>
+            {
+                dataPath.TextChanged += LogPath_TextChanged;
+                dataPath.Text = Properties.Settings.Default.AppDataPath;
+            };
+        }
+
+        private void LogPath_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            Properties.Settings.Default.AppDataPath = dataPath.Text == "" ? System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "Skyzi000", "SkyziBackup") : dataPath.Text;
+            Properties.Settings.Default.Save();
+            dataPath.Text = Properties.Settings.Default.AppDataPath;
+            System.Diagnostics.Debug.WriteLine("DataPath : " + dataPath.Text);
         }
 
         private void encryptButton_Click(object sender, RoutedEventArgs e)
