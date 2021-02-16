@@ -3,20 +3,34 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Timers;
 
 namespace SkyziBackup
 {
+    public struct BackupSettings
+    {
+        public bool copyAttributes;
+        public int retryCount;
+        public int retryWaitMilliSec;
+        BackupSettings(bool copyAttributes = true, int retryCount = 10, int retryWaitMilliSec = 10000)
+        {
+            this.copyAttributes = copyAttributes;
+            this.retryCount = retryCount;
+            this.retryWaitMilliSec = retryWaitMilliSec;
+        }
+    }
     internal class DirectoryBackup
     {
         public BackupResults Results { get; private set; }
         public OpensslCompatibleAesCrypter AesCrypter { get; set; }
-        public bool CopyAttributes { get; set; }
+        public BackupSettings Settings { get; set; }
 
 
         private string _originPath;
         private string _destPath;
+        private int currentRetryCount;
 
-        public DirectoryBackup(string originPath, string destPath, string password = "")
+        public DirectoryBackup(string originPath, string destPath, string password = "", BackupSettings settings = new BackupSettings())
         {
             _originPath = originPath;
             _destPath = destPath;
@@ -24,12 +38,18 @@ namespace SkyziBackup
             {
                 AesCrypter = new OpensslCompatibleAesCrypter(password);
             }
+            Settings = settings;
         }
 
         public class BackupResults
         {
             /// <summary>
-            /// 成功したかどうか。一つでも失敗したファイルがあるとfalse。
+            /// 完了したかどうか。リトライ中はfalse。
+            /// </summary>
+            public bool isFinished;
+
+            /// <summary>
+            /// 成功したかどうか。バックアップ進行中や一つでも失敗したファイルがある場合はfalse。
             /// </summary>
             public bool isSuccess;
 
@@ -48,9 +68,10 @@ namespace SkyziBackup
             /// </summary>
             public List<string> failedFileList;
 
-            public BackupResults(bool isSuccess, string message = "")
+            public BackupResults(bool isSuccess, bool isFinished = false, string message = "")
             {
                 this.isSuccess = isSuccess;
+                this.isFinished = isFinished;
                 this.message = message;
                 backedupFileList = new List<string>();
                 failedFileList = new List<string>();
@@ -59,71 +80,122 @@ namespace SkyziBackup
 
         public BackupResults StartBackup()
         {
-            if (!Directory.Exists(_originPath)) return new BackupResults(false, "バックアップ元のディレクトリが見つかりません。");
-            Results = new BackupResults(false);
+            if (!Directory.Exists(_originPath)) return new BackupResults(false, true, $"バックアップ元のディレクトリ{_originPath}が見つかりません。");
+            Results = new BackupResults(false, false, "バックアップ中...");
             foreach (string originDirPath in Directory.EnumerateDirectories(_originPath, "*", SearchOption.AllDirectories))
             {
                 string destDirPath = originDirPath.Replace(_originPath, _destPath);
+                Debug.WriteLine($"存在しなければ作成: '{destDirPath}'");
                 Directory.CreateDirectory(destDirPath);
-                if (CopyAttributes)
+                if (Settings.copyAttributes)
                 {
+                    Debug.WriteLine($"属性をコピー: '{originDirPath}'");
                     Directory.SetCreationTime(destDirPath, Directory.GetCreationTime(originDirPath));
                     Directory.SetLastWriteTime(destDirPath, Directory.GetLastWriteTime(originDirPath));
                 }
             }
-            //try
-            //{
+
             foreach (string originFilePath in System.IO.Directory.EnumerateFiles(_originPath, "*", System.IO.SearchOption.AllDirectories))
             {
                 string destFilePath = originFilePath.Replace(_originPath, _destPath);
-                Debug.WriteLine($"Backup {originFilePath} > {destFilePath}");
-                if (AesCrypter != null)
+                FileBackup(originFilePath, destFilePath);
+            }
+
+            Results.isSuccess = Results.failedFileList.Count == 0;
+
+            // リトライ処理
+            if (Results.failedFileList.Count != 0 && Settings.retryCount > 0)
+            {
+                Debug.WriteLine($"{Settings.retryWaitMilliSec} ミリ秒毎に {Settings.retryCount} 回リトライ");
+                RetryStart();
+            }
+            else
+            {
+                Results.isFinished = true;
+                Results.message = Results.isSuccess ? "バックアップ完了" : "バックアップ失敗";
+            }
+
+            return Results;
+        }
+
+        private void FileBackup(string originFilePath, string destFilePath)
+        {
+            Debug.WriteLine($"バックアップ開始 '{originFilePath}' => '{destFilePath}'");
+            if (AesCrypter != null)
+            {
+                try
                 {
-                    try
+                    if (AesCrypter.EncryptFile(originFilePath, destFilePath))
                     {
-                        if (AesCrypter.EncryptFile(originFilePath, destFilePath))
+                        if (Settings.copyAttributes)
                         {
-                            if (CopyAttributes)
-                            {
-                                var attributes = File.GetAttributes(originFilePath);
-                                //if((attributes & FileAttributes.Compressed) == FileAttributes.Compressed)
-                                //{
-                                //    attributes = RemoveAttribute(attributes, FileAttributes.Compressed);
-                                //}
-                                File.SetAttributes(destFilePath, attributes);
-                                
-                                File.SetCreationTime(destFilePath, File.GetCreationTime(originFilePath));
-                                File.SetLastWriteTime(destFilePath, File.GetLastWriteTime(originFilePath));
-                            }
-                            Debug.WriteLine("Success!");
-                            Results.backedupFileList.Add(originFilePath);
+                            Debug.WriteLine($"属性をコピー: '{originFilePath}'");
+                            var attributes = File.GetAttributes(originFilePath);
+                            //if((attributes & FileAttributes.Compressed) == FileAttributes.Compressed)
+                            //{
+                            //    attributes = RemoveAttribute(attributes, FileAttributes.Compressed);
+                            //}
+                            File.SetAttributes(destFilePath, attributes);
+
+                            File.SetCreationTime(destFilePath, File.GetCreationTime(originFilePath));
+                            File.SetLastWriteTime(destFilePath, File.GetLastWriteTime(originFilePath));
                         }
-                        else
+                        Debug.WriteLine("成功!");
+                        Results.backedupFileList.Add(originFilePath);
+                        if (Results.failedFileList.Contains(originFilePath))
                         {
-                            Debug.WriteLine($"Failed {AesCrypter.Error}");
+                            Results.failedFileList.Remove(originFilePath);
+                        }
+                    }
+                    else
+                    {
+                        Debug.WriteLine($"暗号化失敗: {AesCrypter.Error}");
+                        if (!Results.failedFileList.Contains(originFilePath))
                             Results.failedFileList.Add(originFilePath);
-                        }
                     }
-                    catch (Exception e)
-                    {
-                        Debug.WriteLine($"Failed {e}");
+                }
+                catch (Exception e)
+                {
+                    Debug.WriteLine($"失敗: {e}");
+                    if (!Results.failedFileList.Contains(originFilePath))
                         Results.failedFileList.Add(originFilePath);
-                    }
+                }
+            }
+            else
+            {
+                throw new NotImplementedException("非暗号化バックアップは未実装です。");
+            }
+        }
+
+        private void RetryStart()
+        {
+            var retryTimer = new Timer(Settings.retryWaitMilliSec);
+            retryTimer.Elapsed += (sender, e) =>
+            {
+                currentRetryCount++;
+                Results.message = $"リトライ {currentRetryCount}/{Settings.retryCount} 回目";
+                Debug.WriteLine(Results.message);
+                foreach (string originFilePath in Results.failedFileList)
+                {
+                    string destFilePath = originFilePath.Replace(_originPath, _destPath);
+                    FileBackup(originFilePath, destFilePath);
+                }
+                Results.isSuccess = Results.failedFileList.Count == 0;
+                if (Results.isSuccess || currentRetryCount >= Settings.retryCount)
+                {
+                    Results.isFinished = true;
+                    Results.message = Results.isSuccess ? "バックアップ完了" : "バックアップ失敗";
+                    retryTimer.Stop();
                 }
                 else
                 {
-                    throw new NotImplementedException("非暗号化バックアップは未実装です。");
+                    Results.message = $"リトライ待機中...({currentRetryCount + 1}/{Settings.retryCount}回目)";
                 }
-            }
-            //}
-            //catch (Exception)
-            //{
-            //    throw;
-            //}
-
-            Results.isSuccess = Results.failedFileList.Count == 0;
-            return Results;
+            };
+            retryTimer.Start();
+            Results.message = $"リトライ待機中...({currentRetryCount+1}/{Settings.retryCount}回目)";
         }
+
         private static FileAttributes RemoveAttribute(FileAttributes attributes, FileAttributes attributesToRemove)
         {
             return attributes & ~attributesToRemove;

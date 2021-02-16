@@ -31,7 +31,7 @@ namespace SkyziBackup
             //OpensslCompatibleAesCrypter crypter = new OpensslCompatibleAesCrypter(password.Text);
             //crypter.EncryptFile(inputPath.Text, inputPath.Text + ".gui.aes256");
             var db = new DirectoryBackup(originPath.Text, destPath.Text, password.Text);
-            db.CopyAttributes = true;
+            db.Settings = new BackupSettings();
             db.StartBackup();
         }
     }
