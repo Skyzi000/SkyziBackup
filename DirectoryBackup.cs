@@ -7,17 +7,19 @@ using System.Timers;
 
 namespace SkyziBackup
 {
-    public struct BackupSettings
+    public enum ComparisonMethod
     {
-        public bool copyAttributes;
-        public int retryCount;
-        public int retryWaitMilliSec;
-        BackupSettings(bool copyAttributes = true, int retryCount = 10, int retryWaitMilliSec = 10000)
-        {
-            this.copyAttributes = copyAttributes;
-            this.retryCount = retryCount;
-            this.retryWaitMilliSec = retryWaitMilliSec;
-        }
+        NoComparison,
+        ArchiveAttribute,
+        WriteTime,
+        FileContentsSHA1,
+    }
+    public class BackupSettings
+    {
+        public bool copyAttributes = true;
+        public int retryCount = 10;
+        public int retryWaitMilliSec = 10000;
+        public ComparisonMethod comparisonMethod = ComparisonMethod.WriteTime;
     }
     internal class DirectoryBackup
     {
@@ -30,7 +32,7 @@ namespace SkyziBackup
         private string _destPath;
         private int currentRetryCount;
 
-        public DirectoryBackup(string originPath, string destPath, string password = "", BackupSettings settings = new BackupSettings())
+        public DirectoryBackup(string originPath, string destPath, string password = "")
         {
             _originPath = originPath;
             _destPath = destPath;
@@ -38,7 +40,7 @@ namespace SkyziBackup
             {
                 AesCrypter = new OpensslCompatibleAesCrypter(password);
             }
-            Settings = settings;
+            Settings = new BackupSettings();
         }
 
         public class BackupResults
@@ -86,16 +88,16 @@ namespace SkyziBackup
             {
                 string destDirPath = originDirPath.Replace(_originPath, _destPath);
                 Debug.WriteLine($"存在しなければ作成: '{destDirPath}'");
-                Directory.CreateDirectory(destDirPath);
+                var dir = Directory.CreateDirectory(destDirPath);
                 if (Settings.copyAttributes)
                 {
                     Debug.WriteLine($"属性をコピー: '{originDirPath}'");
-                    Directory.SetCreationTime(destDirPath, Directory.GetCreationTime(originDirPath));
-                    Directory.SetLastWriteTime(destDirPath, Directory.GetLastWriteTime(originDirPath));
+                    dir.CreationTime = Directory.GetCreationTime(originDirPath);
+                    dir.LastWriteTime = Directory.GetLastWriteTime(originDirPath);
                 }
             }
 
-            foreach (string originFilePath in System.IO.Directory.EnumerateFiles(_originPath, "*", System.IO.SearchOption.AllDirectories))
+            foreach (string originFilePath in Directory.EnumerateFiles(_originPath, "*", SearchOption.AllDirectories))
             {
                 string destFilePath = originFilePath.Replace(_originPath, _destPath);
                 FileBackup(originFilePath, destFilePath);
@@ -120,6 +122,39 @@ namespace SkyziBackup
 
         private void FileBackup(string originFilePath, string destFilePath)
         {
+            switch (Settings.comparisonMethod)
+            {
+                case ComparisonMethod.NoComparison:
+                    break;
+                case ComparisonMethod.ArchiveAttribute:
+                    if ((File.GetAttributes(originFilePath) & FileAttributes.Archive) == FileAttributes.Archive)
+                    {
+                        break;
+                    }
+                    else
+                    {
+                        // Archive属性のないファイルはスキップする
+                        Debug.WriteLine($"Archive属性のないファイルをスキップ: '{originFilePath}'");
+                        return;
+                    }
+                case ComparisonMethod.WriteTime:
+                    if(File.Exists(destFilePath) && File.GetLastWriteTime(originFilePath) == File.GetLastWriteTime(destFilePath))
+                    {
+                        Debug.WriteLine($"更新日時の同じファイルをスキップ: '{originFilePath}'");
+                        return;
+                    }
+                    else
+                    {
+                        // 本当はここでサイズの比較もしたかったけど暗号化したら若干サイズが変わってしまうので……AESのCBCモードだとパディングのせいで毎回増加量も変動するから面倒だし、やっぱデータベースが必要か
+                        break;
+                    }
+                case ComparisonMethod.FileContentsSHA1:
+                    if (!File.Exists(destFilePath)) { break; }
+                    else
+                    {
+                        throw new NotImplementedException("これ前回バックアップ時のハッシュ値を控えておいて比較するか、もしくは複合しないとあかんので後回し。");
+                    }
+            }
             Debug.WriteLine($"バックアップ開始 '{originFilePath}' => '{destFilePath}'");
             if (AesCrypter != null)
             {
@@ -131,10 +166,14 @@ namespace SkyziBackup
                         {
                             Debug.WriteLine($"属性をコピー: '{originFilePath}'");
                             var attributes = File.GetAttributes(originFilePath);
-                            //if((attributes & FileAttributes.Compressed) == FileAttributes.Compressed)
+                            //if ((attributes & FileAttributes.Compressed) == FileAttributes.Compressed)
                             //{
                             //    attributes = RemoveAttribute(attributes, FileAttributes.Compressed);
                             //}
+                            if (Settings.comparisonMethod == ComparisonMethod.ArchiveAttribute && ((attributes & FileAttributes.Archive) == FileAttributes.Archive))
+                            {
+                                attributes = RemoveAttribute(attributes, FileAttributes.Archive);
+                            }
                             File.SetAttributes(destFilePath, attributes);
 
                             File.SetCreationTime(destFilePath, File.GetCreationTime(originFilePath));
