@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Timers;
+using NLog;
 
 namespace SkyziBackup
 {
@@ -27,7 +28,7 @@ namespace SkyziBackup
         public OpensslCompatibleAesCrypter AesCrypter { get; set; }
         public BackupSettings Settings { get; set; }
 
-
+        private static Logger logger = LogManager.GetCurrentClassLogger();
         private string _originPath;
         private string _destPath;
         private int currentRetryCount;
@@ -82,16 +83,21 @@ namespace SkyziBackup
 
         public BackupResults StartBackup()
         {
-            if (!Directory.Exists(_originPath)) return new BackupResults(false, true, $"バックアップ元のディレクトリ{_originPath}が見つかりません。");
+            logger.Info("バックアップを開始'{0}' => '{1}'", _originPath, _destPath);
+            if (!Directory.Exists(_originPath))
+            {
+                logger.Error($"バックアップ元のディレクトリ'{_originPath}'が見つかりません。");
+                return new BackupResults(false, true, $"バックアップ元のディレクトリ'{_originPath}'が見つかりません。"); 
+            }
             Results = new BackupResults(false, false, "バックアップ中...");
             foreach (string originDirPath in Directory.EnumerateDirectories(_originPath, "*", SearchOption.AllDirectories))
             {
                 string destDirPath = originDirPath.Replace(_originPath, _destPath);
-                Debug.WriteLine($"存在しなければ作成: '{destDirPath}'");
+                logger.Info($"存在しなければ作成: '{destDirPath}'");
                 var dir = Directory.CreateDirectory(destDirPath);
                 if (Settings.copyAttributes)
                 {
-                    Debug.WriteLine($"属性をコピー: '{originDirPath}'");
+                    logger.Info($"属性をコピー: '{originDirPath}'");
                     dir.CreationTime = Directory.GetCreationTime(originDirPath);
                     dir.LastWriteTime = Directory.GetLastWriteTime(originDirPath);
                 }
@@ -108,7 +114,7 @@ namespace SkyziBackup
             // リトライ処理
             if (Results.failedFileList.Count != 0 && Settings.retryCount > 0)
             {
-                Debug.WriteLine($"{Settings.retryWaitMilliSec} ミリ秒毎に {Settings.retryCount} 回リトライ");
+                logger.Info($"{Settings.retryWaitMilliSec} ミリ秒毎に {Settings.retryCount} 回リトライ");
                 RetryStart();
             }
             else
@@ -134,13 +140,13 @@ namespace SkyziBackup
                     else
                     {
                         // Archive属性のないファイルはスキップする
-                        Debug.WriteLine($"Archive属性のないファイルをスキップ: '{originFilePath}'");
+                        logger.Info($"Archive属性のないファイルをスキップ: '{originFilePath}'");
                         return;
                     }
                 case ComparisonMethod.WriteTime:
                     if(File.Exists(destFilePath) && File.GetLastWriteTime(originFilePath) == File.GetLastWriteTime(destFilePath))
                     {
-                        Debug.WriteLine($"更新日時の同じファイルをスキップ: '{originFilePath}'");
+                        logger.Info($"更新日時の同じファイルをスキップ: '{originFilePath}'");
                         return;
                     }
                     else
@@ -155,7 +161,7 @@ namespace SkyziBackup
                         throw new NotImplementedException("これ前回バックアップ時のハッシュ値を控えておいて比較するか、もしくは複合しないとあかんので後回し。");
                     }
             }
-            Debug.WriteLine($"バックアップ開始 '{originFilePath}' => '{destFilePath}'");
+            logger.Info($"バックアップ開始 '{originFilePath}' => '{destFilePath}'");
             if (AesCrypter != null)
             {
                 try
@@ -164,7 +170,7 @@ namespace SkyziBackup
                     {
                         if (Settings.copyAttributes)
                         {
-                            Debug.WriteLine($"属性をコピー: '{originFilePath}'");
+                            logger.Info($"属性をコピー: '{originFilePath}'");
                             var attributes = File.GetAttributes(originFilePath);
                             //if ((attributes & FileAttributes.Compressed) == FileAttributes.Compressed)
                             //{
@@ -179,7 +185,7 @@ namespace SkyziBackup
                             File.SetCreationTime(destFilePath, File.GetCreationTime(originFilePath));
                             File.SetLastWriteTime(destFilePath, File.GetLastWriteTime(originFilePath));
                         }
-                        Debug.WriteLine("成功!");
+                        logger.Info("成功!");
                         Results.backedupFileList.Add(originFilePath);
                         if (Results.failedFileList.Contains(originFilePath))
                         {
@@ -188,14 +194,14 @@ namespace SkyziBackup
                     }
                     else
                     {
-                        Debug.WriteLine($"暗号化失敗: {AesCrypter.Error}");
+                        logger.Error($"暗号化失敗: {AesCrypter.Error}");
                         if (!Results.failedFileList.Contains(originFilePath))
                             Results.failedFileList.Add(originFilePath);
                     }
                 }
                 catch (Exception e)
                 {
-                    Debug.WriteLine($"失敗: {e}");
+                    logger.Error($"失敗: {e}");
                     if (!Results.failedFileList.Contains(originFilePath))
                         Results.failedFileList.Add(originFilePath);
                 }

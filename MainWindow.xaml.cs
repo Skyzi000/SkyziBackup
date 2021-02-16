@@ -12,6 +12,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using NLog;
 using Skyzi000.Cryptography;
 
 namespace SkyziBackup
@@ -21,6 +22,7 @@ namespace SkyziBackup
     /// </summary>
     public partial class MainWindow : Window
     {
+        private static Logger logger = LogManager.GetCurrentClassLogger();
         public MainWindow()
         {
             InitializeComponent();
@@ -44,7 +46,7 @@ namespace SkyziBackup
                 Properties.Settings.Default.AppDataPath = dataPath.Text;
                 Properties.Settings.Default.Save();
                 dataPath.Text = Properties.Settings.Default.AppDataPath;
-                System.Diagnostics.Debug.WriteLine("DataPath : " + dataPath.Text);
+                logger.Debug("DataPath : " + dataPath.Text);
                 NLog.GlobalDiagnosticsContext.Set("AppDataPath", dataPath.Text);
             }
         }
