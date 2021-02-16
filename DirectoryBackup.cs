@@ -10,6 +10,8 @@ namespace SkyziBackup
     {
         public BackupResults Results { get; private set; }
         public OpensslCompatibleAesCrypter AesCrypter { get; set; }
+        public bool CopyAttributes { get; set; }
+
 
         private string _originPath;
         private string _destPath;
@@ -63,6 +65,11 @@ namespace SkyziBackup
             {
                 string destDirPath = originDirPath.Replace(_originPath, _destPath);
                 Directory.CreateDirectory(destDirPath);
+                if (CopyAttributes)
+                {
+                    Directory.SetCreationTime(destDirPath, Directory.GetCreationTime(originDirPath));
+                    Directory.SetLastWriteTime(destDirPath, Directory.GetLastWriteTime(originDirPath));
+                }
             }
             //try
             //{
@@ -76,6 +83,18 @@ namespace SkyziBackup
                     {
                         if (AesCrypter.EncryptFile(originFilePath, destFilePath))
                         {
+                            if (CopyAttributes)
+                            {
+                                var attributes = File.GetAttributes(originFilePath);
+                                //if((attributes & FileAttributes.Compressed) == FileAttributes.Compressed)
+                                //{
+                                //    attributes = RemoveAttribute(attributes, FileAttributes.Compressed);
+                                //}
+                                File.SetAttributes(destFilePath, attributes);
+                                
+                                File.SetCreationTime(destFilePath, File.GetCreationTime(originFilePath));
+                                File.SetLastWriteTime(destFilePath, File.GetLastWriteTime(originFilePath));
+                            }
                             Debug.WriteLine("Success!");
                             Results.backedupFileList.Add(originFilePath);
                         }
@@ -104,6 +123,10 @@ namespace SkyziBackup
 
             Results.isSuccess = Results.failedFileList.Count == 0;
             return Results;
+        }
+        private static FileAttributes RemoveAttribute(FileAttributes attributes, FileAttributes attributesToRemove)
+        {
+            return attributes & ~attributesToRemove;
         }
     }
 }
