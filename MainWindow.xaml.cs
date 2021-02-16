@@ -28,8 +28,10 @@ namespace SkyziBackup
 
         private void encryptButton_Click(object sender, RoutedEventArgs e)
         {
-            OpensslCompatibleAesCrypter crypter = new OpensslCompatibleAesCrypter(password.Text);
-            crypter.EncryptFile(inputPath.Text, inputPath.Text + ".gui.aes256");
+            //OpensslCompatibleAesCrypter crypter = new OpensslCompatibleAesCrypter(password.Text);
+            //crypter.EncryptFile(inputPath.Text, inputPath.Text + ".gui.aes256");
+            var db = new DirectoryBackup(originPath.Text, destPath.Text, password.Text);
+            db.StartBackup();
         }
     }
 }

@@ -7,9 +7,10 @@
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="800">
     <Grid>
-        <TextBox x:Name="inputPath" HorizontalAlignment="Left" Margin="152,170,0,0" Text="暗号化するファイルのパス" TextWrapping="Wrap" VerticalAlignment="Top" Width="180"/>
-        <TextBox x:Name="password" HorizontalAlignment="Left" Margin="152,191,0,0" Text="password" TextWrapping="Wrap" VerticalAlignment="Top" Width="180"/>
-        <Button x:Name="encryptButton" Click="encryptButton_Click" Content="暗号化！" HorizontalAlignment="Left" Margin="195,236,0,0" VerticalAlignment="Top"/>
+        <TextBox x:Name="originPath" HorizontalAlignment="Left" Margin="15,150,0,0" Text="G:\Temp\SkyziBackup\Origin" TextWrapping="Wrap" VerticalAlignment="Top" Width="180"/>
+        <TextBox x:Name="destPath" HorizontalAlignment="Left" Margin="15,170,0,0" Text="G:\Temp\SkyziBackup\Dest" TextWrapping="Wrap" VerticalAlignment="Top" Width="180"/>
+        <TextBox x:Name="password" HorizontalAlignment="Left" Margin="15,191,0,0" Text="password" TextWrapping="Wrap" VerticalAlignment="Top" Width="180"/>
+        <Button x:Name="encryptButton" Click="encryptButton_Click" Content="暗号化！" HorizontalAlignment="Left" Margin="15,236,0,0" VerticalAlignment="Top"/>
 
     </Grid>
 </Window>
