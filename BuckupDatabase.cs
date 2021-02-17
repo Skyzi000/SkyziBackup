@@ -49,6 +49,15 @@ namespace SkyziBackup
         public BackupSettings localSettings = null;
 
         public string SaveFileName => destBaseDirPath;
+
+        public BackupDatabase(string originBaseDirPath, string destBaseDirPath)
+        {
+            this.originBaseDirPath = originBaseDirPath;
+            this.destBaseDirPath = destBaseDirPath;
+            fileDataDict = new Dictionary<string, BackedUpFileData>();
+            failedList = new List<string>();
+            ignoreList = new List<string>();
+        }
     }
 
     /// <summary>
