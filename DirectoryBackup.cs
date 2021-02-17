@@ -3,6 +3,7 @@ using Skyzi000.Cryptography;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text.RegularExpressions;
 
 namespace SkyziBackup
 {
@@ -20,6 +21,7 @@ namespace SkyziBackup
         public int retryCount = 10;
         public int retryWaitMilliSec = 10000;
         public ComparisonMethod comparisonMethod = ComparisonMethod.WriteTime;
+        public List<Regex> regices;
     }
 
     public class BackupResults
@@ -73,9 +75,9 @@ namespace SkyziBackup
 
     internal class DirectoryBackup
     {
-        public BackupResults Results { get; private set; }
+        public BackupResults Results { get; private set; } = new BackupResults(false);
         public OpensslCompatibleAesCrypter AesCrypter { get; set; }
-        public BackupSettings Settings { get; set; }
+        public BackupSettings Settings { get; set; } = new BackupSettings();
 
         private static Logger logger = LogManager.GetCurrentClassLogger();
         private string _originPath;
@@ -90,15 +92,13 @@ namespace SkyziBackup
             {
                 AesCrypter = new OpensslCompatibleAesCrypter(password);
             }
-            Settings = new BackupSettings();
-            Results = new BackupResults(false);
             Results.Finished += Results_Finished;
         }
 
         private void Results_Finished(object sender, EventArgs e)
         {
             Results.Message = Results.isSuccess ? "バックアップ完了" : "バックアップ失敗";
-            logger.Info(Results.Message);
+            logger.Info("{0}\n________________________________________\n\n", Results.Message);
         }
 
         public BackupResults StartBackup()
@@ -115,6 +115,22 @@ namespace SkyziBackup
             Results.Message = "バックアップ中...";
             foreach (string originDirPath in Directory.EnumerateDirectories(_originPath, "*", SearchOption.AllDirectories))
             {
+                //logger.Debug(originDirPath + "\n" + _originPath + "\n" + originDirPath.Substring(_originPath.Length));
+
+                if (Settings.regices != null)
+                {
+                    bool isIgnore = false;
+                    foreach (var reg in Settings.regices)
+                    {
+                        if (reg.IsMatch((originDirPath + @"\").Substring(_originPath.Length)))
+                        {
+                            logger.Info("除外パターン '{0}' に一致 : '{1}'", reg.ToString(), originDirPath);
+                            isIgnore = true;
+                            break;
+                        }
+                    }
+                    if (isIgnore) continue;
+                }
                 string destDirPath = originDirPath.Replace(_originPath, _destPath);
                 logger.Info($"存在しなければ作成: '{destDirPath}'");
                 var dir = Directory.CreateDirectory(destDirPath);
@@ -128,6 +144,20 @@ namespace SkyziBackup
 
             foreach (string originFilePath in Directory.EnumerateFiles(_originPath, "*", SearchOption.AllDirectories))
             {
+                if (Settings.regices != null)
+                {
+                    bool isIgnore = false;
+                    foreach (var reg in Settings.regices)
+                    {
+                        if (reg.IsMatch(originFilePath.Substring(_originPath.Length)))
+                        {
+                            logger.Info("除外パターン '{0}' に一致 : '{1}'", reg.ToString(), originFilePath);
+                            isIgnore = true;
+                            break;
+                        }
+                    }
+                    if (isIgnore) continue;
+                }
                 string destFilePath = originFilePath.Replace(_originPath, _destPath);
                 FileBackup(originFilePath, destFilePath);
             }
