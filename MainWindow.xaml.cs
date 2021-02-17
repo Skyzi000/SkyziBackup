@@ -58,7 +58,7 @@ namespace SkyziBackup
             var db = new DirectoryBackup(originPath.Text, destPath.Text, password.Text);
             db.Settings = new BackupSettings();
             db.StartBackup();
-            message.Text = db.Results.message;
+            message.Text = db.Results.Message;
         }
     }
 }

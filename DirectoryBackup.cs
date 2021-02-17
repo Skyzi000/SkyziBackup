@@ -59,7 +59,12 @@ namespace SkyziBackup
             /// <summary>
             /// 全体的なメッセージ。
             /// </summary>
-            public string message;
+            public string Message { get => _message; set { OnMessageChanged();_message = value; } }
+
+            private string _message;
+
+            public Action MessageChanged;
+            protected virtual void OnMessageChanged() => MessageChanged?.Invoke();
 
             /// <summary>
             /// 新しくバックアップされたファイルのパス。
@@ -75,7 +80,7 @@ namespace SkyziBackup
             {
                 this.isSuccess = isSuccess;
                 this.isFinished = isFinished;
-                this.message = message;
+                this.Message = message;
                 backedupFileList = new List<string>();
                 failedFileList = new List<string>();
             }
@@ -120,7 +125,8 @@ namespace SkyziBackup
             else
             {
                 Results.isFinished = true;
-                Results.message = Results.isSuccess ? "バックアップ完了" : "バックアップ失敗";
+                Results.Message = Results.isSuccess ? "バックアップ完了" : "バックアップ失敗";
+                logger.Info(Results.Message);
             }
 
             return Results;
@@ -214,31 +220,39 @@ namespace SkyziBackup
 
         private void RetryStart()
         {
+            if (currentRetryCount >= Settings.retryCount)
+            {
+                Results.isFinished = true;
+                Results.Message = Results.isSuccess ? "バックアップ完了" : "バックアップ失敗";
+                logger.Info(Results.Message);
+                return;
+            }
             var retryTimer = new Timer(Settings.retryWaitMilliSec);
+            retryTimer.AutoReset = false;
             retryTimer.Elapsed += (sender, e) =>
             {
                 currentRetryCount++;
-                Results.message = $"リトライ {currentRetryCount}/{Settings.retryCount} 回目";
-                Debug.WriteLine(Results.message);
+                Results.Message = $"リトライ {currentRetryCount}/{Settings.retryCount} 回目";
+                logger.Info(Results.Message);
                 foreach (string originFilePath in Results.failedFileList)
                 {
                     string destFilePath = originFilePath.Replace(_originPath, _destPath);
                     FileBackup(originFilePath, destFilePath);
                 }
                 Results.isSuccess = Results.failedFileList.Count == 0;
-                if (Results.isSuccess || currentRetryCount >= Settings.retryCount)
+                if (Results.isSuccess)
                 {
                     Results.isFinished = true;
-                    Results.message = Results.isSuccess ? "バックアップ完了" : "バックアップ失敗";
-                    retryTimer.Stop();
+                    Results.Message = "バックアップ完了";
+                    logger.Info(Results.Message);
                 }
                 else
                 {
-                    Results.message = $"リトライ待機中...({currentRetryCount + 1}/{Settings.retryCount}回目)";
+                    RetryStart();
                 }
             };
             retryTimer.Start();
-            Results.message = $"リトライ待機中...({currentRetryCount+1}/{Settings.retryCount}回目)";
+            Results.Message = $"リトライ待機中...({currentRetryCount+1}/{Settings.retryCount}回目)";
         }
 
         private static FileAttributes RemoveAttribute(FileAttributes attributes, FileAttributes attributesToRemove)
