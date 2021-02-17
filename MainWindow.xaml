@@ -10,7 +10,7 @@
         <TextBox x:Name="originPath" HorizontalAlignment="Left" Margin="15,50,0,0" Text="G:\Temp\SkyziBackup\Origin" TextWrapping="NoWrap" VerticalAlignment="Top" Width="180"/>
         <TextBox x:Name="destPath" HorizontalAlignment="Left" Margin="15,90,0,0" Text="G:\Temp\SkyziBackup\Dest" TextWrapping="NoWrap" VerticalAlignment="Top" Width="180"/>
         <PasswordBox x:Name="password" HorizontalAlignment="Left" Margin="15,130,0,0" Password="password" VerticalAlignment="Top" Width="180"/>
-        <Button x:Name="encryptButton" Click="encryptButton_Click" Content="暗号化！" HorizontalAlignment="Left" Margin="15,160,0,0" VerticalAlignment="Top"/>
+        <Button x:Name="encryptButton" Click="EncryptButton_ClickAsync" Content="暗号化！" HorizontalAlignment="Left" Margin="15,160,0,0" VerticalAlignment="Top"/>
         <TextBlock x:Name="message" HorizontalAlignment="Left" Margin="15,190,0,0" Text="" TextWrapping="Wrap" VerticalAlignment="Top"/>
         <TextBox x:Name="dataPath" HorizontalAlignment="Left" Margin="580,50,0,0" Text="" TextWrapping="NoWrap" VerticalAlignment="Top" Width="180"/>
         <Label x:Name="originPathLabel" Content="バックアップ元" HorizontalAlignment="Left" Margin="15,30,0,0" VerticalAlignment="Top"/>

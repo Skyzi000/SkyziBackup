@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -24,10 +25,12 @@ namespace SkyziBackup
     public partial class MainWindow : Window
     {
         private static Logger logger = LogManager.GetCurrentClassLogger();
+        private SynchronizationContext _mainContext;
 
         public MainWindow()
         {
             InitializeComponent();
+            _mainContext = SynchronizationContext.Current;
             ContentRendered += (s, e) =>
             {
                 dataPath.TextChanged += DataPath_TextChanged;
@@ -53,7 +56,7 @@ namespace SkyziBackup
             }
         }
 
-        private void encryptButton_Click(object sender, RoutedEventArgs e)
+        private async void EncryptButton_ClickAsync(object sender, RoutedEventArgs e)
         {
             var patStrArr = ignorePatternBox.Text.Split(new[] { "\r\n", "\n", "\r", "|" }, StringSplitOptions.None);
             List<Regex> regices = new List<Regex>(patStrArr.Select(s => ShapePattern(s)));
@@ -64,8 +67,8 @@ namespace SkyziBackup
             {
                 Settings = new BackupSettings() { regices = regices }
             };
-            db.Results.MessageChanged += (_s, _e) => { message.Text += db.Results.Message + "\n"; };
-            db.StartBackup();
+            db.Results.MessageChanged += (_s, _e) => { _mainContext.Post((d) => { message.Text += db.Results.Message + "\n"; }, null); };
+            await Task.Run(() => db.StartBackup());
         }
 
         private Regex ShapePattern(string strPattern)
