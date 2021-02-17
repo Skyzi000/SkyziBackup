@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -23,6 +24,7 @@ namespace SkyziBackup
     public partial class MainWindow : Window
     {
         private static Logger logger = LogManager.GetCurrentClassLogger();
+
         public MainWindow()
         {
             InitializeComponent();
@@ -53,12 +55,27 @@ namespace SkyziBackup
 
         private void encryptButton_Click(object sender, RoutedEventArgs e)
         {
-            //OpensslCompatibleAesCrypter crypter = new OpensslCompatibleAesCrypter(password.Text);
-            //crypter.EncryptFile(inputPath.Text, inputPath.Text + ".gui.aes256");
-            message.Text = "バックアップ開始\n";
-            var db = new DirectoryBackup(originPath.Text, destPath.Text, password.Text);
-            db.Results.MessageChanged += (_s, _e) => { message.Text += db.Results.Message + "\n"; };
-            db.StartBackup();
+            var patStrArr = ignorePatternBox.Text.Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.None);
+            List<Regex> regices = new List<Regex>(patStrArr.Select(s => ShapePattern(s)));
+
+            message.Text = "";
+            foreach (var patReg in regices)
+            {
+                message.Text += patReg.ToString() + "\n";
+            }
+
+            //message.Text = "バックアップ開始\n";
+            //var db = new DirectoryBackup(originPath.Text, destPath.Text, password.Password)
+            //{
+            //    Settings = new BackupSettings() { }
+            //};
+            //db.Results.MessageChanged += (_s, _e) => { message.Text += db.Results.Message + "\n"; };
+            //db.StartBackup();
+        }
+
+        private Regex ShapePattern(string strPattern)
+        {
+            return new Regex("^" + Regex.Escape(strPattern).Replace(@"\*", "*").Replace(@"\?", "?") + (Regex.IsMatch(strPattern, @"\\$") ? @"*$" : @"$"), RegexOptions.Compiled);
         }
     }
 }
