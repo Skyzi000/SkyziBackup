@@ -3,6 +3,7 @@ using Skyzi000.Cryptography;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 
 namespace SkyziBackup
@@ -80,6 +81,7 @@ namespace SkyziBackup
         public BackupSettings Settings { get; set; } = new BackupSettings();
 
         private static Logger logger = LogManager.GetCurrentClassLogger();
+        private static readonly HashAlgorithm sha1Provider = new SHA1CryptoServiceProvider();
         private string _originPath;
         private string _destPath;
         private int currentRetryCount;
@@ -299,6 +301,18 @@ namespace SkyziBackup
         private static FileAttributes RemoveAttribute(FileAttributes attributes, FileAttributes attributesToRemove)
         {
             return attributes & ~attributesToRemove;
+        }
+
+        public static string ComputeSHA1(string filePath)
+        {
+            using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            return ComputeSHA1(fs);
+        }
+
+        public static string ComputeSHA1(Stream stream)
+        {
+            var bs = sha1Provider.ComputeHash(stream);
+            return BitConverter.ToString(bs).ToLower().Replace("-", "");
         }
     }
 }
