@@ -235,36 +235,29 @@ namespace SkyziBackup
                 Results.IsFinished = true;
                 return;
             }
-            var retryTimer = new Timer(Settings.retryWaitMilliSec);
-            retryTimer.AutoReset = false;
-            retryTimer.Elapsed += (sender, e) =>
-            {
-                logger.Debug(e.SignalTime);
-                currentRetryCount++;
-                //Results.Message = $"リトライ {currentRetryCount}/{Settings.retryCount} 回目";
-                //logger.Info(Results.Message);
-                foreach (string originFilePath in Results.failedFileList)
-                {
-                    string destFilePath = originFilePath.Replace(_originPath, _destPath);
-                    FileBackup(originFilePath, destFilePath);
-                }
-                Results.isSuccess = Results.failedFileList.Count == 0;
-                if (Results.isSuccess || currentRetryCount >= Settings.retryCount)
-                {
-                    Results.IsFinished = true;
-                }
-                else
-                {
-                    //Results.Message = $"リトライ待機中...({currentRetryCount + 1}/{Settings.retryCount}回目)";
-                    RetryStart();
-                    //retryTimer.Start();
-                    //Results.Message = $"リトライ待機中...({currentRetryCount + 1}/{Settings.retryCount}回目)";
-                    //logger.Debug(Results.Message);
-                }
-            };
-            retryTimer.Enabled = true;
-            Results.Message = $"リトライ待機中...({currentRetryCount+1}/{Settings.retryCount}回目)";
+            Results.Message = $"リトライ待機中...({currentRetryCount + 1}/{Settings.retryCount}回目)";
             logger.Debug(Results.Message);
+
+            System.Threading.Thread.Sleep(Settings.retryWaitMilliSec);
+            
+            currentRetryCount++;
+            Results.Message = $"リトライ {currentRetryCount}/{Settings.retryCount} 回目";
+            logger.Info(Results.Message);
+            foreach (string originFilePath in Results.failedFileList.ToArray())
+            {
+                string destFilePath = originFilePath.Replace(_originPath, _destPath);
+                FileBackup(originFilePath, destFilePath);
+            }
+            Results.isSuccess = Results.failedFileList.Count == 0;
+            if (Results.isSuccess)
+            {
+                Results.IsFinished = true;
+                return;
+            }
+            else
+            {
+                RetryStart();
+            }
         }
 
         private static FileAttributes RemoveAttribute(FileAttributes attributes, FileAttributes attributesToRemove)
