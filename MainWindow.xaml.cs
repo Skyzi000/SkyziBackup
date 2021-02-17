@@ -55,10 +55,10 @@ namespace SkyziBackup
         {
             //OpensslCompatibleAesCrypter crypter = new OpensslCompatibleAesCrypter(password.Text);
             //crypter.EncryptFile(inputPath.Text, inputPath.Text + ".gui.aes256");
+            message.Text = "バックアップ開始\n";
             var db = new DirectoryBackup(originPath.Text, destPath.Text, password.Text);
-            db.Settings = new BackupSettings();
+            db.Results.MessageChanged += (_s, _e) => { message.Text += db.Results.Message + "\n"; };
             db.StartBackup();
-            message.Text = db.Results.Message;
         }
     }
 }

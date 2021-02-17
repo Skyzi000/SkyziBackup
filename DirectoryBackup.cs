@@ -22,6 +22,50 @@ namespace SkyziBackup
         public int retryWaitMilliSec = 10000;
         public ComparisonMethod comparisonMethod = ComparisonMethod.WriteTime;
     }
+    public class BackupResults
+    {
+        /// <summary>
+        /// 完了したかどうか。リトライ中はfalse。
+        /// </summary>
+        public bool IsFinished { get => _isFinished; set { _isFinished = value; if (_isFinished) OnFinished(EventArgs.Empty); } }
+        private bool _isFinished;
+        public event EventHandler Finished;
+        protected virtual void OnFinished(EventArgs e) => Finished?.Invoke(this, e);
+
+        /// <summary>
+        /// 成功したかどうか。バックアップ進行中や一つでも失敗したファイルがある場合はfalse。
+        /// </summary>
+        public bool isSuccess;
+
+        /// <summary>
+        /// 全体的なメッセージ。
+        /// </summary>
+        public string Message { get => _message; set { _message = value; OnMessageChanged(EventArgs.Empty); } }
+
+        private string _message;
+
+        public event EventHandler MessageChanged;
+        protected virtual void OnMessageChanged(EventArgs e) => MessageChanged?.Invoke(this, e);
+
+        /// <summary>
+        /// 新しくバックアップされたファイルのパス。
+        /// </summary>
+        public List<string> backedupFileList;
+
+        /// <summary>
+        /// バックアップ対象だが失敗したファイルのパス。
+        /// </summary>
+        public List<string> failedFileList;
+
+        public BackupResults(bool isSuccess, bool isFinished = false, string message = "")
+        {
+            this.isSuccess = isSuccess;
+            this.IsFinished = isFinished;
+            this.Message = message;
+            backedupFileList = new List<string>();
+            failedFileList = new List<string>();
+        }
+    }
     internal class DirectoryBackup
     {
         public BackupResults Results { get; private set; }
@@ -42,59 +86,28 @@ namespace SkyziBackup
                 AesCrypter = new OpensslCompatibleAesCrypter(password);
             }
             Settings = new BackupSettings();
+            Results = new BackupResults(false);
+            Results.Finished += Results_Finished;
         }
 
-        public class BackupResults
+        private void Results_Finished(object sender, EventArgs e)
         {
-            /// <summary>
-            /// 完了したかどうか。リトライ中はfalse。
-            /// </summary>
-            public bool isFinished;
-
-            /// <summary>
-            /// 成功したかどうか。バックアップ進行中や一つでも失敗したファイルがある場合はfalse。
-            /// </summary>
-            public bool isSuccess;
-
-            /// <summary>
-            /// 全体的なメッセージ。
-            /// </summary>
-            public string Message { get => _message; set { OnMessageChanged();_message = value; } }
-
-            private string _message;
-
-            public Action MessageChanged;
-            protected virtual void OnMessageChanged() => MessageChanged?.Invoke();
-
-            /// <summary>
-            /// 新しくバックアップされたファイルのパス。
-            /// </summary>
-            public List<string> backedupFileList;
-
-            /// <summary>
-            /// バックアップ対象だが失敗したファイルのパス。
-            /// </summary>
-            public List<string> failedFileList;
-
-            public BackupResults(bool isSuccess, bool isFinished = false, string message = "")
-            {
-                this.isSuccess = isSuccess;
-                this.isFinished = isFinished;
-                this.Message = message;
-                backedupFileList = new List<string>();
-                failedFileList = new List<string>();
-            }
+            Results.Message = Results.isSuccess ? "バックアップ完了" : "バックアップ失敗";
+            logger.Info(Results.Message);
         }
 
         public BackupResults StartBackup()
         {
             logger.Info("バックアップを開始'{0}' => '{1}'", _originPath, _destPath);
+            currentRetryCount = 0;
             if (!Directory.Exists(_originPath))
             {
-                logger.Error($"バックアップ元のディレクトリ'{_originPath}'が見つかりません。");
-                return new BackupResults(false, true, $"バックアップ元のディレクトリ'{_originPath}'が見つかりません。"); 
+                Results.Message = $"バックアップ元のディレクトリ'{_originPath}'が見つかりません。";
+                logger.Error(Results.Message);
+                Results.IsFinished = true;
+                return Results; 
             }
-            Results = new BackupResults(false, false, "バックアップ中...");
+            Results.Message = "バックアップ中...";
             foreach (string originDirPath in Directory.EnumerateDirectories(_originPath, "*", SearchOption.AllDirectories))
             {
                 string destDirPath = originDirPath.Replace(_originPath, _destPath);
@@ -124,11 +137,8 @@ namespace SkyziBackup
             }
             else
             {
-                Results.isFinished = true;
-                Results.Message = Results.isSuccess ? "バックアップ完了" : "バックアップ失敗";
-                logger.Info(Results.Message);
+                Results.IsFinished = true;
             }
-
             return Results;
         }
 
@@ -222,37 +232,39 @@ namespace SkyziBackup
         {
             if (currentRetryCount >= Settings.retryCount)
             {
-                Results.isFinished = true;
-                Results.Message = Results.isSuccess ? "バックアップ完了" : "バックアップ失敗";
-                logger.Info(Results.Message);
+                Results.IsFinished = true;
                 return;
             }
             var retryTimer = new Timer(Settings.retryWaitMilliSec);
             retryTimer.AutoReset = false;
             retryTimer.Elapsed += (sender, e) =>
             {
+                logger.Debug(e.SignalTime);
                 currentRetryCount++;
-                Results.Message = $"リトライ {currentRetryCount}/{Settings.retryCount} 回目";
-                logger.Info(Results.Message);
+                //Results.Message = $"リトライ {currentRetryCount}/{Settings.retryCount} 回目";
+                //logger.Info(Results.Message);
                 foreach (string originFilePath in Results.failedFileList)
                 {
                     string destFilePath = originFilePath.Replace(_originPath, _destPath);
                     FileBackup(originFilePath, destFilePath);
                 }
                 Results.isSuccess = Results.failedFileList.Count == 0;
-                if (Results.isSuccess)
+                if (Results.isSuccess || currentRetryCount >= Settings.retryCount)
                 {
-                    Results.isFinished = true;
-                    Results.Message = "バックアップ完了";
-                    logger.Info(Results.Message);
+                    Results.IsFinished = true;
                 }
                 else
                 {
+                    //Results.Message = $"リトライ待機中...({currentRetryCount + 1}/{Settings.retryCount}回目)";
                     RetryStart();
+                    //retryTimer.Start();
+                    //Results.Message = $"リトライ待機中...({currentRetryCount + 1}/{Settings.retryCount}回目)";
+                    //logger.Debug(Results.Message);
                 }
             };
-            retryTimer.Start();
+            retryTimer.Enabled = true;
             Results.Message = $"リトライ待機中...({currentRetryCount+1}/{Settings.retryCount}回目)";
+            logger.Debug(Results.Message);
         }
 
         private static FileAttributes RemoveAttribute(FileAttributes attributes, FileAttributes attributesToRemove)
