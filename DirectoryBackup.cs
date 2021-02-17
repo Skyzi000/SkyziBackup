@@ -1,10 +1,8 @@
-﻿using Skyzi000.Cryptography;
+﻿using NLog;
+using Skyzi000.Cryptography;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
-using System.Timers;
-using NLog;
 
 namespace SkyziBackup
 {
@@ -15,6 +13,7 @@ namespace SkyziBackup
         WriteTime,
         FileContentsSHA1,
     }
+
     public class BackupSettings
     {
         public bool copyAttributes = true;
@@ -22,14 +21,18 @@ namespace SkyziBackup
         public int retryWaitMilliSec = 10000;
         public ComparisonMethod comparisonMethod = ComparisonMethod.WriteTime;
     }
+
     public class BackupResults
     {
         /// <summary>
         /// 完了したかどうか。リトライ中はfalse。
         /// </summary>
         public bool IsFinished { get => _isFinished; set { _isFinished = value; if (_isFinished) OnFinished(EventArgs.Empty); } }
+
         private bool _isFinished;
+
         public event EventHandler Finished;
+
         protected virtual void OnFinished(EventArgs e) => Finished?.Invoke(this, e);
 
         /// <summary>
@@ -45,6 +48,7 @@ namespace SkyziBackup
         private string _message;
 
         public event EventHandler MessageChanged;
+
         protected virtual void OnMessageChanged(EventArgs e) => MessageChanged?.Invoke(this, e);
 
         /// <summary>
@@ -66,6 +70,7 @@ namespace SkyziBackup
             failedFileList = new List<string>();
         }
     }
+
     internal class DirectoryBackup
     {
         public BackupResults Results { get; private set; }
@@ -105,7 +110,7 @@ namespace SkyziBackup
                 Results.Message = $"バックアップ元のディレクトリ'{_originPath}'が見つかりません。";
                 logger.Error(Results.Message);
                 Results.IsFinished = true;
-                return Results; 
+                return Results;
             }
             Results.Message = "バックアップ中...";
             foreach (string originDirPath in Directory.EnumerateDirectories(_originPath, "*", SearchOption.AllDirectories))
@@ -148,6 +153,7 @@ namespace SkyziBackup
             {
                 case ComparisonMethod.NoComparison:
                     break;
+
                 case ComparisonMethod.ArchiveAttribute:
                     if ((File.GetAttributes(originFilePath) & FileAttributes.Archive) == FileAttributes.Archive)
                     {
@@ -160,7 +166,7 @@ namespace SkyziBackup
                         return;
                     }
                 case ComparisonMethod.WriteTime:
-                    if(File.Exists(destFilePath) && File.GetLastWriteTime(originFilePath) == File.GetLastWriteTime(destFilePath))
+                    if (File.Exists(destFilePath) && File.GetLastWriteTime(originFilePath) == File.GetLastWriteTime(destFilePath))
                     {
                         logger.Info($"更新日時の同じファイルをスキップ: '{originFilePath}'");
                         return;
@@ -239,7 +245,7 @@ namespace SkyziBackup
             logger.Debug(Results.Message);
 
             System.Threading.Thread.Sleep(Settings.retryWaitMilliSec);
-            
+
             currentRetryCount++;
             Results.Message = $"リトライ {currentRetryCount}/{Settings.retryCount} 回目";
             logger.Info(Results.Message);
