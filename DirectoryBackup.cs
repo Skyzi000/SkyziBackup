@@ -230,6 +230,10 @@ namespace SkyziBackup
                             //{
                             //    attributes = RemoveAttribute(attributes, FileAttributes.Compressed);
                             //}
+                            if (attributes.HasFlag(FileAttributes.ReadOnly))
+                            {
+                                attributes = RemoveAttribute(attributes, FileAttributes.ReadOnly);
+                            }
                             if (Settings.comparisonMethod == ComparisonMethod.ArchiveAttribute && ((attributes & FileAttributes.Archive) == FileAttributes.Archive))
                             {
                                 attributes = RemoveAttribute(attributes, FileAttributes.Archive);
