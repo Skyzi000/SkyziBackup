@@ -63,8 +63,11 @@ namespace SkyziBackup
             //var patStrArr = ignorePatternBox.Text.Split(new[] { "\r\n", "\n", "\r", "|" }, StringSplitOptions.None);
             //List<Regex> regices = new List<Regex>(patStrArr.Select(s => ShapePattern(s)));
             //regices.ForEach(r => logger.Debug(r));
-
-            message.Text = "バックアップ開始\n";
+            globalSettings.IgnorePattern = ignorePatternBox.Text;
+            message.Text = $"設定を保存: '{DataContractWriter.GetPath(globalSettings)}'";
+            logger.Info(message.Text);
+            DataContractWriter.Write(globalSettings);
+            message.Text += "\nバックアップ開始\n";
             var db = new DirectoryBackup(originPath.Text, destPath.Text, password.Password, globalSettings);
             db.Results.MessageChanged += (_s, _e) => { _mainContext.Post((d) => { message.Text += db.Results.Message + "\n"; }, null); };
             await Task.Run(() => db.StartBackup());

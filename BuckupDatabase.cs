@@ -95,6 +95,7 @@ namespace SkyziBackup
             if (typeof(T) == typeof(BackupDatabase)) return "database";
             else return "etc";
         }
+        // TODO: エラー処理を追加する
         public static void Write<T>(T obj) where T : IDataContractSerializable
         {
             DataContractSerializer serializer = new DataContractSerializer(typeof(T));

@@ -160,8 +160,7 @@ namespace SkyziBackup
     {
         public BackupResults Results { get; private set; } = new BackupResults(false);
         public OpensslCompatibleAesCrypter AesCrypter { get; set; }
-        public BackupSettings Settings { get => _settings; set { _settings = value; Save<BackupSettings>(Settings); } }
-        private BackupSettings _settings;
+        public BackupSettings Settings { get; set; }
         public BackupDatabase Database { get; private set; }
 
         private static Logger logger = LogManager.GetCurrentClassLogger();
@@ -195,49 +194,15 @@ namespace SkyziBackup
                 ? DataContractWriter.Read<BackupDatabase>(destBaseDirPath)
                 : new BackupDatabase(originBaseDirPath, destBaseDirPath);
         }
-        public void Save<T>(IDataContractSerializable obj, int retryCount = 10, int retryInterval = 1000) where T : IDataContractSerializable
-        {
-            if (retryCount < 0) retryCount = 0;
-            Results.Message = $"{typeof(T).Name}を保存: '{DataContractWriter.GetPath<T>(obj.SaveFileName)}'";
-            logger.Info(Results.Message);
-            SaveWithRetry(obj, retryCount, retryInterval);
-        }
-
-
-        private void SaveWithRetry(IDataContractSerializable data, int retryCount, int retryInterval)
-        {
-            for (int i = 0; i <= retryCount; i++)
-            {
-                if (i != 0)
-                {
-                    Results.Message = $"リトライ: {i}/{retryCount} 回目";
-                    logger.Info(Results.Message);
-                }
-                try
-                {
-                    DataContractWriter.Write(data);
-                }
-                catch (Exception)
-                {
-                    if (retryInterval > 0)
-                    {
-                        Results.Message = $"保存失敗: {(float)retryInterval / 1000:F1}秒間待機";
-                        System.Threading.Thread.Sleep(retryInterval);
-                        continue;
-                    }
-                    break;
-                }
-                Results.Message = $"保存完了";
-                logger.Info(Results.Message);
-                return;
-            }
-            Results.Message = $"保存失敗: '{data.GetType().Name}'";
-            logger.Error(Results.Message);
-        }
 
         private void Results_Finished(object sender, EventArgs e)
         {
-            if (Settings.isUseDatabase) Save<BackupDatabase>(Database);
+            if (Settings.isUseDatabase)
+            {
+                Results.Message = $"データベースを保存: {DataContractWriter.GetPath(Database)}";
+                logger.Info(Results.Message);
+                DataContractWriter.Write(Database);
+            }
             Results.Message = Results.isSuccess ? "バックアップ完了" : "バックアップ失敗";
             logger.Info("{0}\n________________________________________\n\n", Results.Message);
         }
