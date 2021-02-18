@@ -60,22 +60,18 @@ namespace SkyziBackup
 
         private async void EncryptButton_ClickAsync(object sender, RoutedEventArgs e)
         {
-            //var patStrArr = ignorePatternBox.Text.Split(new[] { "\r\n", "\n", "\r", "|" }, StringSplitOptions.None);
-            //List<Regex> regices = new List<Regex>(patStrArr.Select(s => ShapePattern(s)));
-            //regices.ForEach(r => logger.Debug(r));
+            encryptButton.IsEnabled = false;
             globalSettings.IgnorePattern = ignorePatternBox.Text;
             message.Text = $"設定を保存: '{DataContractWriter.GetPath(globalSettings)}'";
             logger.Info(message.Text);
             DataContractWriter.Write(globalSettings);
-            message.Text += "\nバックアップ開始\n";
+            message.Text += $"\n'{originPath.Text}' => '{destPath.Text}'";
+            message.Text += $"\nバックアップ開始: {DateTime.Now}\n";
             var db = new DirectoryBackup(originPath.Text, destPath.Text, password.Password, globalSettings);
-            db.Results.MessageChanged += (_s, _e) => { _mainContext.Post((d) => { message.Text += db.Results.Message + "\n"; }, null); };
+            string m = message.Text;
+            db.Results.MessageChanged += (_s, _e) => { _mainContext.Post((d) => { message.Text = m + db.Results.Message + "\n"; }, null); };
             await Task.Run(() => db.StartBackup());
+            encryptButton.IsEnabled = true;
         }
-
-        //private Regex ShapePattern(string strPattern)
-        //{
-        //    return new Regex("^" + Regex.Escape(strPattern).Replace(@"\*", ".*").Replace(@"\?", ".?") + (Regex.IsMatch(strPattern, @"\\$") ? @".*$" : @"$"), RegexOptions.Compiled);
-        //}
     }
 }

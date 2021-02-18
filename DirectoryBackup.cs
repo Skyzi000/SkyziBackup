@@ -188,8 +188,7 @@ namespace SkyziBackup
         private void InitOrLoadDatabase()
         {
             bool isExists = File.Exists(DataContractWriter.GetPath<BackupDatabase>(destBaseDirPath));
-            Results.Message = isExists ? "既存のデータベースをロード" : "新規データベースを初期化";
-            logger.Info(Results.Message);
+            logger.Info(Results.Message = isExists ? "既存のデータベースをロード" : "新規データベースを初期化");
             Database = isExists
                 ? DataContractWriter.Read<BackupDatabase>(destBaseDirPath)
                 : new BackupDatabase(originBaseDirPath, destBaseDirPath);
@@ -199,12 +198,11 @@ namespace SkyziBackup
         {
             if (Settings.isUseDatabase)
             {
-                Results.Message = $"データベースを保存: {DataContractWriter.GetPath(Database)}";
-                logger.Info(Results.Message);
+                logger.Info(Results.Message = $"データベースを保存: {DataContractWriter.GetPath(Database)}");
                 DataContractWriter.Write(Database);
             }
-            Results.Message = Results.isSuccess ? "バックアップ完了" : "バックアップ失敗";
-            logger.Info("{0}\n________________________________________\n\n", Results.Message);
+            Results.Message = (Results.isSuccess ? "バックアップ完了: " : Results.Message + "\nバックアップ失敗: ") + DateTime.Now;
+            logger.Info("{0}\n________________________________________\n\n", Results.isSuccess ? "バックアップ完了" : "バックアップ失敗");
         }
 
         public BackupResults StartBackup()
@@ -214,12 +212,11 @@ namespace SkyziBackup
             currentRetryCount = 0;
             if (!Directory.Exists(originBaseDirPath))
             {
-                Results.Message = $"バックアップ元のディレクトリ'{originBaseDirPath}'が見つかりません。";
-                logger.Error(Results.Message);
+                logger.Error(Results.Message = $"バックアップ元のディレクトリ'{originBaseDirPath}'が見つかりません。");
                 Results.IsFinished = true;
                 return Results;
             }
-            Results.Message = "バックアップ中...";
+            
             foreach (string originDirPath in Directory.EnumerateDirectories(originBaseDirPath, "*", SearchOption.AllDirectories))
             {
                 if (Settings.Regices != null)
@@ -237,11 +234,11 @@ namespace SkyziBackup
                     if (isIgnore) continue;
                 }
                 string destDirPath = originDirPath.Replace(originBaseDirPath, destBaseDirPath);
-                logger.Info($"存在しなければ作成: '{destDirPath}'");
+                logger.Info(Results.Message = $"存在しなければ作成: '{destDirPath}'");
                 var dir = Directory.CreateDirectory(destDirPath);
                 if (Settings.isCopyAttributes)
                 {
-                    logger.Debug($"ディレクトリ属性をコピー");
+                    logger.Debug("ディレクトリ属性をコピー");
                     dir.Attributes = File.GetAttributes(originDirPath);
                     dir.CreationTime = Directory.GetCreationTime(originDirPath);
                     dir.LastWriteTime = Directory.GetLastWriteTime(originDirPath);
@@ -319,7 +316,7 @@ namespace SkyziBackup
                         throw new NotImplementedException("これ前回バックアップ時のハッシュ値を控えておいて比較するか、もしくは複合しないとあかんので後回し。");
                     }
             }
-            logger.Info($"バックアップ開始 '{originFilePath}' => '{destFilePath}'");
+            logger.Info(Results.Message = $"ファイルをバックアップ: '{originFilePath}' => '{destFilePath}'");
             if (AesCrypter != null)
             {
                 try
@@ -356,14 +353,14 @@ namespace SkyziBackup
                     }
                     else
                     {
-                        logger.Error($"暗号化失敗: {AesCrypter.Error}");
+                        logger.Error(Results.Message = $"暗号化失敗: {AesCrypter.Error}");
                         if (!Results.failedFileList.Contains(originFilePath))
                             Results.failedFileList.Add(originFilePath);
                     }
                 }
                 catch (Exception e)
                 {
-                    logger.Error($"失敗: {e}");
+                    logger.Error(Results.Message = $"失敗: {e}");
                     if (!Results.failedFileList.Contains(originFilePath))
                         Results.failedFileList.Add(originFilePath);
                 }
@@ -381,14 +378,12 @@ namespace SkyziBackup
                 Results.IsFinished = true;
                 return;
             }
-            Results.Message = $"リトライ待機中...({currentRetryCount + 1}/{Settings.retryCount}回目)";
-            logger.Debug(Results.Message);
+            logger.Debug(Results.Message = $"リトライ待機中...({currentRetryCount + 1}/{Settings.retryCount}回目)");
 
             System.Threading.Thread.Sleep(Settings.retryWaitMilliSec);
 
             currentRetryCount++;
-            Results.Message = $"リトライ {currentRetryCount}/{Settings.retryCount} 回目";
-            logger.Info(Results.Message);
+            logger.Info(Results.Message = $"リトライ {currentRetryCount}/{Settings.retryCount} 回目");
             foreach (string originFilePath in Results.failedFileList.ToArray())
             {
                 string destFilePath = originFilePath.Replace(originBaseDirPath, destBaseDirPath);
