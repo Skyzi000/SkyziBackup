@@ -11,6 +11,7 @@ namespace SkyziBackup
         public string SaveFileName { get; }
     }
     [DataContract]
+    [KnownType(typeof(Dictionary<string, BackedUpFileData>))][KnownType(typeof(BackupSettings))]
     public class BackupDatabase : IDataContractSerializable
     {
         [DataMember]
@@ -74,7 +75,7 @@ namespace SkyziBackup
 
     public class DataContractWriter
     {
-        private static XmlWriterSettings XmlSettings { get; } = new XmlWriterSettings() { Encoding = new System.Text.UTF8Encoding(false) };
+        private static XmlWriterSettings XmlSettings { get; } = new XmlWriterSettings() { Encoding = new System.Text.UTF8Encoding(false), Indent = true };
         public static string GetPath(object obj)
         {
             switch (obj)
@@ -97,7 +98,9 @@ namespace SkyziBackup
         public static void Write<T>(T obj) where T : IDataContractSerializable
         {
             DataContractSerializer serializer = new DataContractSerializer(typeof(T));
-            using XmlWriter xmlWriter = XmlWriter.Create(GetPath(obj), XmlSettings);
+            string filePath = GetPath(obj);
+            Directory.CreateDirectory(Path.GetDirectoryName(filePath));
+            using XmlWriter xmlWriter = XmlWriter.Create(filePath, XmlSettings);
             serializer.WriteObject(xmlWriter, obj);
         }
         public static T Read<T>(string fileName) where T : IDataContractSerializable

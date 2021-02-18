@@ -24,8 +24,9 @@ namespace SkyziBackup
     /// </summary>
     public partial class MainWindow : Window
     {
-        private static Logger logger = LogManager.GetCurrentClassLogger();
-        private SynchronizationContext _mainContext;
+        public static readonly BackupSettings globalSettings = BackupSettings.InitOrLoadGlobalSettings();
+        private static readonly Logger logger = LogManager.GetCurrentClassLogger();
+        private readonly SynchronizationContext _mainContext;
 
         public MainWindow()
         {
@@ -35,6 +36,7 @@ namespace SkyziBackup
             {
                 dataPath.TextChanged += DataPath_TextChanged;
                 dataPath.Text = Properties.Settings.Default.AppDataPath;
+                ignorePatternBox.Text = globalSettings.IgnorePattern;
             };
         }
 
@@ -58,22 +60,19 @@ namespace SkyziBackup
 
         private async void EncryptButton_ClickAsync(object sender, RoutedEventArgs e)
         {
-            var patStrArr = ignorePatternBox.Text.Split(new[] { "\r\n", "\n", "\r", "|" }, StringSplitOptions.None);
-            List<Regex> regices = new List<Regex>(patStrArr.Select(s => ShapePattern(s)));
-            regices.ForEach(r => logger.Debug(r));
+            //var patStrArr = ignorePatternBox.Text.Split(new[] { "\r\n", "\n", "\r", "|" }, StringSplitOptions.None);
+            //List<Regex> regices = new List<Regex>(patStrArr.Select(s => ShapePattern(s)));
+            //regices.ForEach(r => logger.Debug(r));
 
             message.Text = "バックアップ開始\n";
-            var db = new DirectoryBackup(originPath.Text, destPath.Text, password.Password)
-            {
-                Settings = new BackupSettings() { regices = regices }
-            };
+            var db = new DirectoryBackup(originPath.Text, destPath.Text, password.Password, globalSettings);
             db.Results.MessageChanged += (_s, _e) => { _mainContext.Post((d) => { message.Text += db.Results.Message + "\n"; }, null); };
             await Task.Run(() => db.StartBackup());
         }
 
-        private Regex ShapePattern(string strPattern)
-        {
-            return new Regex("^" + Regex.Escape(strPattern).Replace(@"\*", ".*").Replace(@"\?", ".?") + (Regex.IsMatch(strPattern, @"\\$") ? @".*$" : @"$"), RegexOptions.Compiled);
-        }
+        //private Regex ShapePattern(string strPattern)
+        //{
+        //    return new Regex("^" + Regex.Escape(strPattern).Replace(@"\*", ".*").Replace(@"\?", ".?") + (Regex.IsMatch(strPattern, @"\\$") ? @".*$" : @"$"), RegexOptions.Compiled);
+        //}
     }
 }

@@ -5,26 +5,108 @@ using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
+using System.Runtime.Serialization;
+using System.Linq;
 
 namespace SkyziBackup
 {
+    [Flags]
     public enum ComparisonMethod
     {
-        NoComparison,
-        ArchiveAttribute,
-        WriteTime,
-        FileContentsSHA1,
+        /// <summary>
+        /// 比較無し
+        /// </summary>
+        NoComparison            = 0,
+        /// <summary>
+        /// Archive属性による比較(バックアップ時に元ファイルのArchive属性を変更する点に注意)
+        /// </summary>
+        ArchiveAttribute        = 1,
+        /// <summary>
+        /// 更新日時による比較
+        /// </summary>
+        WriteTime               = 1 << 1,
+        /// <summary>
+        /// サイズによる比較(対応したデータベースが必須、データがない場合は常にスキップされない)
+        /// </summary>
+        Size                    = 1 << 2,
+        /// <summary>
+        /// SHA1による比較(対応したデータベースが必須、データがない場合は常にスキップされない)
+        /// </summary>
+        FileContentsSHA1        = 1 << 3,
     }
 
-    public class BackupSettings
+    [DataContract]
+    [KnownType(typeof(BackupSettings))]
+    [KnownType(typeof(DataProtectionScope))]
+    [KnownType(typeof(ComparisonMethod))]
+    [KnownType(typeof(IDataContractSerializable))]
+    public class BackupSettings : IDataContractSerializable
     {
-        public bool copyAttributes = true;
-        public int retryCount = 10;
-        public int retryWaitMilliSec = 10000;
-        public ComparisonMethod comparisonMethod = ComparisonMethod.WriteTime;
-        public List<Regex> regices;
-    }
+        [DataMember]
+        public bool isUseDatabase;
+        [DataMember]
+        public bool isCopyAttributes;
+        [DataMember]
+        public bool isRecordPassword;
+        [DataMember]
+        public DataProtectionScope passwordProtectionScope;
+        [DataMember]
+        public string protectedPassword;
+        [DataMember]
+        public int retryCount;
+        [DataMember]
+        public int retryWaitMilliSec;
+        [DataMember]
+        public ComparisonMethod comparisonMethod;
+        [DataMember]
+        private string ignorePattern;
 
+
+        public List<Regex> Regices { get; private set; }
+        public string SaveFileName => nameof(BackupSettings);
+
+        public string IgnorePattern { get => ignorePattern; set { ignorePattern = value; UpdateRegices(); } }
+
+        public BackupSettings()
+        {
+            isUseDatabase = true;
+            isCopyAttributes = true;
+            isRecordPassword = true;
+            passwordProtectionScope = DataProtectionScope.LocalMachine;
+            protectedPassword = null;
+            retryCount = 10;
+            retryWaitMilliSec = 10000;
+            comparisonMethod = ComparisonMethod.WriteTime;
+            ignorePattern = string.Empty;
+        }
+
+        public override string ToString() => 
+            $"データベースを利用する-----------\t: {isUseDatabase}\n" +
+            $"属性をコピーする-----------------\t: {isCopyAttributes}\n" +
+            $"パスワードを記録する-------------\t: {isRecordPassword}\n" +
+            $"記録したパスワードのスコープ-----\t: {passwordProtectionScope}\n" +
+            $"リトライ回数---------------------\t: {retryCount}\n" +
+            $"リトライ待機時間(ミリ秒)---------\t: {retryWaitMilliSec}\n" +
+            $"ファイル比較方法-----------------\t: {comparisonMethod}\n" +
+            $"除外パターン---------------------\t: \n{IgnorePattern}\n";
+
+        public static BackupSettings InitOrLoadGlobalSettings()
+        {
+            bool isExists = File.Exists(DataContractWriter.GetPath<BackupSettings>(nameof(BackupSettings)));
+            return isExists
+                ? DataContractWriter.Read<BackupSettings>(nameof(BackupSettings))
+                : new BackupSettings();
+        }
+        public void UpdateRegices()
+        {
+            string[] patStrArr = IgnorePattern.Split(new[] { "\r\n", "\n", "\r", "|" }, StringSplitOptions.None);
+            Regices = new List<Regex>(patStrArr.Select(s => ShapePattern(s)));
+        }
+        private Regex ShapePattern(string strPattern)
+        {
+            return new Regex("^" + Regex.Escape(strPattern).Replace(@"\*", ".*").Replace(@"\?", ".?") + (Regex.IsMatch(strPattern, @"\\$") ? @".*$" : @"$"), RegexOptions.Compiled);
+        }
+    }
     public class BackupResults
     {
         /// <summary>
@@ -78,53 +160,109 @@ namespace SkyziBackup
     {
         public BackupResults Results { get; private set; } = new BackupResults(false);
         public OpensslCompatibleAesCrypter AesCrypter { get; set; }
-        public BackupSettings Settings { get; set; } = new BackupSettings();
+        public BackupSettings Settings { get => _settings; set { _settings = value; Save<BackupSettings>(Settings); } }
+        private BackupSettings _settings;
+        public BackupDatabase Database { get; private set; }
 
         private static Logger logger = LogManager.GetCurrentClassLogger();
         private static readonly HashAlgorithm sha1Provider = new SHA1CryptoServiceProvider();
-        private string _originPath;
-        private string _destPath;
+        private string originBaseDirPath;
+        private string destBaseDirPath;
         private int currentRetryCount;
 
-        public DirectoryBackup(string originPath, string destPath, string password = "")
+        public DirectoryBackup(string originPath, string destPath, string password = "", BackupSettings settings = null)
         {
-            _originPath = originPath;
-            _destPath = destPath;
+            originBaseDirPath = originPath;
+            destBaseDirPath = destPath;
             if (password != "")
             {
                 AesCrypter = new OpensslCompatibleAesCrypter(password);
             }
+            Settings = settings ?? BackupSettings.InitOrLoadGlobalSettings();
+            if (Settings.isUseDatabase)
+            {
+                InitOrLoadDatabase();
+            }
             Results.Finished += Results_Finished;
+        }
+
+        private void InitOrLoadDatabase()
+        {
+            bool isExists = File.Exists(DataContractWriter.GetPath<BackupDatabase>(destBaseDirPath));
+            Results.Message = isExists ? "既存のデータベースをロード" : "新規データベースを初期化";
+            logger.Info(Results.Message);
+            Database = isExists
+                ? DataContractWriter.Read<BackupDatabase>(destBaseDirPath)
+                : new BackupDatabase(originBaseDirPath, destBaseDirPath);
+        }
+        public void Save<T>(IDataContractSerializable obj, int retryCount = 10, int retryInterval = 1000) where T : IDataContractSerializable
+        {
+            if (retryCount < 0) retryCount = 0;
+            Results.Message = $"{typeof(T).Name}を保存: '{DataContractWriter.GetPath<T>(obj.SaveFileName)}'";
+            logger.Info(Results.Message);
+            SaveWithRetry(obj, retryCount, retryInterval);
+        }
+
+
+        private void SaveWithRetry(IDataContractSerializable data, int retryCount, int retryInterval)
+        {
+            for (int i = 0; i <= retryCount; i++)
+            {
+                if (i != 0)
+                {
+                    Results.Message = $"リトライ: {i}/{retryCount} 回目";
+                    logger.Info(Results.Message);
+                }
+                try
+                {
+                    DataContractWriter.Write(data);
+                }
+                catch (Exception)
+                {
+                    if (retryInterval > 0)
+                    {
+                        Results.Message = $"保存失敗: {(float)retryInterval / 1000:F1}秒間待機";
+                        System.Threading.Thread.Sleep(retryInterval);
+                        continue;
+                    }
+                    break;
+                }
+                Results.Message = $"保存完了";
+                logger.Info(Results.Message);
+                return;
+            }
+            Results.Message = $"保存失敗: '{data.GetType().Name}'";
+            logger.Error(Results.Message);
         }
 
         private void Results_Finished(object sender, EventArgs e)
         {
+            if (Settings.isUseDatabase) Save<BackupDatabase>(Database);
             Results.Message = Results.isSuccess ? "バックアップ完了" : "バックアップ失敗";
             logger.Info("{0}\n________________________________________\n\n", Results.Message);
         }
 
         public BackupResults StartBackup()
         {
-            logger.Info("バックアップを開始'{0}' => '{1}'", _originPath, _destPath);
+            logger.Info("バックアップ設定:\n{0}", Settings);
+            logger.Info("バックアップを開始'{0}' => '{1}'", originBaseDirPath, destBaseDirPath);
             currentRetryCount = 0;
-            if (!Directory.Exists(_originPath))
+            if (!Directory.Exists(originBaseDirPath))
             {
-                Results.Message = $"バックアップ元のディレクトリ'{_originPath}'が見つかりません。";
+                Results.Message = $"バックアップ元のディレクトリ'{originBaseDirPath}'が見つかりません。";
                 logger.Error(Results.Message);
                 Results.IsFinished = true;
                 return Results;
             }
             Results.Message = "バックアップ中...";
-            foreach (string originDirPath in Directory.EnumerateDirectories(_originPath, "*", SearchOption.AllDirectories))
+            foreach (string originDirPath in Directory.EnumerateDirectories(originBaseDirPath, "*", SearchOption.AllDirectories))
             {
-                //logger.Debug(originDirPath + "\n" + _originPath + "\n" + originDirPath.Substring(_originPath.Length));
-
-                if (Settings.regices != null)
+                if (Settings.Regices != null)
                 {
                     bool isIgnore = false;
-                    foreach (var reg in Settings.regices)
+                    foreach (var reg in Settings.Regices)
                     {
-                        if (reg.IsMatch((originDirPath + @"\").Substring(_originPath.Length)))
+                        if (reg.IsMatch((originDirPath + @"\").Substring(originBaseDirPath.Length)))
                         {
                             logger.Info("除外パターン '{0}' に一致 : '{1}'", reg.ToString(), originDirPath);
                             isIgnore = true;
@@ -133,25 +271,26 @@ namespace SkyziBackup
                     }
                     if (isIgnore) continue;
                 }
-                string destDirPath = originDirPath.Replace(_originPath, _destPath);
+                string destDirPath = originDirPath.Replace(originBaseDirPath, destBaseDirPath);
                 logger.Info($"存在しなければ作成: '{destDirPath}'");
                 var dir = Directory.CreateDirectory(destDirPath);
-                if (Settings.copyAttributes)
+                if (Settings.isCopyAttributes)
                 {
-                    logger.Info($"属性をコピー: '{originDirPath}'");
+                    logger.Debug($"ディレクトリ属性をコピー");
+                    dir.Attributes = File.GetAttributes(originDirPath);
                     dir.CreationTime = Directory.GetCreationTime(originDirPath);
                     dir.LastWriteTime = Directory.GetLastWriteTime(originDirPath);
                 }
             }
 
-            foreach (string originFilePath in Directory.EnumerateFiles(_originPath, "*", SearchOption.AllDirectories))
+            foreach (string originFilePath in Directory.EnumerateFiles(originBaseDirPath, "*", SearchOption.AllDirectories))
             {
-                if (Settings.regices != null)
+                if (Settings.Regices != null)
                 {
                     bool isIgnore = false;
-                    foreach (var reg in Settings.regices)
+                    foreach (var reg in Settings.Regices)
                     {
-                        if (reg.IsMatch(originFilePath.Substring(_originPath.Length)))
+                        if (reg.IsMatch(originFilePath.Substring(originBaseDirPath.Length)))
                         {
                             logger.Info("除外パターン '{0}' に一致 : '{1}'", reg.ToString(), originFilePath);
                             isIgnore = true;
@@ -160,7 +299,7 @@ namespace SkyziBackup
                     }
                     if (isIgnore) continue;
                 }
-                string destFilePath = originFilePath.Replace(_originPath, _destPath);
+                string destFilePath = originFilePath.Replace(originBaseDirPath, destBaseDirPath);
                 FileBackup(originFilePath, destFilePath);
             }
 
@@ -222,7 +361,7 @@ namespace SkyziBackup
                 {
                     if (AesCrypter.EncryptFile(originFilePath, destFilePath))
                     {
-                        if (Settings.copyAttributes)
+                        if (Settings.isCopyAttributes)
                         {
                             logger.Info($"属性をコピー: '{originFilePath}'");
                             var attributes = File.GetAttributes(originFilePath);
@@ -287,7 +426,7 @@ namespace SkyziBackup
             logger.Info(Results.Message);
             foreach (string originFilePath in Results.failedFileList.ToArray())
             {
-                string destFilePath = originFilePath.Replace(_originPath, _destPath);
+                string destFilePath = originFilePath.Replace(originBaseDirPath, destBaseDirPath);
                 FileBackup(originFilePath, destFilePath);
             }
             Results.isSuccess = Results.failedFileList.Count == 0;
