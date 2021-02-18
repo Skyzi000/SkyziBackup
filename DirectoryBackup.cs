@@ -326,23 +326,15 @@ namespace SkyziBackup
                         if (Settings.isCopyAttributes)
                         {
                             logger.Info($"属性をコピー: '{originFilePath}'");
-                            var attributes = File.GetAttributes(originFilePath);
-                            //if ((attributes & FileAttributes.Compressed) == FileAttributes.Compressed)
-                            //{
-                            //    attributes = RemoveAttribute(attributes, FileAttributes.Compressed);
-                            //}
-                            if (attributes.HasFlag(FileAttributes.ReadOnly))
+                            var originInfo = new FileInfo(originFilePath);
+                            var destInfo = new FileInfo(destFilePath);
+                            destInfo.CreationTime = originInfo.CreationTime;
+                            destInfo.LastWriteTime = originInfo.LastWriteTime;
+                            if (Settings.comparisonMethod.HasFlag(ComparisonMethod.ArchiveAttribute) && originInfo.Attributes.HasFlag(FileAttributes.Archive))
                             {
-                                attributes = RemoveAttribute(attributes, FileAttributes.ReadOnly);
+                                originInfo.Attributes = RemoveAttribute(originInfo.Attributes, FileAttributes.Archive);
                             }
-                            if (Settings.comparisonMethod == ComparisonMethod.ArchiveAttribute && ((attributes & FileAttributes.Archive) == FileAttributes.Archive))
-                            {
-                                attributes = RemoveAttribute(attributes, FileAttributes.Archive);
-                            }
-                            File.SetAttributes(destFilePath, attributes);
-
-                            File.SetCreationTime(destFilePath, File.GetCreationTime(originFilePath));
-                            File.SetLastWriteTime(destFilePath, File.GetLastWriteTime(originFilePath));
+                            destInfo.Attributes = originInfo.Attributes;
                         }
                         logger.Info("成功!");
                         Results.backedupFileList.Add(originFilePath);
