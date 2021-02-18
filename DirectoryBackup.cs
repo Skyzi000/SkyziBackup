@@ -160,16 +160,17 @@ namespace SkyziBackup
     {
         public BackupResults Results { get; private set; } = new BackupResults(false);
         public OpensslCompatibleAesCrypter AesCrypter { get; set; }
-        public BackupSettings Settings { get; set; }
-        public BackupDatabase Database { get; private set; }
+        public BackupSettings Settings { get { return Database?.localSettings ?? _globalSettings; } set { _globalSettings = value; } }
+        public BackupDatabase Database { get; private set; } = null;
 
         private static Logger logger = LogManager.GetCurrentClassLogger();
         private static readonly HashAlgorithm sha1Provider = new SHA1CryptoServiceProvider();
         private string originBaseDirPath;
         private string destBaseDirPath;
         private int currentRetryCount;
+        private BackupSettings _globalSettings;
 
-        public DirectoryBackup(string originPath, string destPath, string password = "", BackupSettings settings = null)
+        public DirectoryBackup(string originPath, string destPath, string password = "", BackupSettings globalSettings = null)
         {
             originBaseDirPath = originPath;
             destBaseDirPath = destPath;
@@ -177,7 +178,7 @@ namespace SkyziBackup
             {
                 AesCrypter = new OpensslCompatibleAesCrypter(password);
             }
-            Settings = settings ?? BackupSettings.InitOrLoadGlobalSettings();
+            Settings = globalSettings ?? BackupSettings.InitOrLoadGlobalSettings();
             if (Settings.isUseDatabase)
             {
                 InitOrLoadDatabase();
