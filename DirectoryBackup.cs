@@ -592,16 +592,16 @@ namespace SkyziBackup
                             // 以前のバックアップデータがある場合、変更されたプロパティのみ更新する(変更なしなら何もしない)
                             else
                             {
-                                if (originInfo.CreationTime != Database.backedUpFilesDict[originFilePath].creationTime)
+                                if ((originInfo = new FileInfo(originFilePath)).CreationTime != Database.backedUpFilesDict[originFilePath].creationTime)
                                     (destInfo = new FileInfo(destFilePath)).CreationTime = originInfo.CreationTime;
-                                if (originInfo.LastWriteTime != Database.backedUpDirectoriesDict[originFilePath].lastWriteTime)
+                                if (originInfo.LastWriteTime != Database.backedUpFilesDict[originFilePath].lastWriteTime)
                                     (destInfo ??= new FileInfo(destFilePath)).LastWriteTime = originInfo.LastWriteTime;
-                                if (originInfo.Attributes != Database.backedUpDirectoriesDict[originFilePath].fileAttributes)
+                                if (originInfo.Attributes != Database.backedUpFilesDict[originFilePath].fileAttributes)
                                     (destInfo ?? new FileInfo(destFilePath)).Attributes = originInfo.Attributes;
                             }
                             if (Settings.comparisonMethod.HasFlag(ComparisonMethod.ArchiveAttribute) && originInfo.Attributes.HasFlag(FileAttributes.Archive))
                             {
-                                originInfo.Attributes = RemoveAttribute(originInfo.Attributes, FileAttributes.Archive);
+                                (originInfo ??= new FileInfo(originFilePath)).Attributes = RemoveAttribute(originInfo.Attributes, FileAttributes.Archive);
                             }
                         }
                         if (Settings.isUseDatabase)
