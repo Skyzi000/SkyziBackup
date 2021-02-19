@@ -11,7 +11,8 @@ namespace SkyziBackup
         public string SaveFileName { get; }
     }
     [DataContract]
-    [KnownType(typeof(Dictionary<string, BackedUpFileData>))][KnownType(typeof(BackupSettings))]
+    [KnownType(typeof(BackedUpFileData))]
+    [KnownType(typeof(BackupSettings))]
     public class BackupDatabase : IDataContractSerializable
     {
         [DataMember]
@@ -23,25 +24,31 @@ namespace SkyziBackup
         /// originFilePathをキーとするバックアップ済みファイルの辞書
         /// </summary>
         [DataMember]
-        public Dictionary<string, BackedUpFileData> fileDataDict;
+        public Dictionary<string, BackedUpFileData> backedUpFilesDict;
+
+        /// <summary>
+        /// バックアップ済みフォルダのリスト
+        /// </summary>
+        [DataMember]
+        public HashSet<string> backedUpDirectories;
 
         /// <summary>
         /// 失敗したファイルのリスト
         /// </summary>
         [DataMember]
-        public List<string> failedList;
+        public HashSet<string> failedFiles;
 
         /// <summary>
         /// 無視したファイルのリスト
         /// </summary>
         [DataMember]
-        public List<string> ignoreList;
+        public HashSet<string> ignoreFiles;
 
         /// <summary>
         /// 削除したファイルのリスト(今回もしくは前回削除したもののみ)
         /// </summary>
         [DataMember]
-        public List<string> deletedList = null;
+        public HashSet<string> deletedFiles = null;
 
         /// <summary>
         /// バックアップ設定(nullの場合はグローバル設定が適用される)
@@ -49,28 +56,51 @@ namespace SkyziBackup
         [DataMember]
         public BackupSettings localSettings = null;
 
-        public string SaveFileName => destBaseDirPath;
+        /// <summary>
+        /// ファイル名は(originBaseDirPath + destBaseDirPath)のSHA1
+        /// </summary>
+        public string SaveFileName => DirectoryBackup.ComputeStringSHA1(originBaseDirPath + destBaseDirPath);
 
         public BackupDatabase(string originBaseDirPath, string destBaseDirPath)
         {
             this.originBaseDirPath = originBaseDirPath;
             this.destBaseDirPath = destBaseDirPath;
-            fileDataDict = new Dictionary<string, BackedUpFileData>();
-            failedList = new List<string>();
-            ignoreList = new List<string>();
+            backedUpFilesDict = new Dictionary<string, BackedUpFileData>();
+            backedUpDirectories = new HashSet<string>();
+            failedFiles = new HashSet<string>();
+            ignoreFiles = new HashSet<string>();
+            deletedFiles = null;
+            localSettings = null;
         }
     }
 
     /// <summary>
     /// バックアップ済みファイルの詳細データ保管用クラス
     /// </summary>
+    [DataContract]
+    [KnownType(typeof(FileAttributes?))]
+    [KnownType(typeof(DateTime?))]
     public class BackedUpFileData
     {
+        [DataMember]
         public string destFilePath;
-        public FileAttributes? fileAttributes = null;
+        [DataMember]
         public DateTime? lastWriteTime = null;
-        public ulong? originSize = null;
+        [DataMember]
+        public long originSize = DefaultSize;
+        [DataMember]
+        public FileAttributes? fileAttributes = null;
+        [DataMember]
         public string sha1 = null;
+        public const long DefaultSize = -1;
+        public BackedUpFileData(string destFilePath, DateTime? lastWriteTime = null, long originSize = DefaultSize, FileAttributes? fileAttributes = null, string sha1 = null)
+        {
+            this.destFilePath = destFilePath;
+            this.lastWriteTime = lastWriteTime;
+            this.originSize = originSize;
+            this.fileAttributes = fileAttributes;
+            this.sha1 = sha1;
+        }
     }
 
     public class DataContractWriter
@@ -80,6 +110,8 @@ namespace SkyziBackup
         {
             switch (obj)
             {
+                case BackupDatabase database:
+                    return GetPath<BackupDatabase>(database.SaveFileName);
                 case IDataContractSerializable data:
                     return GetPath<IDataContractSerializable>(data.SaveFileName);
                 default:
@@ -88,7 +120,9 @@ namespace SkyziBackup
         }
         public static string GetPath<T>(string fileName) where T : IDataContractSerializable
         {
-            return Path.Combine(Properties.Settings.Default.AppDataPath, GetDirectory<T>(), $"{fileName}.xml");
+            string directory = (typeof(T) == typeof(BackupDatabase))    ? "database"
+                                                                        : "etc";
+            return Path.Combine(Properties.Settings.Default.AppDataPath, directory, $"{fileName}.xml");
         }
         private static string GetDirectory<T>() where T : IDataContractSerializable
         {
