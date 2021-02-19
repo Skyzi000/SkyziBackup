@@ -281,7 +281,7 @@ namespace SkyziBackup
                     {
                         if (reg.IsMatch((originDirPath + @"\").Substring(originBaseDirPath.Length)))
                         {
-                            logger.Info("除外パターン '{0}' に一致 : '{1}'", reg.ToString(), originDirPath);
+                            logger.Info("ディレクトリをスキップ(除外パターン '{0}' に一致) : '{1}'", reg.ToString(), originDirPath);
                             isIgnore = true;
                             break;
                         }
@@ -289,7 +289,7 @@ namespace SkyziBackup
                     if (isIgnore) continue;
                 }
                 string destDirPath = originDirPath.Replace(originBaseDirPath, destBaseDirPath);
-                logger.Info(Results.Message = $"存在しなければ作成: '{destDirPath}'");
+                logger.Debug(Results.Message = $"存在しなければ作成: '{destDirPath}'");
                 var dir = Directory.CreateDirectory(destDirPath);
                 if (Settings.isCopyAttributes)
                 {
