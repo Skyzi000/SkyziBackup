@@ -257,7 +257,6 @@ namespace SkyziBackup
                 Database.failedFiles = new HashSet<string>();
                 Database.ignoreFiles = new HashSet<string>();
                 Database.deletedFiles = new HashSet<string>();
-                Database.backedUpDirectories = new HashSet<string>();
             }
             else
             {
@@ -288,17 +287,36 @@ namespace SkyziBackup
                     }
                     if (isIgnore) continue;
                 }
-                string destDirPath = originDirPath.Replace(originBaseDirPath, destBaseDirPath);
-                Logger.Debug(Results.Message = $"存在しなければ作成: '{destDirPath}'");
-                var dir = Directory.CreateDirectory(destDirPath);
-                if (Settings.isCopyAttributes)
+                DirectoryInfo originDirInfo = Settings.isCopyAttributes ? new DirectoryInfo(originDirPath) : null;
+                DirectoryInfo destDirInfo = null;
+                if (!Settings.isUseDatabase || !Database.backedUpDirectoriesDict.ContainsKey(originDirPath))
                 {
-                    Logger.Debug("ディレクトリ属性をコピー");
-                    dir.Attributes = File.GetAttributes(originDirPath);
-                    dir.CreationTime = Directory.GetCreationTime(originDirPath);
-                    dir.LastWriteTime = Directory.GetLastWriteTime(originDirPath);
+                    string destDirPath = originDirPath.Replace(originBaseDirPath, destBaseDirPath);
+                    Logger.Debug(Results.Message = $"存在しなければ作成: '{destDirPath}'");
+                    destDirInfo = Directory.CreateDirectory(destDirPath);
+                    if (Settings.isCopyAttributes)
+                    {
+                        Logger.Debug("ディレクトリ属性をコピー");
+                        destDirInfo.CreationTime = originDirInfo.CreationTime;
+                        destDirInfo.LastWriteTime = originDirInfo.LastWriteTime;
+                        destDirInfo.Attributes = originDirInfo.Attributes;
+                    }
                 }
-                if (Settings.isUseDatabase) Database.backedUpDirectories.Add(originDirPath);
+                // 以前のバックアップデータがある場合、変更されたプロパティのみ更新する(変更なしなら何もしない)
+                else if (Settings.isCopyAttributes)
+                {
+                    string destDirPath = originDirPath.Replace(originBaseDirPath, destBaseDirPath);
+                    if (originDirInfo.CreationTime != Database.backedUpDirectoriesDict[originDirPath].creationTime)
+                        (destDirInfo = Directory.CreateDirectory(destDirPath)).CreationTime = originDirInfo.CreationTime;
+                    if (originDirInfo.LastWriteTime != Database.backedUpDirectoriesDict[originDirPath].lastWriteTime)
+                        (destDirInfo ??= Directory.CreateDirectory(destDirPath)).LastWriteTime = originDirInfo.LastWriteTime;
+                    if (originDirInfo.Attributes != Database.backedUpDirectoriesDict[originDirPath].fileAttributes)
+                        (destDirInfo ?? Directory.CreateDirectory(destDirPath)).Attributes = originDirInfo.Attributes;
+                }
+                if (Settings.isUseDatabase)
+                {
+                    Database.backedUpDirectoriesDict[originDirPath] = new BackedUpDirectoryData(originDirInfo?.CreationTime, originDirInfo?.LastWriteTime, originDirInfo?.Attributes);
+                }
             }
 
             // ファイルの処理
@@ -307,6 +325,7 @@ namespace SkyziBackup
                 string destFilePath = originFilePath.Replace(originBaseDirPath, destBaseDirPath);
                 if (!IsIgnoredFile(originFilePath, destFilePath))
                 {
+                    Directory.CreateDirectory(Path.GetDirectoryName(destFilePath));
                     FileBackup(originFilePath, destFilePath);
                 }
                 else if (Settings.isUseDatabase)
@@ -557,39 +576,44 @@ namespace SkyziBackup
                     {
                         // 暗号化成功時処理
                         FileInfo originInfo = null;
-                        BackedUpFileData data = null;
-                        if (Settings.isUseDatabase)
-                        {
-                            data = new BackedUpFileData(
-                                destFilePath: destFilePath,
-                                lastWriteTime: Settings.comparisonMethod.HasFlag(ComparisonMethod.WriteTime) ? (originInfo = new FileInfo(originFilePath)).LastWriteTime : (DateTime?)null,
-                                originSize: Settings.comparisonMethod.HasFlag(ComparisonMethod.Size) ? (originInfo = new FileInfo(originFilePath)).Length : BackedUpFileData.DefaultSize,
-                                fileAttributes: Settings.comparisonMethod != ComparisonMethod.NoComparison ? (originInfo = new FileInfo(originFilePath)).Attributes : (FileAttributes?)null,
-                                sha1: Settings.comparisonMethod.HasFlag(ComparisonMethod.FileContentsSHA1) ? ComputeFileSHA1(originFilePath) : null
-                                );
-                        }
+                        FileInfo destInfo = null;
                         if (Settings.isCopyAttributes)
                         {
-                            if (Settings.isUseDatabase)
+                            if (!Settings.isUseDatabase || !Database.backedUpFilesDict.ContainsKey(originFilePath))
                             {
-                                if (Database.backedUpFilesDict.ContainsKey(originFilePath) && Database.backedUpFilesDict[originFilePath].fileAttributes != (originInfo ??= new FileInfo(originFilePath)).Attributes)
+                                Logger.Debug($"属性をコピー");
+                                destInfo = new FileInfo(destFilePath)
                                 {
-                                    Logger.Info($"属性をコピー: '{originFilePath}'");
-                                    var destInfo = new FileInfo(destFilePath);
-                                    destInfo.CreationTime = originInfo.CreationTime;
-                                    destInfo.LastWriteTime = originInfo.LastWriteTime;
-                                    destInfo.Attributes = originInfo.Attributes;
-                                }
+                                    CreationTime = (originInfo = new FileInfo(originFilePath)).CreationTime,
+                                    LastWriteTime = originInfo.LastWriteTime,
+                                    Attributes = originInfo.Attributes
+                                };
                             }
-                            if (Settings.comparisonMethod.HasFlag(ComparisonMethod.ArchiveAttribute) && (originInfo ??= new FileInfo(originFilePath)).Attributes.HasFlag(FileAttributes.Archive))
+                            // 以前のバックアップデータがある場合、変更されたプロパティのみ更新する(変更なしなら何もしない)
+                            else
+                            {
+                                if (originInfo.CreationTime != Database.backedUpFilesDict[originFilePath].creationTime)
+                                    (destInfo = new FileInfo(destFilePath)).CreationTime = originInfo.CreationTime;
+                                if (originInfo.LastWriteTime != Database.backedUpDirectoriesDict[originFilePath].lastWriteTime)
+                                    (destInfo ??= new FileInfo(destFilePath)).LastWriteTime = originInfo.LastWriteTime;
+                                if (originInfo.Attributes != Database.backedUpDirectoriesDict[originFilePath].fileAttributes)
+                                    (destInfo ?? new FileInfo(destFilePath)).Attributes = originInfo.Attributes;
+                            }
+                            if (Settings.comparisonMethod.HasFlag(ComparisonMethod.ArchiveAttribute) && originInfo.Attributes.HasFlag(FileAttributes.Archive))
                             {
                                 originInfo.Attributes = RemoveAttribute(originInfo.Attributes, FileAttributes.Archive);
                             }
                         }
-                        Logger.Info("成功!");
                         if (Settings.isUseDatabase)
                         {
-                            Database.backedUpFilesDict[originFilePath] = data;
+                            // 必要なデータだけを保存
+                            Database.backedUpFilesDict[originFilePath] = new BackedUpFileData(
+                                creationTime: Settings.isCopyAttributes ? (originInfo ??= new FileInfo(originFilePath)).CreationTime : (DateTime?)null,
+                                lastWriteTime: Settings.isCopyAttributes || Settings.comparisonMethod.HasFlag(ComparisonMethod.WriteTime) ? (originInfo ??= new FileInfo(originFilePath)).LastWriteTime : (DateTime?)null,
+                                originSize: Settings.comparisonMethod.HasFlag(ComparisonMethod.Size) ? (originInfo ??= new FileInfo(originFilePath)).Length : BackedUpFileData.DefaultSize,
+                                fileAttributes: Settings.isCopyAttributes || Settings.comparisonMethod != ComparisonMethod.NoComparison ? (originInfo ??= new FileInfo(originFilePath)).Attributes : (FileAttributes?)null,
+                                sha1: Settings.comparisonMethod.HasFlag(ComparisonMethod.FileContentsSHA1) ? ComputeFileSHA1(originFilePath) : null
+                                );
                         }
                         else
                         {

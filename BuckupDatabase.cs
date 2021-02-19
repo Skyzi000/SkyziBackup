@@ -27,10 +27,10 @@ namespace SkyziBackup
         public Dictionary<string, BackedUpFileData> backedUpFilesDict;
 
         /// <summary>
-        /// バックアップ済みフォルダのリスト
+        /// バックアップ済みディレクトリの辞書
         /// </summary>
         [DataMember]
-        public HashSet<string> backedUpDirectories;
+        public Dictionary<string, BackedUpDirectoryData> backedUpDirectoriesDict;
 
         /// <summary>
         /// 失敗したファイルのリスト
@@ -66,7 +66,7 @@ namespace SkyziBackup
             this.originBaseDirPath = originBaseDirPath;
             this.destBaseDirPath = destBaseDirPath;
             backedUpFilesDict = new Dictionary<string, BackedUpFileData>();
-            backedUpDirectories = new HashSet<string>();
+            backedUpDirectoriesDict = new Dictionary<string, BackedUpDirectoryData>();
             failedFiles = new HashSet<string>();
             ignoreFiles = new HashSet<string>();
             deletedFiles = null;
@@ -83,7 +83,7 @@ namespace SkyziBackup
     public class BackedUpFileData
     {
         [DataMember]
-        public string destFilePath;
+        public DateTime? creationTime = null;
         [DataMember]
         public DateTime? lastWriteTime = null;
         [DataMember]
@@ -93,13 +93,35 @@ namespace SkyziBackup
         [DataMember]
         public string sha1 = null;
         public const long DefaultSize = -1;
-        public BackedUpFileData(string destFilePath, DateTime? lastWriteTime = null, long originSize = DefaultSize, FileAttributes? fileAttributes = null, string sha1 = null)
+        public BackedUpFileData(DateTime? creationTime = null, DateTime? lastWriteTime = null, long originSize = DefaultSize, FileAttributes? fileAttributes = null, string sha1 = null)
         {
-            this.destFilePath = destFilePath;
+            this.creationTime = creationTime;
             this.lastWriteTime = lastWriteTime;
             this.originSize = originSize;
             this.fileAttributes = fileAttributes;
             this.sha1 = sha1;
+        }
+    }
+    /// <summary>
+    /// バックアップ済みディレクトリの詳細データ保管用クラス
+    /// </summary>
+    [DataContract]
+    [KnownType(typeof(FileAttributes?))]
+    [KnownType(typeof(DateTime?))]
+    public class BackedUpDirectoryData
+    {
+        [DataMember]
+        public DateTime? creationTime = null;
+        [DataMember]
+        public DateTime? lastWriteTime = null;
+        [DataMember]
+        public FileAttributes? fileAttributes = null;
+
+        public BackedUpDirectoryData(DateTime? creationTime = null, DateTime? lastWriteTime = null, FileAttributes? fileAttributes = null)
+        {
+            this.creationTime = creationTime;
+            this.lastWriteTime = lastWriteTime;
+            this.fileAttributes = fileAttributes;
         }
     }
 
