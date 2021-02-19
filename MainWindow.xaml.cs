@@ -24,8 +24,8 @@ namespace SkyziBackup
     /// </summary>
     public partial class MainWindow : Window
     {
-        public static readonly BackupSettings globalSettings = BackupSettings.InitOrLoadGlobalSettings();
-        private static readonly Logger logger = LogManager.GetCurrentClassLogger();
+        public static readonly BackupSettings GlobalSettings = BackupSettings.InitOrLoadGlobalSettings();
+        private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         private readonly SynchronizationContext _mainContext;
 
         public MainWindow()
@@ -36,7 +36,7 @@ namespace SkyziBackup
             {
                 dataPath.TextChanged += DataPath_TextChanged;
                 dataPath.Text = Properties.Settings.Default.AppDataPath;
-                ignorePatternBox.Text = globalSettings.IgnorePattern;
+                ignorePatternBox.Text = GlobalSettings.IgnorePattern;
             };
         }
 
@@ -53,7 +53,7 @@ namespace SkyziBackup
                 Properties.Settings.Default.AppDataPath = dataPath.Text;
                 Properties.Settings.Default.Save();
                 dataPath.Text = Properties.Settings.Default.AppDataPath;
-                logger.Debug("DataPath : " + dataPath.Text);
+                Logger.Debug("DataPath : " + dataPath.Text);
                 NLog.GlobalDiagnosticsContext.Set("AppDataPath", dataPath.Text);
             }
         }
@@ -61,14 +61,14 @@ namespace SkyziBackup
         private async void EncryptButton_ClickAsync(object sender, RoutedEventArgs e)
         {
             encryptButton.IsEnabled = false;
-            globalSettings.IgnorePattern = ignorePatternBox.Text;
-            globalSettings.comparisonMethod = ComparisonMethod.WriteTime | ComparisonMethod.Size;
-            message.Text = $"設定を保存: '{DataContractWriter.GetPath(globalSettings)}'";
-            logger.Info(message.Text);
-            DataContractWriter.Write(globalSettings);
+            GlobalSettings.IgnorePattern = ignorePatternBox.Text;
+            GlobalSettings.comparisonMethod = ComparisonMethod.WriteTime | ComparisonMethod.Size;
+            message.Text = $"設定を保存: '{DataContractWriter.GetPath(GlobalSettings)}'";
+            Logger.Info(message.Text);
+            DataContractWriter.Write(GlobalSettings);
             message.Text += $"\n'{originPath.Text}' => '{destPath.Text}'";
             message.Text += $"\nバックアップ開始: {DateTime.Now}\n";
-            var db = new DirectoryBackup(originPath.Text, destPath.Text, password.Password, globalSettings);
+            var db = new DirectoryBackup(originPath.Text, destPath.Text, password.Password, GlobalSettings);
             string m = message.Text;
             db.Results.MessageChanged += (_s, _e) => { _mainContext.Post((d) => { message.Text = m + db.Results.Message + "\n"; }, null); };
             await Task.Run(() => db.StartBackup());

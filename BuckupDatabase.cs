@@ -124,11 +124,7 @@ namespace SkyziBackup
                                                                         : "etc";
             return Path.Combine(Properties.Settings.Default.AppDataPath, directory, $"{fileName}.xml");
         }
-        private static string GetDirectory<T>() where T : IDataContractSerializable
-        {
-            if (typeof(T) == typeof(BackupDatabase)) return "database";
-            else return "etc";
-        }
+
         // TODO: エラー処理を追加する
         public static void Write<T>(T obj) where T : IDataContractSerializable
         {
