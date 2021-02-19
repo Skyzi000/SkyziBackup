@@ -62,7 +62,7 @@ namespace SkyziBackup
         {
             encryptButton.IsEnabled = false;
             GlobalSettings.IgnorePattern = ignorePatternBox.Text;
-            GlobalSettings.comparisonMethod = ComparisonMethod.WriteTime | ComparisonMethod.Size;
+            GlobalSettings.comparisonMethod = ComparisonMethod.WriteTime | ComparisonMethod.Size | ComparisonMethod.FileContentsSHA1;
             message.Text = $"設定を保存: '{DataContractWriter.GetPath(GlobalSettings)}'";
             Logger.Info(message.Text);
             DataContractWriter.Write(GlobalSettings);

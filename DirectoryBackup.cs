@@ -422,6 +422,7 @@ namespace SkyziBackup
                     Logger.Warn("ハッシュの比較ができません: データベースにSHA1が記録されていません。");
                     return false;
                 }
+                Logger.Debug(Results.Message = $"SHA1で比較: '{destFileData.sha1}' : '{originFilePath}'");
                 if (ComputeFileSHA1(originFilePath) != destFileData.sha1)
                 {
                     return false;
@@ -525,6 +526,7 @@ namespace SkyziBackup
                     return false;
                 }
                 Logger.Warn("データベースを利用しない場合、ハッシュでの比較は非効率的です。データベースを利用するか、生データでの比較を検討してください。");
+                Logger.Debug(Results.Message = $"SHA1で比較: '{originFilePath}' = '{destFilePath}'");
                 if (ComputeFileSHA1(originFilePath) != ComputeFileSHA1(destFilePath))
                 {
                     return false;
