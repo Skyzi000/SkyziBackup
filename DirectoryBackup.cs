@@ -97,17 +97,21 @@ namespace SkyziBackup
             compressAlgorithm = CompressAlgorithm.Deflate;
         }
 
-        public override string ToString() => 
-            $"データベースを利用する-----------\t: {isUseDatabase}\n" +
-            $"属性をコピーする-----------------\t: {isCopyAttributes}\n" +
-            $"パスワードを記録する-------------\t: {isRecordPassword}\n" +
-            $"記録したパスワードのスコープ-----\t: {passwordProtectionScope}\n" +
-            $"リトライ回数---------------------\t: {retryCount}\n" +
-            $"リトライ待機時間(ミリ秒)---------\t: {retryWaitMilliSec}\n" +
-            $"ファイル比較方法-----------------\t: {comparisonMethod}\n" +
-            $"圧縮レベル-----------------------\t: {compressionLevel}\n" +
-            $"圧縮アルゴリズム-----------------\t: {compressAlgorithm}\n" +
-            $"除外パターン---------------------\t: \n{IgnorePattern}\n";
+        public override string ToString()
+        {
+            var sb = new StringBuilder();
+            sb.AppendFormat("データベースを利用する-----------: {0}\n", isUseDatabase);
+            sb.AppendFormat("属性をコピーする-----------------: {0}\n", isCopyAttributes);
+            sb.AppendFormat("パスワードを記録する-------------: {0}\n", isRecordPassword);
+            sb.AppendFormat("記録したパスワードのスコープ-----: {0}\n", passwordProtectionScope);
+            sb.AppendFormat("リトライ回数---------------------: {0}\n", retryCount);
+            sb.AppendFormat("リトライ待機時間(ミリ秒)---------: {0}\n", retryWaitMilliSec);
+            sb.AppendFormat("ファイル比較方法-----------------: {0}\n", comparisonMethod);
+            sb.AppendFormat("圧縮レベル-----------------------: {0}\n", compressionLevel);
+            sb.AppendFormat("圧縮アルゴリズム-----------------: {0}\n", compressAlgorithm);
+            sb.AppendFormat("除外パターン---------------------: \n{0}\n", IgnorePattern);
+            return sb.ToString();
+        }
 
         public static BackupSettings InitOrLoadGlobalSettings()
         {
@@ -123,7 +127,11 @@ namespace SkyziBackup
         }
         private Regex ShapePattern(string strPattern)
         {
-            return new Regex("^" + Regex.Escape(strPattern).Replace(@"\*", ".*").Replace(@"\?", ".?") + (Regex.IsMatch(strPattern, @"\\$") ? @".*$" : @"$"), RegexOptions.Compiled);
+            var sb = new StringBuilder("^");
+            if (!strPattern.StartsWith(Path.DirectorySeparatorChar)) sb.Append(Path.DirectorySeparatorChar, 2);
+            sb.Append(Regex.Escape(strPattern).Replace(@"\*", ".*").Replace(@"\?", ".?"));
+            sb.Append(Path.EndsInDirectorySeparator(strPattern) ? @".*$" : @"$");
+            return new Regex(sb.ToString(), RegexOptions.Compiled);
         }
     }
     public class BackupResults
@@ -190,8 +198,8 @@ namespace SkyziBackup
 
         public DirectoryBackup(string originPath, string destPath, string password = "", BackupSettings globalSettings = null)
         {
-            originBaseDirPath = originPath;
-            destBaseDirPath = destPath;
+            originBaseDirPath = Path.TrimEndingDirectorySeparator(originPath);
+            destBaseDirPath = Path.TrimEndingDirectorySeparator(destPath);
             Settings = globalSettings ?? BackupSettings.InitOrLoadGlobalSettings();
             if (Settings.isUseDatabase)
             {
@@ -280,7 +288,7 @@ namespace SkyziBackup
                     {
                         if (reg.IsMatch((originDirPath + @"\").Substring(originBaseDirPath.Length)))
                         {
-                            Logger.Info("ディレクトリをスキップ(除外パターン '{0}' に一致) : '{1}'", reg.ToString(), originDirPath);
+                            Logger.Info("ディレクトリをスキップ(除外パターン '{0}' に一致) : '{1}'", reg, originDirPath);
                             isIgnore = true;
                             break;
                         }
@@ -357,7 +365,7 @@ namespace SkyziBackup
                 {
                     if (reg.IsMatch(originFilePath.Substring(originBaseDirPath.Length)))
                     {
-                        Logger.Info("ファイルをスキップ(除外パターンに一致 '{0}') : '{1}'", reg.ToString(), originFilePath);
+                        Logger.Info("ファイルをスキップ(除外パターンに一致 '{0}') : '{1}'", reg, originFilePath);
                         return true;
                     }
                 }
@@ -389,10 +397,10 @@ namespace SkyziBackup
                 {
                     if (!File.Exists(destFilePath))
                     {
-                        Logger.Error($"データベースに更新日時が記録されていません。バックアップ先にファイルが存在しません。: '{destFilePath}'");
+                        Logger.Error("データベースに更新日時が記録されていません。バックアップ先にファイルが存在しません。: '{0}'", destFilePath);
                         return false;
                     }
-                    Logger.Warn($"データベースに更新日時が記録されていません。バックアップ先の更新日時を記録します。: {destFileData.lastWriteTime = File.GetLastWriteTime(destFilePath)}");
+                    Logger.Warn("データベースに更新日時が記録されていません。バックアップ先の更新日時を記録します。: '{0}'", destFileData.lastWriteTime = File.GetLastWriteTime(destFilePath));
                 }
                 if ((originFileInfo?.LastWriteTime ?? (originFileInfo = new FileInfo(originFilePath)).LastWriteTime) != destFileData.lastWriteTime)
                 {
@@ -444,7 +452,7 @@ namespace SkyziBackup
                 }
                 if (!File.Exists(destFilePath))
                 {
-                    Logger.Error($"バックアップ先にファイルが存在しません。: '{destFilePath}'");
+                    Logger.Error("バックアップ先にファイルが存在しません。: '{0}'", destFilePath);
                     return false;
                 }
                 Logger.Warn(Results.Message = $"生データの比較にはデータベースを利用できません。直接比較します。'{originFilePath}' = '{destFilePath}'");

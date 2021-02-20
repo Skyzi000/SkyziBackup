@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -68,7 +69,7 @@ namespace SkyziBackup
             DataContractWriter.Write(GlobalSettings);
             message.Text += $"\n'{originPath.Text}' => '{destPath.Text}'";
             message.Text += $"\nバックアップ開始: {DateTime.Now}\n";
-            var db = new DirectoryBackup(originPath.Text, destPath.Text, password.Password, GlobalSettings);
+            var db = new DirectoryBackup(originPath.Text.Trim(), destPath.Text.Trim(), password.Password, GlobalSettings);
             string m = message.Text;
             db.Results.MessageChanged += (_s, _e) => { _mainContext.Post((d) => { message.Text = m + db.Results.Message + "\n"; }, null); };
             await Task.Run(() => db.StartBackup());
