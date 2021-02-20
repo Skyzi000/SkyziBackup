@@ -25,7 +25,7 @@ namespace SkyziBackup
     /// </summary>
     public partial class MainWindow : Window
     {
-        public static readonly BackupSettings GlobalSettings = BackupSettings.InitOrLoadGlobalSettings();
+        public static BackupSettings GlobalSettings = BackupSettings.InitOrLoadGlobalSettings();
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         private readonly SynchronizationContext _mainContext;
 
@@ -62,6 +62,7 @@ namespace SkyziBackup
         private async void EncryptButton_ClickAsync(object sender, RoutedEventArgs e)
         {
             encryptButton.IsEnabled = false;
+            GlobalSettings = BackupSettings.InitOrLoadGlobalSettings();
             GlobalSettings.IgnorePattern = ignorePatternBox.Text;
             GlobalSettings.comparisonMethod = ComparisonMethod.WriteTime | ComparisonMethod.Size | ComparisonMethod.FileContentsSHA1;
             message.Text = $"設定を保存: '{DataContractWriter.GetPath(GlobalSettings)}'";
