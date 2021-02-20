@@ -55,6 +55,8 @@ namespace SkyziBackup
         [DataMember]
         public bool isCopyAttributes;
         [DataMember]
+        public bool isOverwriteReadonly;
+        [DataMember]
         public bool isEnableDeletion;
         [DataMember]
         public bool isRecordPassword;
@@ -85,13 +87,14 @@ namespace SkyziBackup
         {
             isUseDatabase = true;
             isCopyAttributes = true;
+            isOverwriteReadonly = false;
             isEnableDeletion = false;
             isRecordPassword = true;
             passwordProtectionScope = DataProtectionScope.LocalMachine;
             protectedPassword = null;
             retryCount = 10;
             retryWaitMilliSec = 10000;
-            comparisonMethod = ComparisonMethod.WriteTime;
+            comparisonMethod = ComparisonMethod.WriteTime | ComparisonMethod.Size;
             ignorePattern = string.Empty;
             compressionLevel = CompressionLevel.NoCompression;
             compressAlgorithm = CompressAlgorithm.Deflate;
@@ -102,6 +105,7 @@ namespace SkyziBackup
             var sb = new StringBuilder();
             sb.AppendFormat("データベースを利用する-----------: {0}\n", isUseDatabase);
             sb.AppendFormat("属性をコピーする-----------------: {0}\n", isCopyAttributes);
+            sb.AppendFormat("読み取り専用ファイルを上書きする-: {0}\n", isOverwriteReadonly);
             sb.AppendFormat("パスワードを記録する-------------: {0}\n", isRecordPassword);
             sb.AppendFormat("記録したパスワードのスコープ-----: {0}\n", passwordProtectionScope);
             sb.AppendFormat("リトライ回数---------------------: {0}\n", retryCount);
@@ -226,7 +230,7 @@ namespace SkyziBackup
         {
             if (Settings.isUseDatabase)
             {
-                Logger.Info(Results.Message = $"データベースを保存: {DataContractWriter.GetPath(Database)}");
+                Logger.Info("データベースを保存: '{0}'", DataContractWriter.GetPath(Database));
                 Database.failedFiles = Results.failedFiles;
                 DataContractWriter.Write(Database);
             }
@@ -578,6 +582,18 @@ namespace SkyziBackup
         private void FileBackup(string originFilePath, string destFilePath)
         {
             Logger.Info(Results.Message = $"ファイルをバックアップ: '{originFilePath}' => '{destFilePath}'");
+            if (Settings.isOverwriteReadonly)
+            {
+                // バックアップ先ファイルが読み取り専用なら解除する
+                if (!Settings.isUseDatabase || (Database.backedUpFilesDict.TryGetValue(originFilePath, out BackedUpFileData data) && data.fileAttributes.HasValue && data.fileAttributes.Value.HasFlag(FileAttributes.ReadOnly)))
+                {
+                    FileInfo destInfo = new FileInfo(destFilePath);
+                    if (destInfo.Exists)
+                    {
+                        destInfo.Attributes = RemoveAttribute(destInfo.Attributes, FileAttributes.ReadOnly);
+                    }
+                }
+            }
             if (AesCrypter != null)
             {
                 try
@@ -589,7 +605,7 @@ namespace SkyziBackup
                         FileInfo destInfo = null;
                         if (Settings.isCopyAttributes)
                         {
-                            if (!Settings.isUseDatabase || !Database.backedUpFilesDict.ContainsKey(originFilePath))
+                            if (!Settings.isUseDatabase || !Database.backedUpFilesDict.TryGetValue(originFilePath, out var data))
                             {
                                 Logger.Debug($"属性をコピー");
                                 destInfo = new FileInfo(destFilePath)
@@ -602,12 +618,15 @@ namespace SkyziBackup
                             // 以前のバックアップデータがある場合、変更されたプロパティのみ更新する(変更なしなら何もしない)
                             else
                             {
-                                if ((originInfo = new FileInfo(originFilePath)).CreationTime != Database.backedUpFilesDict[originFilePath].creationTime)
+                                if (!data.creationTime.HasValue || (originInfo = new FileInfo(originFilePath)).CreationTime != data.creationTime)
                                     (destInfo = new FileInfo(destFilePath)).CreationTime = originInfo.CreationTime;
-                                if (originInfo.LastWriteTime != Database.backedUpFilesDict[originFilePath].lastWriteTime)
+                                if (!data.lastWriteTime.HasValue || originInfo.LastWriteTime != data.lastWriteTime)
                                     (destInfo ??= new FileInfo(destFilePath)).LastWriteTime = originInfo.LastWriteTime;
-                                if (originInfo.Attributes != Database.backedUpFilesDict[originFilePath].fileAttributes)
+                                if (!data.fileAttributes.HasValue || originInfo.Attributes != data.fileAttributes)
                                     (destInfo ?? new FileInfo(destFilePath)).Attributes = originInfo.Attributes;
+                                // バックアップ先ファイルから取り除いた読み取り専用属性を戻す
+                                else if (Settings.isOverwriteReadonly && data.fileAttributes.Value.HasFlag(FileAttributes.ReadOnly))
+                                    (destInfo ?? new FileInfo(destFilePath)).Attributes = data.fileAttributes.Value;
                             }
                             if (Settings.comparisonMethod.HasFlag(ComparisonMethod.ArchiveAttribute) && originInfo.Attributes.HasFlag(FileAttributes.Archive))
                             {
