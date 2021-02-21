@@ -42,11 +42,11 @@ namespace SkyziBackup
                 dataPath.TextChanged += DataPath_TextChanged;
                 dataPath.Text = Properties.Settings.Default.AppDataPath;
                 ignorePatternBox.Text = GlobalSettings.IgnorePattern;
-                if (GlobalSettings.isRecordPassword || !string.IsNullOrEmpty(GlobalSettings.protectedPassword))
+                if (GlobalSettings.isRecordPassword || !string.IsNullOrEmpty(GlobalSettings.ProtectedPassword))
                 {
                     try
                     {
-                        password.Password = PasswordManager.GetRawPassword(GlobalSettings);
+                        password.Password = GlobalSettings.GetRawPassword();
                     }
                     catch (Exception ex)
                     {

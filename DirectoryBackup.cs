@@ -63,7 +63,7 @@ namespace SkyziBackup
         [DataMember]
         public DataProtectionScope passwordProtectionScope;
         [DataMember]
-        public string protectedPassword;
+        private string protectedPassword;
         [DataMember]
         public int retryCount;
         [DataMember]
@@ -82,6 +82,10 @@ namespace SkyziBackup
         public string SaveFileName => nameof(BackupSettings);
 
         public string IgnorePattern { get => ignorePattern; set { ignorePattern = value; UpdateRegices(); } }
+        /// <summary>
+        /// 暗号化されたパスワード。代入した場合自動的に暗号化される。(予め暗号化する必要はない)
+        /// </summary>
+        public string ProtectedPassword { get => protectedPassword; set { protectedPassword = (string.IsNullOrEmpty(value)) ? null : PasswordManager.Encrypt(value, passwordProtectionScope); } }
 
         public BackupSettings()
         {
@@ -128,6 +132,15 @@ namespace SkyziBackup
         {
             string[] patStrArr = IgnorePattern.Split(new[] { "\r\n", "\n", "\r", "|" }, StringSplitOptions.None);
             Regices = new HashSet<Regex>(patStrArr.Select(s => ShapePattern(s)));
+        }
+        internal string GetRawPassword()
+        {
+            if (!isRecordPassword || string.IsNullOrEmpty(protectedPassword)) throw new ArgumentException($"パスワードが保存されていません。");
+            return PasswordManager.Decrypt(protectedPassword, passwordProtectionScope);
+        }
+        public bool IsDifferentPassword(string newPassword)
+        {
+            return string.IsNullOrEmpty(protectedPassword) || GetRawPassword() != newPassword;
         }
         private Regex ShapePattern(string strPattern)
         {
@@ -211,12 +224,12 @@ namespace SkyziBackup
             }
             if (!string.IsNullOrEmpty(password))
             {
-                if (Settings.isRecordPassword && (string.IsNullOrEmpty(Settings.protectedPassword) || PasswordManager.GetRawPassword(Settings) != password))
+                if (Settings.isRecordPassword && Settings.IsDifferentPassword(password))
                 {
                     Logger.Info("パスワードを保存");
                     try
                     {
-                        Settings.protectedPassword = PasswordManager.Encrypt(password, Settings.passwordProtectionScope);
+                        Settings.ProtectedPassword = password;
                         DataContractWriter.Write(Settings);
                     }
                     catch (Exception ex)
