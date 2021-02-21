@@ -211,6 +211,19 @@ namespace SkyziBackup
             }
             if (!string.IsNullOrEmpty(password))
             {
+                if (Settings.isRecordPassword && PasswordManager.GetRawPassword(Settings) != password)
+                {
+                    Logger.Info("パスワードを保存");
+                    try
+                    {
+                        Settings.protectedPassword = PasswordManager.Encrypt(password, Settings.passwordProtectionScope);
+                        DataContractWriter.Write(Settings);
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Error(ex, "パスワードの保存に失敗");
+                    }
+                }
                 AesCrypter = new OpensslCompatibleAesCrypter(password, compressionLevel: Settings.compressionLevel, compressAlgorithm: Settings.compressAlgorithm);
             }
             Results.Finished += Results_Finished;
