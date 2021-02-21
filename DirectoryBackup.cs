@@ -200,7 +200,7 @@ namespace SkyziBackup
         private int currentRetryCount = 0;
         private BackupSettings _globalSettings;
 
-        public DirectoryBackup(string originPath, string destPath, string password = "", BackupSettings globalSettings = null)
+        public DirectoryBackup(string originPath, string destPath, string password = null, BackupSettings globalSettings = null)
         {
             originBaseDirPath = Path.TrimEndingDirectorySeparator(originPath);
             destBaseDirPath = Path.TrimEndingDirectorySeparator(destPath);
@@ -209,7 +209,7 @@ namespace SkyziBackup
             {
                 InitOrLoadDatabase();
             }
-            if (password != "")
+            if (!string.IsNullOrEmpty(password))
             {
                 AesCrypter = new OpensslCompatibleAesCrypter(password, compressionLevel: Settings.compressionLevel, compressAlgorithm: Settings.compressAlgorithm);
             }
@@ -235,7 +235,7 @@ namespace SkyziBackup
                 DataContractWriter.Write(Database);
             }
             Results.Message = (Results.isSuccess ? "バックアップ完了: " : Results.Message + "\nバックアップ失敗: ") + DateTime.Now;
-            Logger.Info("{0}\n________________________________________\n\n", Results.isSuccess ? "バックアップ完了" : "バックアップ失敗");
+            Logger.Info("{0}\n=============================\n\n", Results.isSuccess ? "バックアップ完了" : "バックアップ失敗");
         }
 
         public BackupResults StartBackup()
@@ -290,7 +290,7 @@ namespace SkyziBackup
                     bool isIgnore = false;
                     foreach (var reg in Settings.Regices)
                     {
-                        if (reg.IsMatch((originDirPath + @"\").Substring(originBaseDirPath.Length)))
+                        if (reg.IsMatch((originDirPath + Path.DirectorySeparatorChar).Substring(originBaseDirPath.Length)))
                         {
                             Logger.Info("ディレクトリをスキップ(除外パターン '{0}' に一致) : '{1}'", reg, originDirPath);
                             isIgnore = true;
@@ -652,13 +652,13 @@ namespace SkyziBackup
                     }
                     else
                     {
-                        Logger.Error(Results.Message = $"暗号化失敗: {AesCrypter.Error}");
+                        Logger.Error(AesCrypter.Error, Results.Message = $"暗号化失敗");
                         Results.failedFiles.Add(originFilePath);
                     }
                 }
-                catch (Exception e)
+                catch (Exception ex)
                 {
-                    Logger.Error(Results.Message = $"失敗: {e}");
+                    Logger.Error(ex, Results.Message = $"失敗");
                     Results.failedFiles.Add(originFilePath);
                 }
             }
