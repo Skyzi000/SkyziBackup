@@ -52,7 +52,7 @@ namespace SkyziBackup
                     {
                         Logger.Warn(ex, "パスワード読み込みエラー");
                         password.Password = string.Empty;
-                        MessageBox.Show("パスワードを読み込めませんでした。\nパスワードを再度入力してください。", $"{AssemblyName} - エラー", MessageBoxButton.OK, MessageBoxImage.Error);
+                        MessageBox.Show("パスワードを読み込めませんでした。\nパスワードを再度入力してください。", $"{AssemblyName.Name} - エラー", MessageBoxButton.OK, MessageBoxImage.Error);
                     }
                 }
                 else
