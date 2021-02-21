@@ -211,7 +211,7 @@ namespace SkyziBackup
             }
             if (!string.IsNullOrEmpty(password))
             {
-                if (Settings.isRecordPassword && PasswordManager.GetRawPassword(Settings) != password)
+                if (Settings.isRecordPassword && (string.IsNullOrEmpty(Settings.protectedPassword) || PasswordManager.GetRawPassword(Settings) != password))
                 {
                     Logger.Info("パスワードを保存");
                     try
