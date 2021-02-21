@@ -15,6 +15,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using System.Security.Cryptography;
 using NLog;
 using Skyzi000.Cryptography;
 
@@ -27,6 +28,7 @@ namespace SkyziBackup
     {
         public static BackupSettings GlobalSettings = BackupSettings.InitOrLoadGlobalSettings();
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
+
         private readonly SynchronizationContext _mainContext;
 
         public MainWindow()
@@ -38,6 +40,21 @@ namespace SkyziBackup
                 dataPath.TextChanged += DataPath_TextChanged;
                 dataPath.Text = Properties.Settings.Default.AppDataPath;
                 ignorePatternBox.Text = GlobalSettings.IgnorePattern;
+                if (GlobalSettings.isRecordPassword || !string.IsNullOrEmpty(GlobalSettings.protectedPassword))
+                {
+                    try
+                    {
+                        password.Password = PasswordManager.GetRawPassword(GlobalSettings);
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Warn(ex, "パスワード読み込みエラー");
+                        password.Password = string.Empty;
+                        MessageBox.Show("パスワードを入力してください。", "パスワード読み込みエラー", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    }
+                }
+                else
+                    password.Password = string.Empty;
             };
         }
 
@@ -61,6 +78,11 @@ namespace SkyziBackup
 
         private async void EncryptButton_ClickAsync(object sender, RoutedEventArgs e)
         {
+            if (!Directory.Exists(originPath.Text.Trim()))
+            {
+                MessageBox.Show($"{originPathLabel.Content}が不正です。\n正しいディレクトリパスを入力してください。", "警告", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
             encryptButton.IsEnabled = false;
             GlobalSettings = BackupSettings.InitOrLoadGlobalSettings();
             GlobalSettings.IgnorePattern = ignorePatternBox.Text;
@@ -68,7 +90,7 @@ namespace SkyziBackup
             message.Text = $"設定を保存: '{DataContractWriter.GetPath(GlobalSettings)}'";
             Logger.Info(message.Text);
             DataContractWriter.Write(GlobalSettings);
-            message.Text += $"\n'{originPath.Text}' => '{destPath.Text}'";
+            message.Text += $"\n'{originPath.Text.Trim()}' => '{destPath.Text.Trim()}'";
             message.Text += $"\nバックアップ開始: {DateTime.Now}\n";
             var db = new DirectoryBackup(originPath.Text.Trim(), destPath.Text.Trim(), password.Password, GlobalSettings);
             string m = message.Text;
