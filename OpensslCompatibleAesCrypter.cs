@@ -45,7 +45,7 @@ namespace Skyzi000.Cryptography
         private byte[] key;
         private readonly SymmetricAlgorithm aes;
 
-        public OpensslCompatibleAesCrypter(char[] password,
+        public OpensslCompatibleAesCrypter(string password,
                                            int keySize = 256,
                                            int iterationCount = 10000,
                                            CustomCipherMode cipherMode = CustomCipherMode.CBC,
