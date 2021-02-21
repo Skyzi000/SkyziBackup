@@ -2,6 +2,7 @@
 using System.IO;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -27,6 +28,7 @@ namespace SkyziBackup
     public partial class MainWindow : Window
     {
         public static BackupSettings GlobalSettings = BackupSettings.InitOrLoadGlobalSettings();
+        public static AssemblyName AssemblyName = Assembly.GetExecutingAssembly().GetName();
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
         private readonly SynchronizationContext _mainContext;
@@ -50,7 +52,7 @@ namespace SkyziBackup
                     {
                         Logger.Warn(ex, "パスワード読み込みエラー");
                         password.Password = string.Empty;
-                        MessageBox.Show("パスワードを入力してください。", "パスワード読み込みエラー", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        MessageBox.Show("パスワードを読み込めませんでした。\nパスワードを再度入力してください。", $"{AssemblyName} - エラー", MessageBoxButton.OK, MessageBoxImage.Error);
                     }
                 }
                 else
