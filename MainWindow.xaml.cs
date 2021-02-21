@@ -46,7 +46,7 @@ namespace SkyziBackup
                 {
                     try
                     {
-                        password.Password = PasswordManager.GetRawPassword(GlobalSettings);
+                        password.Password = PasswordManager.GetRawPasswordString(GlobalSettings);
                     }
                     catch (Exception ex)
                     {
@@ -94,7 +94,7 @@ namespace SkyziBackup
             DataContractWriter.Write(GlobalSettings);
             message.Text += $"\n'{originPath.Text.Trim()}' => '{destPath.Text.Trim()}'";
             message.Text += $"\nバックアップ開始: {DateTime.Now}\n";
-            var db = new DirectoryBackup(originPath.Text.Trim(), destPath.Text.Trim(), password.Password, GlobalSettings);
+            var db = new DirectoryBackup(originPath.Text.Trim(), destPath.Text.Trim(), password.Password.ToCharArray(), GlobalSettings);
             string m = message.Text;
             db.Results.MessageChanged += (_s, _e) => { _mainContext.Post((d) => { message.Text = m + db.Results.Message + "\n"; }, null); };
             await Task.Run(() => db.StartBackup());

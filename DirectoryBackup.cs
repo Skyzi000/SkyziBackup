@@ -200,7 +200,7 @@ namespace SkyziBackup
         private int currentRetryCount = 0;
         private BackupSettings _globalSettings;
 
-        public DirectoryBackup(string originPath, string destPath, string password = null, BackupSettings globalSettings = null)
+        public DirectoryBackup(string originPath, string destPath, char[] password = null, BackupSettings globalSettings = null)
         {
             originBaseDirPath = Path.TrimEndingDirectorySeparator(originPath);
             destBaseDirPath = Path.TrimEndingDirectorySeparator(destPath);
@@ -209,14 +209,14 @@ namespace SkyziBackup
             {
                 InitOrLoadDatabase();
             }
-            if (!string.IsNullOrEmpty(password))
+            if (password != null && password.Length != 0)
             {
-                if (Settings.isRecordPassword && PasswordManager.GetRawPassword(Settings) != password)
+                if (Settings.isRecordPassword && PasswordManager.GetRawPasswordChars(Settings).SequenceEqual(password))
                 {
                     Logger.Info("パスワードを保存");
                     try
                     {
-                        Settings.protectedPassword = PasswordManager.Encrypt(password, Settings.passwordProtectionScope);
+                        Settings.protectedPassword = PasswordManager.EncryptString(new string(password), Settings.passwordProtectionScope);
                         DataContractWriter.Write(Settings);
                     }
                     catch (Exception ex)
