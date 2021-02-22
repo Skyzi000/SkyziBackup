@@ -42,22 +42,32 @@ namespace SkyziBackup
                 dataPath.TextChanged += DataPath_TextChanged;
                 dataPath.Text = Properties.Settings.Default.AppDataPath;
                 ignorePatternBox.Text = GlobalSettings.IgnorePattern;
-                if (GlobalSettings.isRecordPassword || !string.IsNullOrEmpty(GlobalSettings.ProtectedPassword))
-                {
-                    try
-                    {
-                        password.Password = GlobalSettings.GetRawPassword();
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.Warn(ex, "パスワード読み込みエラー");
-                        password.Password = string.Empty;
-                        MessageBox.Show("パスワードを読み込めませんでした。\nパスワードを再度入力してください。", $"{AssemblyName.Name} - エラー", MessageBoxButton.OK, MessageBoxImage.Error);
-                    }
-                }
-                else
-                    password.Password = string.Empty;
+                LoadPassword();
             };
+        }
+
+        private bool LoadPassword()
+        {
+            if (GlobalSettings.isRecordPassword || !string.IsNullOrEmpty(GlobalSettings.ProtectedPassword))
+            {
+                try
+                {
+                    password.Password = GlobalSettings.GetRawPassword();
+                }
+                catch (Exception ex)
+                {
+                    Logger.Warn(ex, "パスワード読み込みエラー");
+                    password.Password = string.Empty;
+                    MessageBox.Show("パスワードを読み込めませんでした。\nパスワードを再度入力してください。", $"{AssemblyName.Name} - 読み込みエラー", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return false;
+                }
+                return true;
+            }
+            else
+            {
+                password.Password = string.Empty;
+                return false;
+            }
         }
 
         private void DataPath_TextChanged(object sender, TextChangedEventArgs e)
@@ -82,11 +92,26 @@ namespace SkyziBackup
         {
             if (!Directory.Exists(originPath.Text.Trim()))
             {
-                MessageBox.Show($"{originPathLabel.Content}が不正です。\n正しいディレクトリパスを入力してください。", "警告", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show($"{originPathLabel.Content}が不正です。\n正しいディレクトリパスを入力してください。", $"{AssemblyName.Name} - 警告", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
             encryptButton.IsEnabled = false;
             GlobalSettings = BackupSettings.InitOrLoadGlobalSettings();
+            if (GlobalSettings.isRecordPassword && GlobalSettings.IsDifferentPassword(password.Password))
+            {
+                var changePassword = MessageBox.Show("前回のパスワードと異なります。\nパスワードを変更しますか？\n\n※パスワードを変更する場合、既存のバックアップやデータベースを削除し、\n再度初めからバックアップし直すことをおすすめします。", $"{AssemblyName.Name} - パスワード変更の確認", MessageBoxButton.YesNo, MessageBoxImage.Information);
+                switch (changePassword)
+                {
+                    case MessageBoxResult.Yes:
+                        DeleteDatabase();
+                        break;
+                    case MessageBoxResult.No:
+                    default:
+                        MessageBox.Show("前回のパスワードを読み込みます。");
+                        LoadPassword();
+                        break;
+                }
+            }
             GlobalSettings.IgnorePattern = ignorePatternBox.Text;
             GlobalSettings.comparisonMethod = ComparisonMethod.WriteTime | ComparisonMethod.Size | ComparisonMethod.FileContentsSHA1;
             message.Text = $"設定を保存: '{DataContractWriter.GetPath(GlobalSettings)}'";
@@ -100,5 +125,31 @@ namespace SkyziBackup
             await Task.Run(() => db.StartBackup());
             encryptButton.IsEnabled = true;
         }
+
+        /// <summary>
+        /// データベースを削除するかどうかの確認ウィンドウを出してから削除する。
+        /// </summary>
+        /// <returns>削除したなら true</returns>
+        private bool DeleteDatabase()
+        {
+            string databasePath;
+            if (GlobalSettings.isUseDatabase && File.Exists(databasePath = DataContractWriter.GetDatabasePath(originPath.Text.Trim(), destPath.Text.Trim())))
+            {
+                var deleteDatabase = MessageBox.Show($"{databasePath}\n上記データベースを削除しますか？\nなお、データベースを削除すると全てのファイルを初めからバックアップすることになります。", $"{AssemblyName.Name} - データベース削除", MessageBoxButton.YesNo);
+                switch (deleteDatabase)
+                {
+                    case MessageBoxResult.Yes:
+                        DataContractWriter.DeleteDatabase(originPath.Text.Trim(), destPath.Text.Trim());
+                        MessageBox.Show("データベースを削除しました。");
+                        return true;
+                    case MessageBoxResult.No:
+                    default:
+                        return false;
+                }
+            }
+            else
+                return false;
+        }
     }
 }
+
