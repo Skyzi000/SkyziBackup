@@ -99,7 +99,7 @@ namespace SkyziBackup
             GlobalSettings = BackupSettings.LoadOrCreateGlobalSettings();
             if (GlobalSettings.isRecordPassword && GlobalSettings.IsDifferentPassword(password.Password))
             {
-                var changePassword = MessageBox.Show("前回のパスワードと異なります。\nパスワードを変更しますか？\n\n※パスワードを変更する場合、既存のバックアップやデータベースを削除し、\n再度初めからバックアップし直すことをおすすめします。", $"{AssemblyName.Name} - パスワード変更の確認", MessageBoxButton.YesNo, MessageBoxImage.Information);
+                var changePassword = MessageBox.Show("前回のパスワードと異なります。\nパスワードを変更しますか？\n\n※パスワードを変更する場合、既存のバックアップやデータベースを削除し、\n　再度初めからバックアップし直すことをおすすめします。\n　異なるパスワードでバックアップされたファイルが共存する場合、\n　復元が難しくなります。", $"{AssemblyName.Name} - パスワード変更の確認", MessageBoxButton.YesNo, MessageBoxImage.Information);
                 switch (changePassword)
                 {
                     case MessageBoxResult.Yes:
@@ -109,7 +109,7 @@ namespace SkyziBackup
                         break;
                     case MessageBoxResult.No:
                     default:
-                        MessageBox.Show("前回のパスワードを読み込みます。");
+                        MessageBox.Show("保存されたパスワードを使用します。");
                         LoadPassword();
                         break;
                 }
