@@ -245,10 +245,10 @@ namespace SkyziBackup
         private void InitOrLoadDatabase()
         {
             string databasePath;
-            bool isExists = File.Exists(databasePath = DataContractWriter.GetPath<BackupDatabase>(ComputeStringSHA1(originBaseDirPath + destBaseDirPath)));
+            bool isExists = File.Exists(databasePath = DataContractWriter.GetDatabasePath(originBaseDirPath, destBaseDirPath));
             Logger.Info(Results.Message = isExists ? $"既存のデータベースをロード: '{databasePath}'" : "新規データベースを初期化");
             Database = isExists
-                ? DataContractWriter.Read<BackupDatabase>(ComputeStringSHA1(originBaseDirPath + destBaseDirPath))
+                ? DataContractWriter.Read<BackupDatabase>(DataContractWriter.GetDatabaseFileName(originBaseDirPath, destBaseDirPath))
                 : new BackupDatabase(originBaseDirPath, destBaseDirPath);
         }
 

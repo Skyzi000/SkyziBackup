@@ -59,7 +59,7 @@ namespace SkyziBackup
         /// <summary>
         /// ファイル名は(originBaseDirPath + destBaseDirPath)のSHA1
         /// </summary>
-        public string SaveFileName => DirectoryBackup.ComputeStringSHA1(originBaseDirPath + destBaseDirPath);
+        public string SaveFileName => DataContractWriter.GetDatabaseFileName(originBaseDirPath, destBaseDirPath);
 
         public BackupDatabase(string originBaseDirPath, string destBaseDirPath)
         {
@@ -146,7 +146,8 @@ namespace SkyziBackup
                                                                         : "etc";
             return Path.Combine(Properties.Settings.Default.AppDataPath, directory, $"{fileName}.xml");
         }
-
+        public static string GetDatabaseFileName(string originBaseDirPath, string destBaseDirPath) => DirectoryBackup.ComputeStringSHA1(originBaseDirPath + destBaseDirPath);
+        public static string GetDatabasePath(string originBaseDirPath, string destBaseDirPath) => GetPath<BackupDatabase>(GetDatabaseFileName(originBaseDirPath, destBaseDirPath));
         // TODO: エラー処理を追加する
         public static void Write<T>(T obj) where T : IDataContractSerializable
         {
@@ -161,6 +162,19 @@ namespace SkyziBackup
             DataContractSerializer serializer = new DataContractSerializer(typeof(T));
             using XmlReader xmlReader = XmlReader.Create(GetPath<T>(fileName));
             return (T)serializer.ReadObject(xmlReader);
+        }
+        public static void Delete(object obj)
+        {
+            File.Delete(GetPath(obj));
+        }
+        public static void Delete<T>(string fileName) where T : IDataContractSerializable
+        {
+            File.Delete(GetPath<T>(fileName));
+        }
+        public static void DeleteDatabase(string originBaseDirPath, string destBaseDirPath) => Delete<BackupDatabase>(GetDatabaseFileName(originBaseDirPath, destBaseDirPath));
+        public static void DeleteAll<T>() where T : IDataContractSerializable
+        {
+            Directory.Delete(Path.GetDirectoryName(GetPath<T>("")), true);
         }
     }
 }
