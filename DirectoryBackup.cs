@@ -80,8 +80,11 @@ namespace SkyziBackup
         private string directory;
         [IgnoreDataMember]
         public HashSet<Regex> Regices { get; private set; }
+        [IgnoreDataMember]
+        public static readonly string FileName = nameof(BackupSettings) + ".xml";
+
         public bool IsGlobal => string.IsNullOrEmpty(directory);
-        public string SaveFileName => IsGlobal ? nameof(BackupSettings) : Path.Combine(directory, nameof(BackupSettings));
+        public string SaveFileName => IsGlobal ? FileName : Path.Combine(directory, FileName);
 
         public string IgnorePattern { get => ignorePattern; set { ignorePattern = value; UpdateRegices(); } }
         /// <summary>
@@ -134,17 +137,17 @@ namespace SkyziBackup
         
         public static BackupSettings LoadOrCreateGlobalSettings()
         {
-            bool isExists = File.Exists(DataContractWriter.GetPath(nameof(BackupSettings)));
+            bool isExists = File.Exists(DataContractWriter.GetPath(FileName));
             return isExists
-                ? DataContractWriter.Read<BackupSettings>(nameof(BackupSettings))
+                ? DataContractWriter.Read<BackupSettings>(FileName)
                 : new BackupSettings();
         }
         public static bool TryLoadLocalSettings(string originBaseDirPath, string destBaseDirPath, out BackupSettings localSettings)
         {
-            string fileName;
-            if (File.Exists(DataContractWriter.GetPath(fileName = Path.Combine(DataContractWriter.GetDatabaseDirectoryName(originBaseDirPath, destBaseDirPath), nameof(BackupSettings)))))
+            string localFileName;
+            if (File.Exists(DataContractWriter.GetPath(localFileName = Path.Combine(DataContractWriter.GetDatabaseDirectoryName(originBaseDirPath, destBaseDirPath), FileName))))
             {
-                localSettings = DataContractWriter.Read<BackupSettings>(fileName);
+                localSettings = DataContractWriter.Read<BackupSettings>(localFileName);
                 return true;
             }
             localSettings = null;

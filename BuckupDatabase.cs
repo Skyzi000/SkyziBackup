@@ -121,6 +121,9 @@ namespace SkyziBackup
 
     public class DataContractWriter
     {
+        public static readonly string ParentDirectoryName = "Data";
+        public static readonly string DatabaseFileName = "Database.xml";
+
         private static XmlWriterSettings XmlSettings { get; } = new XmlWriterSettings() { Encoding = new System.Text.UTF8Encoding(false), Indent = true };
         public static string GetPath(object obj)
         {
@@ -132,9 +135,9 @@ namespace SkyziBackup
                     throw new ArgumentException($"'{obj.GetType()}'型に対応するパス設定はありません。");
             }
         }
-        public static string GetPath(string fileName) => Path.Combine(Properties.Settings.Default.AppDataPath, $"{fileName}.xml");
+        public static string GetPath(string fileName) => Path.Combine(Properties.Settings.Default.AppDataPath, fileName);
         public static string GetDatabaseDirectoryName(string originBaseDirPath, string destBaseDirPath) => DirectoryBackup.ComputeStringSHA1(originBaseDirPath + destBaseDirPath);
-        public static string GetDatabaseFileName(string originBaseDirPath, string destBaseDirPath) => Path.Combine(GetDatabaseDirectoryName(originBaseDirPath, destBaseDirPath), "database");
+        public static string GetDatabaseFileName(string originBaseDirPath, string destBaseDirPath) => Path.Combine(ParentDirectoryName, GetDatabaseDirectoryName(originBaseDirPath, destBaseDirPath), DatabaseFileName);
         public static string GetDatabasePath(string originBaseDirPath, string destBaseDirPath) => GetPath(GetDatabaseFileName(originBaseDirPath, destBaseDirPath));
         // TODO: エラー処理を追加する
         public static void Write<T>(T obj) where T : IDataContractSerializable
