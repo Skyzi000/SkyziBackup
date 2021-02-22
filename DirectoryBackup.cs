@@ -604,21 +604,26 @@ namespace SkyziBackup
             Logger.Info("ファイルをスキップ(バックアップ済み): '{0}'", originFilePath);
             return true;
         }
-
+        /// <summary>
+        /// 読み取り専用属性を持っていないとデータベースに記録されているファイルかどうか。
+        /// </summary>
+        /// <returns>前回のバックアップ時に読み取り専用属性がなかった場合 true, 対象のファイルが読み取り専用属性を持っていたり、データが無い場合は false</returns>
+        private bool IsNotReadOnlyInDatabase(string originFilePath) => Database.backedUpFilesDict.TryGetValue(originFilePath, out BackedUpFileData data) && data.fileAttributes.HasValue && !data.fileAttributes.Value.HasFlag(FileAttributes.ReadOnly);
         private void FileBackup(string originFilePath, string destFilePath)
         {
             Logger.Info(Results.Message = $"ファイルをバックアップ: '{originFilePath}' => '{destFilePath}'");
             if (Settings.isOverwriteReadonly)
             {
-                // バックアップ先ファイルが読み取り専用なら解除する
-                if (!Settings.isUseDatabase || (Database.backedUpFilesDict.TryGetValue(originFilePath, out BackedUpFileData data) && data.fileAttributes.HasValue && data.fileAttributes.Value.HasFlag(FileAttributes.ReadOnly)))
+                // バックアップ先ファイルが読み取り専用なら解除する(読み取り専用でないとデータベースに記録されているファイルは確かめない)
+                if (!(Settings.isUseDatabase && IsNotReadOnlyInDatabase(originFilePath)))
                 {
                     FileInfo destInfo = new FileInfo(destFilePath);
-                    if (destInfo.Exists)
+                    if (destInfo.Exists && destInfo.Attributes.HasFlag(FileAttributes.ReadOnly))
                     {
                         destInfo.Attributes = RemoveAttribute(destInfo.Attributes, FileAttributes.ReadOnly);
                     }
                 }
+                // IsNotReadOnlyInDatabase()の戻り値が true かつバックアップ先ファイルが読み取り専用属性を持つ場合はSystem.UnauthorizedAccessExceptionで失敗する
             }
             if (AesCrypter != null)
             {
@@ -678,13 +683,18 @@ namespace SkyziBackup
                     }
                     else
                     {
-                        Logger.Error(AesCrypter.Error, Results.Message = $"暗号化失敗");
+                        Logger.Error(AesCrypter.Error, Results.Message = $"暗号化に失敗しました '{originFilePath}' => '{destFilePath}'\n");
                         Results.failedFiles.Add(originFilePath);
                     }
                 }
+                catch (UnauthorizedAccessException ex)
+                {
+                    Logger.Error(ex, Results.Message = $"アクセスが拒否されました '{originFilePath}' => '{destFilePath}'\n");
+                    Results.failedFiles.Add(originFilePath);
+                }
                 catch (Exception ex)
                 {
-                    Logger.Error(ex, Results.Message = $"失敗");
+                    Logger.Error(ex, Results.Message = $"予期しない例外が発生しました '{originFilePath}' => '{destFilePath}'\n");
                     Results.failedFiles.Add(originFilePath);
                 }
             }
