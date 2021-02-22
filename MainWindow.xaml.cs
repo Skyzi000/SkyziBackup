@@ -27,7 +27,7 @@ namespace SkyziBackup
     /// </summary>
     public partial class MainWindow : Window
     {
-        public static BackupSettings GlobalSettings = BackupSettings.InitOrLoadGlobalSettings();
+        public static BackupSettings GlobalSettings = BackupSettings.LoadOrCreateGlobalSettings();
         public static AssemblyName AssemblyName = Assembly.GetExecutingAssembly().GetName();
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
@@ -96,13 +96,15 @@ namespace SkyziBackup
                 return;
             }
             encryptButton.IsEnabled = false;
-            GlobalSettings = BackupSettings.InitOrLoadGlobalSettings();
+            GlobalSettings = BackupSettings.LoadOrCreateGlobalSettings();
             if (GlobalSettings.isRecordPassword && GlobalSettings.IsDifferentPassword(password.Password))
             {
                 var changePassword = MessageBox.Show("前回のパスワードと異なります。\nパスワードを変更しますか？\n\n※パスワードを変更する場合、既存のバックアップやデータベースを削除し、\n再度初めからバックアップし直すことをおすすめします。", $"{AssemblyName.Name} - パスワード変更の確認", MessageBoxButton.YesNo, MessageBoxImage.Information);
                 switch (changePassword)
                 {
                     case MessageBoxResult.Yes:
+                        Logger.Info("パスワードを保存");
+                        SavePassword();
                         DeleteDatabase();
                         break;
                     case MessageBoxResult.No:
@@ -124,6 +126,19 @@ namespace SkyziBackup
             db.Results.MessageChanged += (_s, _e) => { _mainContext.Post((d) => { message.Text = m + db.Results.Message + "\n"; }, null); };
             await Task.Run(() => db.StartBackup());
             encryptButton.IsEnabled = true;
+        }
+
+        private void SavePassword()
+        {
+            try
+            {
+                GlobalSettings.ProtectedPassword = password.Password;
+                DataContractWriter.Write(GlobalSettings);
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "パスワードの保存に失敗");
+            }
         }
 
         /// <summary>

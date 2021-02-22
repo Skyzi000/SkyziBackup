@@ -50,11 +50,6 @@ namespace SkyziBackup
         [DataMember]
         public HashSet<string> deletedFiles = null;
 
-        /// <summary>
-        /// バックアップ設定(nullの場合はグローバル設定が適用される)
-        /// </summary>
-        [DataMember]
-        public BackupSettings localSettings = null;
 
         /// <summary>
         /// ファイル名は(originBaseDirPath + destBaseDirPath)のSHA1
@@ -70,7 +65,6 @@ namespace SkyziBackup
             failedFiles = new HashSet<string>();
             ignoreFiles = new HashSet<string>();
             deletedFiles = null;
-            localSettings = null;
         }
     }
 
@@ -139,7 +133,8 @@ namespace SkyziBackup
             }
         }
         public static string GetPath(string fileName) => Path.Combine(Properties.Settings.Default.AppDataPath, $"{fileName}.xml");
-        public static string GetDatabaseFileName(string originBaseDirPath, string destBaseDirPath) => Path.Combine(DirectoryBackup.ComputeStringSHA1(originBaseDirPath + destBaseDirPath), "database");
+        public static string GetDatabaseDirectoryName(string originBaseDirPath, string destBaseDirPath) => DirectoryBackup.ComputeStringSHA1(originBaseDirPath + destBaseDirPath);
+        public static string GetDatabaseFileName(string originBaseDirPath, string destBaseDirPath) => Path.Combine(GetDatabaseDirectoryName(originBaseDirPath, destBaseDirPath), "database");
         public static string GetDatabasePath(string originBaseDirPath, string destBaseDirPath) => GetPath(GetDatabaseFileName(originBaseDirPath, destBaseDirPath));
         // TODO: エラー処理を追加する
         public static void Write<T>(T obj) where T : IDataContractSerializable

@@ -76,10 +76,12 @@ namespace SkyziBackup
         public CompressionLevel compressionLevel;
         [DataMember]
         public CompressAlgorithm compressAlgorithm;
-        
-
+        [IgnoreDataMember]
+        private string directory;
+        [IgnoreDataMember]
         public HashSet<Regex> Regices { get; private set; }
-        public string SaveFileName => nameof(BackupSettings);
+        public bool IsGlobal => string.IsNullOrEmpty(directory);
+        public string SaveFileName => IsGlobal ? nameof(BackupSettings) : Path.Combine(directory, nameof(BackupSettings));
 
         public string IgnorePattern { get => ignorePattern; set { ignorePattern = value; UpdateRegices(); } }
         /// <summary>
@@ -103,10 +105,19 @@ namespace SkyziBackup
             compressionLevel = CompressionLevel.NoCompression;
             compressAlgorithm = CompressAlgorithm.Deflate;
         }
+        /// <summary>
+        /// ローカル設定用のコンストラクタ
+        /// </summary>
+        public BackupSettings(string originBaseDirPath, string destBaseDirPath) : this()
+        {
+            directory = DataContractWriter.GetDatabaseDirectoryName(originBaseDirPath, destBaseDirPath);
+        }
 
         public override string ToString()
         {
             var sb = new StringBuilder();
+            sb.AppendFormat("設定ファイルのパス---------------: {0}\n", DataContractWriter.GetPath(this));
+            sb.AppendFormat("これはグローバル設定か-----------: {0}\n", IsGlobal);
             sb.AppendFormat("データベースを利用する-----------: {0}\n", isUseDatabase);
             sb.AppendFormat("属性をコピーする-----------------: {0}\n", isCopyAttributes);
             sb.AppendFormat("読み取り専用ファイルを上書きする-: {0}\n", isOverwriteReadonly);
@@ -120,14 +131,26 @@ namespace SkyziBackup
             sb.AppendFormat("除外パターン---------------------: \n{0}\n", IgnorePattern);
             return sb.ToString();
         }
-
-        public static BackupSettings InitOrLoadGlobalSettings()
+        
+        public static BackupSettings LoadOrCreateGlobalSettings()
         {
             bool isExists = File.Exists(DataContractWriter.GetPath(nameof(BackupSettings)));
             return isExists
                 ? DataContractWriter.Read<BackupSettings>(nameof(BackupSettings))
                 : new BackupSettings();
         }
+        public static bool TryLoadLocalSettings(string originBaseDirPath, string destBaseDirPath, out BackupSettings localSettings)
+        {
+            string fileName;
+            if (File.Exists(DataContractWriter.GetPath(fileName = Path.Combine(DataContractWriter.GetDatabaseDirectoryName(originBaseDirPath, destBaseDirPath), nameof(BackupSettings)))))
+            {
+                localSettings = DataContractWriter.Read<BackupSettings>(fileName);
+                return true;
+            }
+            localSettings = null;
+            return false;
+        }
+        public static BackupSettings LoadLocalSettingsOrNull(string originBaseDirPath, string destBaseDirPath) => TryLoadLocalSettings(originBaseDirPath, destBaseDirPath, out BackupSettings localSettings) ? localSettings : null;
         public void UpdateRegices()
         {
             string[] patStrArr = IgnorePattern.Split(new[] { "\r\n", "\n", "\r", "|" }, StringSplitOptions.None);
@@ -203,7 +226,7 @@ namespace SkyziBackup
     {
         public BackupResults Results { get; private set; } = new BackupResults(false);
         public OpensslCompatibleAesCrypter AesCrypter { get; set; }
-        public BackupSettings Settings { get { return Database?.localSettings ?? _globalSettings; } set { _globalSettings = value; } }
+        public BackupSettings Settings { get; set; }
         public BackupDatabase Database { get; private set; } = null;
 
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
@@ -211,38 +234,24 @@ namespace SkyziBackup
         private readonly string originBaseDirPath;
         private readonly string destBaseDirPath;
         private int currentRetryCount = 0;
-        private BackupSettings _globalSettings;
 
-        public DirectoryBackup(string originPath, string destPath, string password = null, BackupSettings globalSettings = null)
+        public DirectoryBackup(string originPath, string destPath, string password = null, BackupSettings settings = null)
         {
             originBaseDirPath = Path.TrimEndingDirectorySeparator(originPath);
             destBaseDirPath = Path.TrimEndingDirectorySeparator(destPath);
-            Settings = globalSettings ?? BackupSettings.InitOrLoadGlobalSettings();
+            Settings = settings ?? BackupSettings.LoadLocalSettingsOrNull(originBaseDirPath, destBaseDirPath) ?? BackupSettings.LoadOrCreateGlobalSettings();
             if (Settings.isUseDatabase)
             {
-                InitOrLoadDatabase();
+                LoadOrCreateDatabase();
             }
             if (!string.IsNullOrEmpty(password))
             {
-                if (Settings.isRecordPassword && Settings.IsDifferentPassword(password))
-                {
-                    Logger.Info("パスワードを保存");
-                    try
-                    {
-                        Settings.ProtectedPassword = password;
-                        DataContractWriter.Write(Settings);
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.Error(ex, "パスワードの保存に失敗");
-                    }
-                }
                 AesCrypter = new OpensslCompatibleAesCrypter(password, compressionLevel: Settings.compressionLevel, compressAlgorithm: Settings.compressAlgorithm);
             }
             Results.Finished += Results_Finished;
         }
 
-        private void InitOrLoadDatabase()
+        private void LoadOrCreateDatabase()
         {
             string databasePath;
             bool isExists = File.Exists(databasePath = DataContractWriter.GetDatabasePath(originBaseDirPath, destBaseDirPath));
@@ -285,7 +294,7 @@ namespace SkyziBackup
                 // 万が一データベースと一致しない場合は読み込みなおす(データベースファイルを一旦削除かリネームする処理を入れても良いかも)
                 if (Database.destBaseDirPath != destBaseDirPath)
                 {
-                    InitOrLoadDatabase();
+                    LoadOrCreateDatabase();
                     if (Database.destBaseDirPath != destBaseDirPath)
                     {
                         Logger.Error(Results.Message = $"データベースの読み込み失敗: データベース'{DataContractWriter.GetPath(Database)}'を利用できません。");
