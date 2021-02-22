@@ -132,22 +132,15 @@ namespace SkyziBackup
         {
             switch (obj)
             {
-                case BackupDatabase database:
-                    return GetPath<BackupDatabase>(database.SaveFileName);
                 case IDataContractSerializable data:
-                    return GetPath<IDataContractSerializable>(data.SaveFileName);
+                    return GetPath(data.SaveFileName);
                 default:
                     throw new ArgumentException($"'{obj.GetType()}'型に対応するパス設定はありません。");
             }
         }
-        public static string GetPath<T>(string fileName) where T : IDataContractSerializable
-        {
-            string directory = (typeof(T) == typeof(BackupDatabase))    ? "database"
-                                                                        : "etc";
-            return Path.Combine(Properties.Settings.Default.AppDataPath, directory, $"{fileName}.xml");
-        }
-        public static string GetDatabaseFileName(string originBaseDirPath, string destBaseDirPath) => DirectoryBackup.ComputeStringSHA1(originBaseDirPath + destBaseDirPath);
-        public static string GetDatabasePath(string originBaseDirPath, string destBaseDirPath) => GetPath<BackupDatabase>(GetDatabaseFileName(originBaseDirPath, destBaseDirPath));
+        public static string GetPath(string fileName) => Path.Combine(Properties.Settings.Default.AppDataPath, $"{fileName}.xml");
+        public static string GetDatabaseFileName(string originBaseDirPath, string destBaseDirPath) => Path.Combine(DirectoryBackup.ComputeStringSHA1(originBaseDirPath + destBaseDirPath), "database");
+        public static string GetDatabasePath(string originBaseDirPath, string destBaseDirPath) => GetPath(GetDatabaseFileName(originBaseDirPath, destBaseDirPath));
         // TODO: エラー処理を追加する
         public static void Write<T>(T obj) where T : IDataContractSerializable
         {
@@ -160,7 +153,7 @@ namespace SkyziBackup
         public static T Read<T>(string fileName) where T : IDataContractSerializable
         {
             DataContractSerializer serializer = new DataContractSerializer(typeof(T));
-            using XmlReader xmlReader = XmlReader.Create(GetPath<T>(fileName));
+            using XmlReader xmlReader = XmlReader.Create(GetPath(fileName));
             return (T)serializer.ReadObject(xmlReader);
         }
         public static void Delete(object obj)
@@ -169,12 +162,8 @@ namespace SkyziBackup
         }
         public static void Delete<T>(string fileName) where T : IDataContractSerializable
         {
-            File.Delete(GetPath<T>(fileName));
+            File.Delete(GetPath(fileName));
         }
         public static void DeleteDatabase(string originBaseDirPath, string destBaseDirPath) => Delete<BackupDatabase>(GetDatabaseFileName(originBaseDirPath, destBaseDirPath));
-        public static void DeleteAll<T>() where T : IDataContractSerializable
-        {
-            Directory.Delete(Path.GetDirectoryName(GetPath<T>("")), true);
-        }
     }
 }

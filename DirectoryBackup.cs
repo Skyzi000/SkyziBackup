@@ -123,7 +123,7 @@ namespace SkyziBackup
 
         public static BackupSettings InitOrLoadGlobalSettings()
         {
-            bool isExists = File.Exists(DataContractWriter.GetPath<BackupSettings>(nameof(BackupSettings)));
+            bool isExists = File.Exists(DataContractWriter.GetPath(nameof(BackupSettings)));
             return isExists
                 ? DataContractWriter.Read<BackupSettings>(nameof(BackupSettings))
                 : new BackupSettings();
