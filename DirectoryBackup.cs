@@ -56,7 +56,7 @@ namespace SkyziBackup
         {
             originBaseDirPath = Path.TrimEndingDirectorySeparator(originPath);
             destBaseDirPath = Path.TrimEndingDirectorySeparator(destPath);
-            Settings = settings ?? BackupSettings.LoadLocalSettingsOrNull(originBaseDirPath, destBaseDirPath) ?? BackupSettings.LoadOrCreateGlobalSettings();
+            Settings = settings ?? BackupSettings.LoadLocalSettingsOrNull(originBaseDirPath, destBaseDirPath) ?? BackupSettings.GetGlobalSettings();
             if (Settings.isUseDatabase)
             {
                 LoadOrCreateDatabase();

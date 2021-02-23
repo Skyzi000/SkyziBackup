@@ -104,22 +104,39 @@ namespace SkyziBackup
             sb.AppendFormat("除外パターン---------------------: \n{0}\n", IgnorePattern);
             return sb.ToString();
         }
-        
-        public static BackupSettings LoadOrCreateGlobalSettings()
+
+        /// <summary>
+        /// グローバル設定をファイルから読み込む。読み込めない場合は新規インスタンスを返す。
+        /// </summary>
+        public static BackupSettings GetGlobalSettings() => LoadGlobalSettingsOrNull() ?? new BackupSettings();
+
+        public static bool TryLoadGlobalSettings(out BackupSettings globalSettings)
         {
-            bool isExists = File.Exists(DataContractWriter.GetPath(FileName));
-            return isExists
-                ? DataContractWriter.Read<BackupSettings>(FileName)
-                : new BackupSettings();
+            if (File.Exists(DataContractWriter.GetPath(FileName)))
+            {
+                try
+                {
+                    globalSettings = DataContractWriter.Read<BackupSettings>(FileName);
+                    return true;
+                }
+                catch (Exception) { } // 握りつぶす
+            }
+            globalSettings = null;
+            return false;
         }
+        public static BackupSettings LoadGlobalSettingsOrNull() => TryLoadGlobalSettings(out BackupSettings globalSettings) ? globalSettings : null;
         public static bool TryLoadLocalSettings(string originBaseDirPath, string destBaseDirPath, out BackupSettings localSettings)
         {
             string localFileName;
-            if (File.Exists(DataContractWriter.GetPath(localFileName = Path.Combine(DataContractWriter.GetDatabaseDirectoryName(originBaseDirPath, destBaseDirPath), FileName))))
+            try
             {
-                localSettings = DataContractWriter.Read<BackupSettings>(localFileName);
-                return true;
+                if (File.Exists(DataContractWriter.GetPath(localFileName = Path.Combine(DataContractWriter.GetDatabaseDirectoryName(originBaseDirPath, destBaseDirPath), FileName))))
+                {
+                    localSettings = DataContractWriter.Read<BackupSettings>(localFileName);
+                    return true;
+                }
             }
+            catch (Exception) { } // 握りつぶす
             localSettings = null;
             return false;
         }
