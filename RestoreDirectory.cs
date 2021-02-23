@@ -69,6 +69,7 @@ namespace SkyziBackup
                 string destFilePath = originFilePath.Replace(originBaseDirPath, destBaseDirPath);
                 RestoreFile(originFilePath, destFilePath);
             }
+            return Results;
         }
 
         private void RestoreFile(string originFilePath, string destFilePath)
@@ -124,11 +125,10 @@ namespace SkyziBackup
         private void CopyFileAttributes(string originFilePath, string destFilePath)
         {
             FileInfo originInfo = null;
-            FileInfo destInfo = null;
             Logger.Debug($"属性をコピー");
             if (!isCopyAttributesOnDatabase || !Database.backedUpFilesDict.TryGetValue(originFilePath, out var data))
             {
-                destInfo = new FileInfo(destFilePath)
+                new FileInfo(destFilePath)
                 {
                     CreationTime = (originInfo = new FileInfo(originFilePath)).CreationTime,
                     LastWriteTime = originInfo.LastWriteTime,
@@ -138,11 +138,11 @@ namespace SkyziBackup
             // データベースに記録されたファイル属性をコピーする(記録されていないものがあれば実際のファイルを参照する)
             else
             {
-                destInfo = new FileInfo(destFilePath)
+                new FileInfo(destFilePath)
                 {
                     CreationTime = data.creationTime ?? (originInfo = new FileInfo(originFilePath)).CreationTime,
                     LastWriteTime = data.lastWriteTime ?? (originInfo ??= new FileInfo(originFilePath)).LastWriteTime,
-                    Attributes = data.fileAttributes ?? (originInfo ??= new FileInfo(originFilePath)).Attributes
+                    Attributes = data.fileAttributes ?? (originInfo ?? new FileInfo(originFilePath)).Attributes
                 };
             }
         }
