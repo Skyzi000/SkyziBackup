@@ -50,7 +50,7 @@ namespace SkyziBackup
             Logger.Info("バックアップ設定:\n{0}", Settings);
             Logger.Info("リストアを開始'{0}' => '{1}'", originBaseDirPath, destBaseDirPath);
 
-            Results.backedUpFiles = new HashSet<string>();
+            Results.successfulFiles = new HashSet<string>();
             Results.failedFiles = new HashSet<string>();
 
             if (!Directory.Exists(originBaseDirPath) || (Directory.Exists(destBaseDirPath) && !Directory.EnumerateFileSystemEntries(destBaseDirPath).Any()))
@@ -86,7 +86,7 @@ namespace SkyziBackup
                         {
                             CopyFileAttributes(originFilePath, destFilePath);
                         }
-                        Results.backedUpFiles.Add(originFilePath);
+                        Results.successfulFiles.Add(originFilePath);
                         Results.failedFiles.Remove(originFilePath);
                     }
                     else
@@ -105,7 +105,7 @@ namespace SkyziBackup
                     {
                         CopyFileAttributes(originFilePath, destFilePath);
                     }
-                    Results.backedUpFiles.Add(originFilePath);
+                    Results.successfulFiles.Add(originFilePath);
                     Results.failedFiles.Remove(originFilePath);
                 }
             }

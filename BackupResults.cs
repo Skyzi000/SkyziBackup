@@ -33,9 +33,9 @@ namespace SkyziBackup
         protected virtual void OnMessageChanged(EventArgs e) => MessageChanged?.Invoke(this, e);
 
         /// <summary>
-        /// 新しくバックアップされたファイルのパス。(データベース利用時は常にnull)
+        /// 新しくバックアップ/リストアされたファイルのパス。(データベースを利用したバックアップ時は常にnull)
         /// </summary>
-        public HashSet<string> backedUpFiles = null;
+        public HashSet<string> successfulFiles = null;
 
         /// <summary>
         /// バックアップ対象だが失敗したファイルのパス。

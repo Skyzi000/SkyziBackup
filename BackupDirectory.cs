@@ -227,7 +227,7 @@ namespace SkyziBackup
             else
             {
                 Database = null;
-                Results.backedUpFiles = new HashSet<string>();
+                Results.successfulFiles = new HashSet<string>();
             }
         }
 
@@ -522,7 +522,7 @@ namespace SkyziBackup
                         }
                         else
                         {
-                            Results.backedUpFiles.Add(originFilePath);
+                            Results.successfulFiles.Add(originFilePath);
                         }
                         Results.failedFiles.Remove(originFilePath);
                     }
