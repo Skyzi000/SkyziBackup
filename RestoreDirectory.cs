@@ -62,7 +62,7 @@ namespace SkyziBackup
                 return Results;
             }
 
-            DirectoryBackup.CopyDirectoryStructure(originBaseDirPath, destBaseDirPath, Settings.isCopyAttributes);
+            BackupDirectory.CopyDirectoryStructure(originBaseDirPath, destBaseDirPath, Settings.isCopyAttributes);
 
             foreach (string originFilePath in Directory.EnumerateFiles(originBaseDirPath, "*", SearchOption.AllDirectories))
             {

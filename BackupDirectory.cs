@@ -39,7 +39,7 @@ namespace SkyziBackup
         FileContentsRaw         = 1 << 4,
     }
 
-    internal class DirectoryBackup
+    internal class BackupDirectory
     {
         public BackupResults Results { get; private set; } = new BackupResults(false);
         public OpensslCompatibleAesCrypter AesCrypter { get; set; }
@@ -52,7 +52,7 @@ namespace SkyziBackup
         private readonly string destBaseDirPath;
         private int currentRetryCount = 0;
 
-        public DirectoryBackup(string originPath, string destPath, string password = null, BackupSettings settings = null)
+        public BackupDirectory(string originPath, string destPath, string password = null, BackupSettings settings = null)
         {
             originBaseDirPath = Path.TrimEndingDirectorySeparator(originPath);
             destBaseDirPath = Path.TrimEndingDirectorySeparator(destPath);
