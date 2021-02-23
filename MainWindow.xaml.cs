@@ -42,22 +42,22 @@ namespace SkyziBackup
                 dataPath.TextChanged += DataPath_TextChanged;
                 dataPath.Text = Properties.Settings.Default.AppDataPath;
                 ignorePatternBox.Text = GlobalBackupSettings.IgnorePattern;
-                LoadPassword();
+                password.Password = LoadPasswordOrNull() ?? string.Empty;
             };
         }
 
-        private bool LoadPassword()
+        public static bool TryLoadPassword(out string password)
         {
-            if (GlobalBackupSettings.isRecordPassword || !string.IsNullOrEmpty(GlobalBackupSettings.ProtectedPassword))
+            if (GlobalBackupSettings.isRecordPassword && !string.IsNullOrEmpty(GlobalBackupSettings.ProtectedPassword))
             {
                 try
                 {
-                    password.Password = GlobalBackupSettings.GetRawPassword();
+                    password = GlobalBackupSettings.GetRawPassword();
                 }
                 catch (Exception ex)
                 {
                     Logger.Warn(ex, "パスワード読み込みエラー");
-                    password.Password = string.Empty;
+                    password = null;
                     MessageBox.Show("パスワードを読み込めませんでした。\nパスワードを再度入力してください。", $"{AssemblyName.Name} - 読み込みエラー", MessageBoxButton.OK, MessageBoxImage.Error);
                     return false;
                 }
@@ -65,11 +65,11 @@ namespace SkyziBackup
             }
             else
             {
-                password.Password = string.Empty;
+                password = null;
                 return false;
             }
         }
-
+        public static string LoadPasswordOrNull() => TryLoadPassword(out string password) ? password : null;
         private void DataPath_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (dataPath.Text == "")
@@ -110,7 +110,14 @@ namespace SkyziBackup
                     case MessageBoxResult.No:
                     default:
                         MessageBox.Show("保存されたパスワードを使用します。");
-                        LoadPassword();
+                        if (TryLoadPassword(out string pass))
+                        {
+                            password.Password = pass;
+                        }
+                        else
+                        {
+                            return;
+                        }
                         break;
                 }
             }
