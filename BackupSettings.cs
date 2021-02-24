@@ -47,14 +47,14 @@ namespace SkyziBackup
         [DataMember]
         public CompressAlgorithm compressAlgorithm;
         [IgnoreDataMember]
-        private string directory;
+        private string localFileName;
         [IgnoreDataMember]
         public HashSet<Regex> Regices { get; private set; }
         [IgnoreDataMember]
         public static readonly string FileName = nameof(BackupSettings) + ".xml";
 
-        public bool IsGlobal => string.IsNullOrEmpty(directory);
-        public string SaveFileName => IsGlobal ? FileName : Path.Combine(directory, FileName);
+        public bool IsGlobal => string.IsNullOrEmpty(localFileName);
+        public string SaveFileName => IsGlobal ? FileName : localFileName;
 
         public string IgnorePattern { get => ignorePattern; set { ignorePattern = value; UpdateRegices(); } }
         /// <summary>
@@ -83,7 +83,7 @@ namespace SkyziBackup
         /// </summary>
         public BackupSettings(string originBaseDirPath, string destBaseDirPath) : this()
         {
-            directory = DataContractWriter.GetDatabaseDirectoryName(originBaseDirPath, destBaseDirPath);
+            localFileName = Path.Combine(DataContractWriter.GetDatabaseDirectoryName(originBaseDirPath, destBaseDirPath), FileName);
         }
 
         public override string ToString()
@@ -127,12 +127,13 @@ namespace SkyziBackup
         public static BackupSettings LoadGlobalSettingsOrNull() => TryLoadGlobalSettings(out BackupSettings globalSettings) ? globalSettings : null;
         public static bool TryLoadLocalSettings(string originBaseDirPath, string destBaseDirPath, out BackupSettings localSettings)
         {
-            string localFileName;
+            string lfName;
             try
             {
-                if (File.Exists(DataContractWriter.GetPath(localFileName = Path.Combine(DataContractWriter.GetDatabaseDirectoryName(originBaseDirPath, destBaseDirPath), FileName))))
+                if (File.Exists(DataContractWriter.GetPath(lfName = Path.Combine(DataContractWriter.GetDatabaseDirectoryName(originBaseDirPath, destBaseDirPath), FileName))))
                 {
-                    localSettings = DataContractWriter.Read<BackupSettings>(localFileName);
+                    localSettings = DataContractWriter.Read<BackupSettings>(lfName);
+                    localSettings.localFileName = lfName;
                     return true;
                 }
             }
