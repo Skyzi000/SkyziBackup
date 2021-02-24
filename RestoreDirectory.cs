@@ -39,10 +39,10 @@ namespace SkyziBackup
                 try
                 {
                     Database = DataContractWriter.Read<BackupDatabase>(DataContractWriter.GetDatabaseFileName(destBaseDirPath, originBaseDirPath));
-                    this.isCopyAttributesOnDatabase = isCopyAttributesOnDatabase;
                 }
                 catch (Exception) { }
             }
+            this.isCopyAttributesOnDatabase = isCopyAttributesOnDatabase;
             this.isEnableWriteDatabase = isEnableWriteDatabase;
             if (this.isEnableWriteDatabase && Database == null)
             {
@@ -64,6 +64,11 @@ namespace SkyziBackup
                 throw new NotImplementedException("現在、このクラスのインスタンスは再利用されることを想定していません。");
             }
             Logger.Info("バックアップ設定:\n{0}", Settings);
+            Logger.Info(@"リストア設定:
+可能ならデータベース上のファイル属性をコピーする: {0}
+ファイル属性だけをコピーする: {1}
+ファイル属性をデータベースに保存する: {2}",
+                isCopyAttributesOnDatabase, isCopyOnlyFileAttributes, isEnableWriteDatabase);
             Logger.Info("リストアを開始'{0}' => '{1}'", originBaseDirPath, destBaseDirPath);
 
             Results.successfulFiles = new HashSet<string>();
@@ -94,6 +99,8 @@ namespace SkyziBackup
                 string destFilePath = originFilePath.Replace(originBaseDirPath, destBaseDirPath);
                 RestoreFile(originFilePath, destFilePath);
             }
+            Results.isSuccess = Results.failedFiles.Count == 0;
+            Results.IsFinished = true;
             return Results;
         }
 
@@ -150,7 +157,7 @@ namespace SkyziBackup
         private void CopyFileAttributes(string originFilePath, string destFilePath)
         {
             FileInfo originInfo = null;
-            Logger.Debug($"属性をコピー");
+            Logger.Info("属性をコピー{0} => {1}", originFilePath, destFilePath);
             if (isEnableWriteDatabase)
             {
                 Database.backedUpFilesDict[originFilePath] ??= new BackedUpFileData();
@@ -231,9 +238,32 @@ namespace SkyziBackup
                         Results.failedFiles.Add(originDirPath);
                     }
                 }
+                foreach (string originFilePath in Database.backedUpFilesDict.Keys)
+                {
+                    string destFilePath = originFilePath.Replace(originBaseDirPath, destBaseDirPath);
+                    try
+                    {
+                        if (Settings.isCopyAttributes)
+                        {
+                            CopyFileAttributes(originFilePath, destFilePath);
+                        }
+                        Results.successfulFiles.Add(originFilePath);
+                        Results.failedFiles.Remove(originFilePath);
+                    }
+                    catch (UnauthorizedAccessException ex)
+                    {
+                        Logger.Error(ex, Results.Message = $"アクセスが拒否されました '{originFilePath}' => '{destFilePath}'\n");
+                        Results.failedFiles.Add(originFilePath);
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Error(ex, Results.Message = $"予期しない例外が発生しました '{originFilePath}' => '{destFilePath}'\n");
+                        Results.failedFiles.Add(originFilePath);
+                    }
+                }
+                return Results;
             }
-            else
-                BackupDirectory.CopyDirectoryStructure(originBaseDirPath, destBaseDirPath, true);
+            BackupDirectory.CopyDirectoryStructure(originBaseDirPath, destBaseDirPath, true);
             foreach (string originFilePath in Directory.EnumerateFiles(originBaseDirPath, "*", SearchOption.AllDirectories))
             {
                 string destFilePath = originFilePath.Replace(originBaseDirPath, destBaseDirPath);
