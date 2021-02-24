@@ -46,9 +46,9 @@ namespace SkyziBackup
             this.isEnableWriteDatabase = isEnableWriteDatabase;
             if (this.isEnableWriteDatabase && Database == null)
             {
-                Database = File.Exists(DataContractWriter.GetDatabasePath(originBaseDirPath, destBaseDirPath))
-                    ? DataContractWriter.Read<BackupDatabase>(DataContractWriter.GetDatabaseFileName(originBaseDirPath, destBaseDirPath))
-                    : new BackupDatabase(originBaseDirPath, destBaseDirPath);
+                Database = File.Exists(DataContractWriter.GetDatabasePath(destBaseDirPath, originBaseDirPath))
+                    ? DataContractWriter.Read<BackupDatabase>(DataContractWriter.GetDatabaseFileName(destBaseDirPath, originBaseDirPath))
+                    : new BackupDatabase(destBaseDirPath, originBaseDirPath);
             }
             if (!string.IsNullOrEmpty(password))
             {
@@ -197,7 +197,7 @@ namespace SkyziBackup
         {
             if (!Settings.isCopyAttributes)
             {
-                Results.Message = $"リストアを中止: ファイル属性をコピーしない設定になっています。";
+                Logger.Warn(Results.Message = $"リストアを中止: ファイル属性をコピーしない設定になっています。");
                 Results.IsFinished = true;
                 return Results;
             }
