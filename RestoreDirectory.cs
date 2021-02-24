@@ -19,18 +19,19 @@ namespace SkyziBackup
         private readonly string originBaseDirPath;
         private readonly string destBaseDirPath;
         private readonly bool isCopyAttributesOnDatabase = false;
-        public RestoreDirectory(string sourceDirPath, string destDirPath, string password = null, BackupSettings settings = null, bool isCopyAttributesOnDatabase = false)
+        private readonly bool isCopyOnlyFileAttributes = false;
+        public RestoreDirectory(string sourceDirPath, string destDirPath, string password = null, BackupSettings settings = null, bool isCopyAttributesOnDatabase = false, bool isCopyOnlyFileAttributes = false)
         {
             this.originBaseDirPath = Path.TrimEndingDirectorySeparator(sourceDirPath);
             this.destBaseDirPath = Path.TrimEndingDirectorySeparator(destDirPath);
-            Settings = settings ?? BackupSettings.LoadLocalSettingsOrNull(originBaseDirPath, destBaseDirPath) ?? BackupSettings.GetGlobalSettings();
+            Settings = settings ?? BackupSettings.LoadLocalSettingsOrNull(destBaseDirPath, originBaseDirPath) ?? BackupSettings.GetGlobalSettings();
             //if (Settings.isUseDatabase && Settings.comparisonMethod.HasFlag(ComparisonMethod.FileContentsSHA1))
             // TODO: データベースに記録されたSHA1と比較できるようにする
-            if (isCopyAttributesOnDatabase && File.Exists(DataContractWriter.GetDatabasePath(originBaseDirPath, destBaseDirPath)))
+            if (isCopyAttributesOnDatabase && File.Exists(DataContractWriter.GetDatabasePath(destBaseDirPath, originBaseDirPath)))
             {
                 try
                 {
-                    Database = DataContractWriter.Read<BackupDatabase>(DataContractWriter.GetDatabaseFileName(originBaseDirPath, destBaseDirPath));
+                    Database = DataContractWriter.Read<BackupDatabase>(DataContractWriter.GetDatabaseFileName(destBaseDirPath, originBaseDirPath));
                     this.isCopyAttributesOnDatabase = isCopyAttributesOnDatabase;
                 }
                 catch (Exception) { }
@@ -40,6 +41,7 @@ namespace SkyziBackup
                 AesCrypter = new OpensslCompatibleAesCrypter(password, compressionLevel: Settings.compressionLevel, compressAlgorithm: Settings.compressAlgorithm);
             }
             Results.Finished += Results_Finished;
+            this.isCopyOnlyFileAttributes = isCopyOnlyFileAttributes;
         }
         public BackupResults StartRestore()
         {
@@ -52,6 +54,9 @@ namespace SkyziBackup
 
             Results.successfulFiles = new HashSet<string>();
             Results.failedFiles = new HashSet<string>();
+
+            if (isCopyOnlyFileAttributes)
+                return CopyOnlyFileAttributes();
 
             if (!Directory.Exists(originBaseDirPath) || (Directory.Exists(destBaseDirPath) && !Directory.EnumerateFileSystemEntries(destBaseDirPath).Any()))
             {
@@ -147,6 +152,70 @@ namespace SkyziBackup
             }
         }
 
+        private BackupResults CopyOnlyFileAttributes()
+        {
+            if (!isCopyAttributesOnDatabase && !Directory.Exists(originBaseDirPath))
+            {
+                Logger.Error(Results.Message = $"リストアを中止: リストア元のディレクトリ'{originBaseDirPath}'が見つかりません。");
+                Results.IsFinished = true;
+                return Results;
+            }
+            if (isCopyAttributesOnDatabase)
+            {
+                foreach (string originDirPath in Database.backedUpDirectoriesDict.Keys)
+                {
+                    string destDirPath = originDirPath.Replace(originBaseDirPath, destBaseDirPath);
+                    DirectoryInfo originInfo = null;
+                    BackedUpDirectoryData data = Database.backedUpDirectoriesDict[originDirPath];
+                    try
+                    {
+                        // データベースに記録されたディレクトリ属性をコピーする(もし記録されていないものがあれば実際のディレクトリを参照する)
+                        new DirectoryInfo(destDirPath)
+                        {
+                            CreationTime = data.creationTime ?? (originInfo = new DirectoryInfo(originDirPath)).CreationTime,
+                            LastWriteTime = data.lastWriteTime ?? (originInfo ??= new DirectoryInfo(originDirPath)).LastWriteTime,
+                            Attributes = data.fileAttributes ?? (originInfo ?? new DirectoryInfo(originDirPath)).Attributes
+                        };
+                    }
+                    catch (UnauthorizedAccessException ex)
+                    {
+                        Logger.Error(ex, Results.Message = $"アクセスが拒否されました '{originDirPath}' => '{destDirPath}'\n");
+                        Results.failedFiles.Add(originDirPath);
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Error(ex, Results.Message = $"予期しない例外が発生しました '{originDirPath}' => '{destDirPath}'\n");
+                        Results.failedFiles.Add(originDirPath);
+                    }
+                }
+            }
+            else
+                BackupDirectory.CopyDirectoryStructure(originBaseDirPath, destBaseDirPath, true);
+            foreach (string originFilePath in Directory.EnumerateFiles(originBaseDirPath, "*", SearchOption.AllDirectories))
+            {
+                string destFilePath = originFilePath.Replace(originBaseDirPath, destBaseDirPath);
+                try
+                {
+                    if (Settings.isCopyAttributes)
+                    {
+                        CopyFileAttributes(originFilePath, destFilePath);
+                    }
+                    Results.successfulFiles.Add(originFilePath);
+                    Results.failedFiles.Remove(originFilePath);
+                }
+                catch (UnauthorizedAccessException ex)
+                {
+                    Logger.Error(ex, Results.Message = $"アクセスが拒否されました '{originFilePath}' => '{destFilePath}'\n");
+                    Results.failedFiles.Add(originFilePath);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error(ex, Results.Message = $"予期しない例外が発生しました '{originFilePath}' => '{destFilePath}'\n");
+                    Results.failedFiles.Add(originFilePath);
+                }
+            }
+            return Results;
+        }
         private void Results_Finished(object sender, EventArgs e)
         {
             Results.Message = (Results.isSuccess ? "リストア完了: " : Results.Message + "\nリストア失敗: ") + DateTime.Now;
