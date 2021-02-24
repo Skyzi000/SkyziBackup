@@ -65,6 +65,8 @@ namespace SkyziBackup
                     case MessageBoxResult.No:
                     default:
                         MessageBox.Show("リストアを中止します。");
+                        RestoreButton.IsEnabled = true;
+                        progressBar.Visibility = Visibility.Hidden;
                         return;
                 }
             }
