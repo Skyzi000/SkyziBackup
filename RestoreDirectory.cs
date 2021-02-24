@@ -75,7 +75,9 @@ namespace SkyziBackup
             Results.failedFiles = new HashSet<string>();
 
             if (isCopyOnlyFileAttributes)
+            {
                 return CopyOnlyFileAttributes();
+            }
 
             if (!Directory.Exists(originBaseDirPath) || (Directory.Exists(destBaseDirPath) && !Directory.EnumerateFileSystemEntries(destBaseDirPath).Any()))
             {
@@ -160,13 +162,14 @@ namespace SkyziBackup
             Logger.Info("属性をコピー{0} => {1}", originFilePath, destFilePath);
             if (isEnableWriteDatabase)
             {
-                Database.backedUpFilesDict[originFilePath] ??= new BackedUpFileData();
+                var data = Database.backedUpFilesDict.TryGetValue(originFilePath, out var d) ? d : new BackedUpFileData();
                 new FileInfo(destFilePath)
                 {
-                    CreationTime = (Database.backedUpFilesDict[originFilePath].creationTime = (originInfo = new FileInfo(originFilePath)).CreationTime).Value,
-                    LastWriteTime = (Database.backedUpFilesDict[originFilePath].lastWriteTime = originInfo.LastWriteTime).Value,
-                    Attributes = (Database.backedUpFilesDict[originFilePath].fileAttributes = originInfo.Attributes).Value
+                    CreationTime = (data.creationTime = (originInfo = new FileInfo(originFilePath)).CreationTime).Value,
+                    LastWriteTime = (data.lastWriteTime = originInfo.LastWriteTime).Value,
+                    Attributes = (data.fileAttributes = originInfo.Attributes).Value
                 };
+                Database.backedUpFilesDict[originFilePath] = data;
             }
             else if (!isCopyAttributesOnDatabase || !Database.backedUpFilesDict.TryGetValue(originFilePath, out var data))
             {
@@ -207,13 +210,14 @@ namespace SkyziBackup
                     {
                         if (isEnableWriteDatabase)
                         {
-                            Database.backedUpDirectoriesDict[originDirPath] ??= new BackedUpDirectoryData();
+                            var data = Database.backedUpDirectoriesDict.TryGetValue(originDirPath, out var d) ? d : new BackedUpDirectoryData();
                             new DirectoryInfo(destDirPath)
                             {
-                                CreationTime = (Database.backedUpDirectoriesDict[originDirPath].creationTime = (originInfo = new DirectoryInfo(originDirPath)).CreationTime).Value,
-                                LastWriteTime = (Database.backedUpDirectoriesDict[originDirPath].lastWriteTime = originInfo.LastWriteTime).Value,
-                                Attributes = (Database.backedUpDirectoriesDict[originDirPath].fileAttributes = originInfo.Attributes).Value
+                                CreationTime = (data.creationTime = (originInfo = new DirectoryInfo(originDirPath)).CreationTime).Value,
+                                LastWriteTime = (data.lastWriteTime = originInfo.LastWriteTime).Value,
+                                Attributes = (data.fileAttributes = originInfo.Attributes).Value
                             };
+                            Database.backedUpDirectoriesDict[originDirPath] = data;
                         }
                         else
                         {
@@ -227,9 +231,9 @@ namespace SkyziBackup
                             };
                         }
                     }
-                    catch (UnauthorizedAccessException ex)
+                    catch (UnauthorizedAccessException)
                     {
-                        Logger.Error(ex, Results.Message = $"アクセスが拒否されました '{originDirPath}' => '{destDirPath}'\n");
+                        Logger.Error(Results.Message = $"アクセスが拒否されました '{originDirPath}' => '{destDirPath}'\n");
                         Results.failedFiles.Add(originDirPath);
                     }
                     catch (Exception ex)
@@ -250,9 +254,9 @@ namespace SkyziBackup
                         Results.successfulFiles.Add(originFilePath);
                         Results.failedFiles.Remove(originFilePath);
                     }
-                    catch (UnauthorizedAccessException ex)
+                    catch (UnauthorizedAccessException)
                     {
-                        Logger.Error(ex, Results.Message = $"アクセスが拒否されました '{originFilePath}' => '{destFilePath}'\n");
+                        Logger.Error(Results.Message = $"アクセスが拒否されました '{originFilePath}' => '{destFilePath}'\n");
                         Results.failedFiles.Add(originFilePath);
                     }
                     catch (Exception ex)
@@ -261,32 +265,85 @@ namespace SkyziBackup
                         Results.failedFiles.Add(originFilePath);
                     }
                 }
-                return Results;
             }
-            BackupDirectory.CopyDirectoryStructure(originBaseDirPath, destBaseDirPath, true);
-            foreach (string originFilePath in Directory.EnumerateFiles(originBaseDirPath, "*", SearchOption.AllDirectories))
+            else
             {
-                string destFilePath = originFilePath.Replace(originBaseDirPath, destBaseDirPath);
-                try
+                foreach (string originDirPath in Directory.EnumerateDirectories(originBaseDirPath, "*", SearchOption.AllDirectories))
                 {
-                    if (Settings.isCopyAttributes)
+                    string destDirPath = originDirPath.Replace(originBaseDirPath, destBaseDirPath);
+                    if (!Directory.Exists(destDirPath))
                     {
-                        CopyFileAttributes(originFilePath, destFilePath);
+                        Logger.Warn("コピー先のディレクトリが見つかりません: {0}", destDirPath);
+                        Results.failedFiles.Add(originDirPath);
+                        continue;
                     }
-                    Results.successfulFiles.Add(originFilePath);
-                    Results.failedFiles.Remove(originFilePath);
+                    try
+                    {
+                        DirectoryInfo originInfo;
+                        if (isEnableWriteDatabase)
+                        {
+                            var data = Database.backedUpDirectoriesDict.TryGetValue(originDirPath, out var d) ? d : new BackedUpDirectoryData();
+                            new DirectoryInfo(destDirPath)
+                            {
+                                CreationTime = (data.creationTime = (originInfo = new DirectoryInfo(originDirPath)).CreationTime).Value,
+                                LastWriteTime = (data.lastWriteTime = originInfo.LastWriteTime).Value,
+                                Attributes = (data.fileAttributes = originInfo.Attributes).Value
+                            };
+                            Database.backedUpDirectoriesDict[originDirPath] = data;
+                        }
+                        else
+                        {
+                            new DirectoryInfo(destDirPath)
+                            {
+                                CreationTime = (originInfo = new DirectoryInfo(originDirPath)).CreationTime,
+                                LastWriteTime = originInfo.LastWriteTime,
+                                Attributes = originInfo.Attributes
+                            };
+                        }
+                    }
+                    catch (UnauthorizedAccessException)
+                    {
+                        Logger.Error(Results.Message = $"アクセスが拒否されました '{originDirPath}' => '{destDirPath}'\n");
+                        Results.failedFiles.Add(originDirPath);
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Error(ex, Results.Message = $"予期しない例外が発生しました '{originDirPath}' => '{destDirPath}'\n");
+                        Results.failedFiles.Add(originDirPath);
+                    }
                 }
-                catch (UnauthorizedAccessException ex)
+                foreach (string originFilePath in Directory.EnumerateFiles(originBaseDirPath, "*", SearchOption.AllDirectories))
                 {
-                    Logger.Error(ex, Results.Message = $"アクセスが拒否されました '{originFilePath}' => '{destFilePath}'\n");
-                    Results.failedFiles.Add(originFilePath);
-                }
-                catch (Exception ex)
-                {
-                    Logger.Error(ex, Results.Message = $"予期しない例外が発生しました '{originFilePath}' => '{destFilePath}'\n");
-                    Results.failedFiles.Add(originFilePath);
+                    string destFilePath = originFilePath.Replace(originBaseDirPath, destBaseDirPath);
+                    if (!File.Exists(destFilePath))
+                    {
+                        Logger.Warn("コピー先のファイルが見つかりません: '{0}'", destFilePath);
+                        Results.failedFiles.Add(originFilePath);
+                        continue;
+                    }
+                    try
+                    {
+                        if (Settings.isCopyAttributes)
+                        {
+                            CopyFileAttributes(originFilePath, destFilePath);
+                        }
+                        Results.successfulFiles.Add(originFilePath);
+                        Results.failedFiles.Remove(originFilePath);
+                    }
+                    catch (UnauthorizedAccessException)
+                    {
+                        Logger.Error(Results.Message = $"アクセスが拒否されました '{originFilePath}' => '{destFilePath}'\n");
+                        Results.failedFiles.Add(originFilePath);
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Error(ex, Results.Message = $"予期しない例外が発生しました '{originFilePath}' => '{destFilePath}'\n");
+                        Results.failedFiles.Add(originFilePath);
+                    }
                 }
             }
+            Results.isSuccess = Results.failedFiles.Any();
+            Results.IsFinished = true;
             return Results;
         }
         private void Results_Finished(object sender, EventArgs e)
