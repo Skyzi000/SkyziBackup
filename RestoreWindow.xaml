@@ -39,8 +39,8 @@
                     <MenuItem Name="CloseButton" Header="閉じる(_X)" Click="CloseButton_Click"/>
                 </MenuItem>
                 <MenuItem Header="オプション(_O)">
-                    <MenuItem Header="リストア用特殊オプション">
-                        <MenuItem Name="copyAttributesOnDatabaseCheck" IsCheckable="True" Header="可能ならデータベース上のファイル属性をコピーする" />
+                    <MenuItem Header="リストア用特殊オプション(プレビュー)">
+                        <MenuItem Name="copyAttributesOnDatabaseCheck" IsCheckable="True" Header="データベース上のファイル属性をコピーする" />
                         <MenuItem Name="copyOnlyAttributesCheck" IsCheckable="True" Header="ファイル属性だけをコピーする" />
                         <MenuItem Name="isEnableWriteDatabaseCheck" IsCheckable="True" Header="ファイル属性をデータベースに保存する" />
                     </MenuItem>
