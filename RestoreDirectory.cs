@@ -163,9 +163,9 @@ namespace SkyziBackup
         private BackedUpFileData CopyFileAttributes(string originFilePath, string destFilePath)
         {
             FileInfo originInfo = null;
-            Logger.Info("属性をコピー{0} => {1}", originFilePath, destFilePath);
             if (isEnableWriteDatabase)
             {
+                Logger.Info("属性をコピー'{0}' => '{1}'", originFilePath, destFilePath);
                 var data = Database.backedUpFilesDict.TryGetValue(originFilePath, out var d) ? d : new BackedUpFileData();
                 new FileInfo(destFilePath)
                 {
@@ -177,6 +177,7 @@ namespace SkyziBackup
             }
             else if (!isCopyAttributesOnDatabase || !Database.backedUpFilesDict.TryGetValue(originFilePath, out var data))
             {
+                Logger.Info("属性をコピー'{0}' => '{1}'", originFilePath, destFilePath);
                 new FileInfo(destFilePath)
                 {
                     CreationTime = (originInfo = new FileInfo(originFilePath)).CreationTime,
@@ -187,6 +188,7 @@ namespace SkyziBackup
             // データベースに記録されたファイル属性をコピーする(記録されていないものがあれば実際のファイルを参照する)
             else
             {
+                Logger.Info("データベースから属性を復元 '{1}'", destFilePath);
                 new FileInfo(destFilePath)
                 {
                     CreationTime = data.creationTime ?? (originInfo = new FileInfo(originFilePath)).CreationTime,
