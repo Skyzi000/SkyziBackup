@@ -79,7 +79,7 @@ namespace SkyziBackup
                 return CopyOnlyFileAttributes();
             }
 
-            if (!Directory.Exists(originBaseDirPath) || (Directory.Exists(destBaseDirPath) && !Directory.EnumerateFileSystemEntries(destBaseDirPath).Any()))
+            if (!Directory.Exists(originBaseDirPath) || (Directory.Exists(destBaseDirPath) && Directory.EnumerateFileSystemEntries(destBaseDirPath).Any()))
             {
                 Logger.Error(Results.Message = !Directory.Exists(originBaseDirPath)
                     ? $"リストアを中止: リストア元のディレクトリ'{originBaseDirPath}'が見つかりません。"
@@ -101,7 +101,7 @@ namespace SkyziBackup
                 string destFilePath = originFilePath.Replace(originBaseDirPath, destBaseDirPath);
                 RestoreFile(originFilePath, destFilePath);
             }
-            Results.isSuccess = Results.failedFiles.Count == 0;
+            Results.isSuccess = !Results.failedFiles.Any();
             Results.IsFinished = true;
             return Results;
         }
@@ -365,7 +365,7 @@ namespace SkyziBackup
                     }
                 }
             }
-            Results.isSuccess = Results.failedFiles.Any();
+            Results.isSuccess = !Results.failedFiles.Any();
             Results.IsFinished = true;
             return Results;
         }

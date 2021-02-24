@@ -135,10 +135,10 @@ namespace SkyziBackup
             }
 
             // 成功判定
-            Results.isSuccess = Results.failedFiles.Count == 0;
+            Results.isSuccess = !Results.failedFiles.Any();
 
             // リトライ処理
-            if (Results.failedFiles.Count != 0 && Settings.retryCount > 0)
+            if (Results.failedFiles.Any() && Settings.retryCount > 0)
             {
                 Logger.Info($"{Settings.retryWaitMilliSec} ミリ秒毎に {Settings.retryCount} 回リトライ");
                 RetryStart();
@@ -567,7 +567,7 @@ namespace SkyziBackup
                 string destFilePath = originFilePath.Replace(originBaseDirPath, destBaseDirPath);
                 BackupFile(originFilePath, destFilePath);
             }
-            Results.isSuccess = Results.failedFiles.Count == 0;
+            Results.isSuccess = !Results.failedFiles.Any();
             if (Results.isSuccess)
             {
                 Results.IsFinished = true;
