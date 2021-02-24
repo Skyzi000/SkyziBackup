@@ -43,14 +43,20 @@ namespace SkyziBackup
         {
             if (!Directory.Exists(originPath.Text.Trim()))
             {
-                MessageBox.Show($"{originPathLabel.Content}が不正です。\n正しいディレクトリパスを入力してください。", $"{MainWindow.AssemblyName.Name} - 警告", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show($"{originPathLabel.Content}が不正です。\n正しいディレクトリパスを入力してください。",
+                                $"{MainWindow.AssemblyName.Name} - 警告",
+                                MessageBoxButton.OK,
+                                MessageBoxImage.Warning);
                 return;
             }
             restoreButton.IsEnabled = false;
             BackupSettings settings = BackupSettings.LoadLocalSettingsOrNull(destPath.Text.Trim(), originPath.Text.Trim()) ?? BackupSettings.LoadGlobalSettingsOrNull() ?? MainWindow.GlobalBackupSettings;
             if (settings.isRecordPassword && settings.IsDifferentPassword(password.Password))
             {
-                var changePassword = MessageBox.Show("入力されたパスワードが保存されているパスワードと異なります。\nこのまま続行しますか？", $"{MainWindow.AssemblyName.Name} - パスワードの確認", MessageBoxButton.YesNo, MessageBoxImage.Information);
+                var changePassword = MessageBox.Show("入力されたパスワードが保存されているパスワードと異なります。\nこのまま続行しますか？",
+                                                     $"{MainWindow.AssemblyName.Name} - パスワードの確認",
+                                                     MessageBoxButton.YesNo,
+                                                     MessageBoxImage.Information);
                 switch (changePassword)
                 {
                     case MessageBoxResult.Yes:
@@ -63,7 +69,13 @@ namespace SkyziBackup
             }
             message.Text = $"'{originPath.Text.Trim()}' => '{destPath.Text.Trim()}'";
             message.Text += $"\nリストア開始: {DateTime.Now}\n";
-            var restore = new RestoreDirectory(originPath.Text.Trim(), destPath.Text.Trim(), password.Password, settings, copyAttributesOnDatabaseCheck.IsChecked, copyOnlyAttributesCheck.IsChecked);
+            RestoreDirectory restore = new RestoreDirectory(originPath.Text.Trim(),
+                                                            destPath.Text.Trim(),
+                                                            password.Password,
+                                                            settings,
+                                                            copyAttributesOnDatabaseCheck.IsChecked,
+                                                            copyOnlyAttributesCheck.IsChecked,
+                                                            isEnableWriteDatabaseCheck.IsChecked);
             string m = message.Text;
             restore.Results.MessageChanged += (_s, _e) => { _mainContext.Post((d) => { message.Text = m + restore.Results.Message + "\n"; }, null); };
             await Task.Run(() => restore.StartRestore());
@@ -79,7 +91,10 @@ namespace SkyziBackup
         {
             if (!restoreButton.IsEnabled)
             {
-                if (MessageBoxResult.Yes != MessageBox.Show("リストア実行中です。ウィンドウを閉じますか？", "確認", MessageBoxButton.YesNo, MessageBoxImage.Information))
+                if (MessageBoxResult.Yes != MessageBox.Show("リストア実行中です。ウィンドウを閉じますか？",
+                                                            "確認",
+                                                            MessageBoxButton.YesNo,
+                                                            MessageBoxImage.Information))
                 {
                     e.Cancel = true;
                     return;
