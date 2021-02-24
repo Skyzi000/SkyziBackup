@@ -172,6 +172,17 @@ namespace SkyziBackup
             else
                 return false;
         }
+
+        private void RestoreWindowMenu_Click(object sender, RoutedEventArgs e)
+        {
+            var restoreWindow = new RestoreWindow(destPath.Text.Trim(), originPath.Text.Trim());
+            restoreWindow.Show();
+        }
+
+        private void CloseButton_Click(object sender, RoutedEventArgs e)
+        {
+            Close();
+        }
     }
 }
 

@@ -22,29 +22,30 @@
             <Label x:Name="destPathLabel" Content="リストア先ディレクトリ" HorizontalAlignment="Left" VerticalAlignment="Top"/>
             <TextBox x:Name="destPath" HorizontalAlignment="Stretch" Text="" TextWrapping="NoWrap" VerticalAlignment="Top"/>
         </StackPanel>
-        <Button x:Name="restoreButton" Click="restoreButton_ClickAsync" Content="リストア開始" Margin="50,100,50,0" VerticalAlignment="Top" Grid.ColumnSpan="2" Height="20"/>
-        <d:ScrollViewer Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" TabIndex="2147483644" VerticalScrollBarVisibility="Auto" BorderBrush="Black" BorderThickness="5">
-            <TextBlock x:Name="message" HorizontalAlignment="Left" Text="" TextWrapping="Wrap" VerticalAlignment="Top"/>
-        </d:ScrollViewer>
+        <Button x:Name="RestoreButton" Click="RestoreButton_ClickAsync" Content="リストア開始" Margin="50,100,50,0" VerticalAlignment="Top" Grid.ColumnSpan="2" Height="20"/>
+        <ProgressBar x:Name="progressBar" Height="20" Margin="50,100,50,0" IsIndeterminate="True" Grid.ColumnSpan="2" Visibility="Hidden" />
+        <ScrollViewer Name="MessageScrollViewer" Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" TabIndex="2147483644" VerticalScrollBarVisibility="Auto" BorderBrush="Black" BorderThickness="5">
+            <TextBlock Name="Message" HorizontalAlignment="Left" Text="" TextWrapping="Wrap" VerticalAlignment="Top"/>
+        </ScrollViewer>
         <Grid Grid.Column="1">
             <StackPanel >
                 <Label x:Name="passwordLabel" Content="パスワード" HorizontalAlignment="Left" VerticalAlignment="Top"/>
                 <PasswordBox x:Name="password" HorizontalAlignment="Stretch" Password="password" VerticalAlignment="Top"/>
             </StackPanel>
         </Grid>
-        <d:DockPanel LastChildFill="False" Grid.Column="0" Grid.ColumnSpan="2" Margin="-10,-18,-10,0" VerticalAlignment="Top" Height="18">
+        <DockPanel LastChildFill="False" Grid.Column="0" Grid.ColumnSpan="2" Margin="-10,-18,-10,0" VerticalAlignment="Top" Height="18">
             <Menu DockPanel.Dock="Top">
                 <MenuItem Header="ファイル(_F)">
-                    <MenuItem x:Name="CloseButton" Header="閉じる(_X)" Click="CloseButton_Click"/>
+                    <MenuItem Name="CloseButton" Header="閉じる(_X)" Click="CloseButton_Click"/>
                 </MenuItem>
                 <MenuItem Header="オプション(_O)">
                     <MenuItem Header="リストア用特殊オプション">
-                        <MenuItem x:Name="copyAttributesOnDatabaseCheck" IsCheckable="True" Header="可能ならデータベース上のファイル属性をコピーする" />
-                        <MenuItem x:Name="copyOnlyAttributesCheck" IsCheckable="True" Header="ファイル属性だけをコピーする" />
-                        <MenuItem x:Name="isEnableWriteDatabaseCheck" IsCheckable="True" Header="ファイル属性をデータベースに保存する" />
+                        <MenuItem Name="copyAttributesOnDatabaseCheck" IsCheckable="True" Header="可能ならデータベース上のファイル属性をコピーする" />
+                        <MenuItem Name="copyOnlyAttributesCheck" IsCheckable="True" Header="ファイル属性だけをコピーする" />
+                        <MenuItem Name="isEnableWriteDatabaseCheck" IsCheckable="True" Header="ファイル属性をデータベースに保存する" />
                     </MenuItem>
                 </MenuItem>
             </Menu>
-        </d:DockPanel>
+        </DockPanel>
     </Grid>
 </Window>
