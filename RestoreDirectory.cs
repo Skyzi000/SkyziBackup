@@ -133,9 +133,13 @@ namespace SkyziBackup
                 else
                 {
                     // 暗号化されていないファイルの復元
-                    using FileStream origin = new FileStream(originFilePath, FileMode.Open, FileAccess.Read);
-                    using FileStream dest = new FileStream(destFilePath, FileMode.OpenOrCreate, FileAccess.ReadWrite);
-                    origin.CopyWithCompressionTo(dest, Settings.compressionLevel, CompressionMode.Decompress, Settings.compressAlgorithm);
+                    using (FileStream origin = new FileStream(originFilePath, FileMode.Open, FileAccess.Read))
+                    {
+                        using (FileStream dest = new FileStream(destFilePath, FileMode.OpenOrCreate, FileAccess.ReadWrite))
+                        {
+                            origin.CopyWithCompressionTo(dest, Settings.compressionLevel, CompressionMode.Decompress, Settings.compressAlgorithm);
+                        }
+                    }
                     if (Settings.isCopyAttributes)
                     {
                         CopyFileAttributes(originFilePath, destFilePath);
