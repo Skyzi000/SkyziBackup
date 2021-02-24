@@ -19,12 +19,12 @@ namespace SkyziBackup
     /// <summary>
     /// Restore.xaml の相互作用ロジック
     /// </summary>
-    public partial class Restore : Window
+    public partial class RestoreWindow : Window
     {
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
         private readonly SynchronizationContext _mainContext;
-        public Restore()
+        public RestoreWindow()
         {
             InitializeComponent();
             _mainContext = SynchronizationContext.Current;
@@ -33,7 +33,7 @@ namespace SkyziBackup
                 password.Password = MainWindow.LoadPasswordOrNull() ?? string.Empty;
             };
         }
-        public Restore(string restoreSourcePath, string restoreDestinationPath) : this()
+        public RestoreWindow(string restoreSourcePath, string restoreDestinationPath) : this()
         {
             originPath.Text = restoreSourcePath;
             destPath.Text = restoreDestinationPath;
