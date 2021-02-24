@@ -33,6 +33,11 @@ namespace SkyziBackup
                 password.Password = MainWindow.LoadPasswordOrNull() ?? string.Empty;
             };
         }
+        public Restore(string restoreSourcePath, string restoreDestinationPath) : this()
+        {
+            originPath.Text = restoreSourcePath;
+            destPath.Text = restoreDestinationPath;
+        }
 
         private async void restoreButton_ClickAsync(object sender, RoutedEventArgs e)
         {
@@ -49,7 +54,6 @@ namespace SkyziBackup
                 switch (changePassword)
                 {
                     case MessageBoxResult.Yes:
-                        settings.ProtectedPassword = password.Password;
                         break;
                     case MessageBoxResult.No:
                     default:
@@ -59,11 +63,28 @@ namespace SkyziBackup
             }
             message.Text = $"'{originPath.Text.Trim()}' => '{destPath.Text.Trim()}'";
             message.Text += $"\nリストア開始: {DateTime.Now}\n";
-            var restore = new RestoreDirectory(originPath.Text.Trim(), destPath.Text.Trim(), password.Password, settings);
+            var restore = new RestoreDirectory(originPath.Text.Trim(), destPath.Text.Trim(), password.Password, settings, copyAttributesOnDatabaseCheck.IsChecked, copyOnlyAttributesCheck.IsChecked);
             string m = message.Text;
             restore.Results.MessageChanged += (_s, _e) => { _mainContext.Post((d) => { message.Text = m + restore.Results.Message + "\n"; }, null); };
             await Task.Run(() => restore.StartRestore());
-            encryptButton.IsEnabled = true;
+            restoreButton.IsEnabled = true;
+        }
+
+        private void CloseButton_Click(object sender, RoutedEventArgs e)
+        {
+            this.Close();
+        }
+
+        private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            if (!restoreButton.IsEnabled)
+            {
+                if (MessageBoxResult.Yes != MessageBox.Show("リストア実行中です。ウィンドウを閉じますか？", "確認", MessageBoxButton.YesNo, MessageBoxImage.Information))
+                {
+                    e.Cancel = true;
+                    return;
+                }
+            }
         }
     }
 }
