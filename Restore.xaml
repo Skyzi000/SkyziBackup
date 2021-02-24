@@ -5,15 +5,35 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:SkyziBackup"
         mc:Ignorable="d"
-        Title="Restore" Height="250" Width="500">
-    <Grid>
-        <TextBox x:Name="originPath" HorizontalAlignment="Left" Margin="15,50,0,0" Text="" TextWrapping="NoWrap" VerticalAlignment="Top" Width="180"/>
-        <TextBox x:Name="destPath" HorizontalAlignment="Left" Margin="15,90,0,0" Text="" TextWrapping="NoWrap" VerticalAlignment="Top" Width="180"/>
-        <PasswordBox x:Name="password" HorizontalAlignment="Left" Margin="15,130,0,0" Password="password" VerticalAlignment="Top" Width="180"/>
-        <Button x:Name="restoreButton" Click="restoreButton_ClickAsync" Content="リストア開始" HorizontalAlignment="Left" Margin="15,160,0,0" VerticalAlignment="Top"/>
-        <TextBlock x:Name="message" HorizontalAlignment="Left" Margin="15,190,0,0" Text="" TextWrapping="Wrap" VerticalAlignment="Top"/>
-        <Label x:Name="originPathLabel" Content="リストア元ディレクトリ" HorizontalAlignment="Left" Margin="15,30,0,0" VerticalAlignment="Top"/>
-        <Label x:Name="destPathLabel" Content="リストア先ディレクトリ" HorizontalAlignment="Left" Margin="15,70,0,0" VerticalAlignment="Top"/>
-        <Label x:Name="passwordLabel" Content="パスワード" HorizontalAlignment="Left" Margin="15,110,0,0" VerticalAlignment="Top"/>
+        Title="SkyziBackup - リストア(復元)" Height="250" Width="550">
+    <Grid Margin="10,0">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="162"/>
+            <RowDefinition/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition MinWidth="110"/>
+            <ColumnDefinition/>
+        </Grid.ColumnDefinitions>
+        <StackPanel>
+            <Label x:Name="originPathLabel" Content="リストア元ディレクトリ" HorizontalAlignment="Left" VerticalAlignment="Top"/>
+            <TextBox x:Name="originPath" HorizontalAlignment="Stretch" Text="" TextWrapping="NoWrap" VerticalAlignment="Top"/>
+            <Label x:Name="destPathLabel" Content="リストア先ディレクトリ" HorizontalAlignment="Left" VerticalAlignment="Top"/>
+            <TextBox x:Name="destPath" HorizontalAlignment="Stretch" Text="" TextWrapping="NoWrap" VerticalAlignment="Top"/>
+            <Label x:Name="passwordLabel" Content="パスワード" HorizontalAlignment="Left" VerticalAlignment="Top"/>
+            <PasswordBox x:Name="password" HorizontalAlignment="Stretch" Password="password" VerticalAlignment="Top"/>
+            <Button x:Name="restoreButton" Click="restoreButton_ClickAsync" Content="リストア開始" HorizontalAlignment="Stretch" Margin="0,10" VerticalAlignment="Top"/>
+        </StackPanel>
+        <d:ScrollViewer Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" TabIndex="2147483644" VerticalScrollBarVisibility="Auto">
+            <TextBlock x:Name="message" HorizontalAlignment="Left" Text="" TextWrapping="Wrap" VerticalAlignment="Top"/>
+        </d:ScrollViewer>
+        <Grid Grid.Column="1">
+            <Rectangle HorizontalAlignment="Stretch" Margin="5,14,0,0" Stroke="LightGray" VerticalAlignment="Top" Width="Auto" Height="55"/>
+            <StackPanel Margin="10,0,0,0" >
+                <Label x:Name="restoreSettingsLabel" Content="リストア用設定" HorizontalAlignment="Left" VerticalAlignment="Top" Background="White"/>
+                <CheckBox x:Name="copyAttributesOnDatabaseCheckBox" Content="可能ならデータベース上のファイル属性をコピーする" Margin="0,2,0,0" HorizontalAlignment="Left" VerticalAlignment="Top"/>
+                <CheckBox x:Name="copyOnlyAttributesCheckBox" Content="ファイル属性だけを復元する" HorizontalAlignment="Left" Margin="0,2,0,0" VerticalAlignment="Top"/>
+            </StackPanel>
+        </Grid>
     </Grid>
 </Window>
