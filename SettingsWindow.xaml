@@ -56,9 +56,7 @@
                 </GroupBox>
                 <GroupBox Header="暗号化">
                     <StackPanel>
-                        <Label x:Name="passwordLabel" Content="パスワード" HorizontalAlignment="Left" VerticalAlignment="Top"/>
-                        <PasswordBox x:Name="password" HorizontalAlignment="Stretch" Password="password" VerticalContentAlignment="Center" Width="200" Margin="0,-26,0,0"/>
-                        <CheckBox x:Name="isRecordPasswordCheckBox" Content="パスワードを保存する" Margin="5,-21,5,5" IsChecked="True" ToolTip="ファイルの暗号化に利用するパスワードをDPAPIで暗号化して設定ファイルに保存します。" HorizontalAlignment="Right"/>
+                        <CheckBox x:Name="isRecordPasswordCheckBox" Content="パスワードを保存する" Margin="5" IsChecked="True" ToolTip="ファイルの暗号化に利用するパスワードをDPAPIで暗号化して設定ファイルに保存します。"/>
                         <Label Content="パスワードの保護スコープ" ToolTip="保存したパスワードを復号できる範囲を選択します。暗号化したファイルとは関係ありません。"/>
                         <ComboBox x:Name="PasswordScopeComboBox" MaxWidth="200" HorizontalAlignment="Stretch" Margin="0,-26,0,0">
                             <ComboBoxItem DataContext="CurrentUser" Content="現在のユーザー" ToolTip="現在のユーザーだけがパスワードを復号できます。" />
