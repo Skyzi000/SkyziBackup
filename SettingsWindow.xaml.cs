@@ -31,25 +31,34 @@ namespace SkyziBackup
         {
             ContentRendered += (s, e) =>
             {
-                settingsPath.Text = DataContractWriter.GetPath(settings);
-                ignorePatternBox.Text = settings.IgnorePattern;
-                isUseDatabaseCheckBox.IsChecked = settings.isUseDatabase;
-                isRecordPasswordCheckBox.IsChecked = settings.isRecordPassword;
-                isOverwriteReadonlyCheckBox.IsChecked = settings.isOverwriteReadonly;
-                //isEnableTempFileCheckBox = 
-                isEnableDeletionCheckBox.IsChecked = settings.isEnableDeletion;
-                isCopyAttributesCheckBox.IsChecked = settings.isCopyAttributes;
-                RetryCountTextBox.Text = settings.retryCount.ToString();
-                RetryWaitTimeTextBox.Text = settings.retryWaitMilliSec.ToString();
-                CompressAlgorithmComboBox.SelectedIndex = (int)settings.compressAlgorithm;
-                CompressionLevelSlider.Value = (double)settings.compressionLevel;
-                PasswordScopeComboBox.SelectedItem = settings.passwordProtectionScope;
-                NoComparisonLBI.IsSelected = settings.comparisonMethod == ComparisonMethod.NoComparison;
-                NoComparisonLBI.Selected += (s, e) => ComparisonMethodListBox.SelectedIndex = 0;
-                ArchiveAttributeLBI.IsSelected = settings.comparisonMethod.HasFlag(ComparisonMethod.ArchiveAttribute);
-                WriteTimeLBI.IsSelected = settings.comparisonMethod.HasFlag(ComparisonMethod.WriteTime);
+                DisplaySettings(settings);
             };
         }
+
+        private void DisplaySettings(BackupSettings settings)
+        {
+            settingsPath.Text = DataContractWriter.GetPath(settings);
+            ignorePatternBox.Text = settings.IgnorePattern;
+            isUseDatabaseCheckBox.IsChecked = settings.isUseDatabase;
+            isRecordPasswordCheckBox.IsChecked = settings.isRecordPassword;
+            isOverwriteReadonlyCheckBox.IsChecked = settings.isOverwriteReadonly;
+            //isEnableTempFileCheckBox = 
+            isEnableDeletionCheckBox.IsChecked = settings.isEnableDeletion;
+            isCopyAttributesCheckBox.IsChecked = settings.isCopyAttributes;
+            RetryCountTextBox.Text = settings.retryCount.ToString();
+            RetryWaitTimeTextBox.Text = settings.retryWaitMilliSec.ToString();
+            CompressAlgorithmComboBox.SelectedIndex = (int)settings.compressAlgorithm;
+            CompressionLevelSlider.Value = (double)settings.compressionLevel;
+            PasswordScopeComboBox.SelectedItem = settings.passwordProtectionScope;
+            NoComparisonLBI.IsSelected = settings.comparisonMethod == ComparisonMethod.NoComparison;
+            NoComparisonLBI.Selected += (s, e) => ComparisonMethodListBox.SelectedIndex = 0;
+            ArchiveAttributeLBI.IsSelected = settings.comparisonMethod.HasFlag(ComparisonMethod.ArchiveAttribute);
+            WriteTimeLBI.IsSelected = settings.comparisonMethod.HasFlag(ComparisonMethod.WriteTime);
+            SizeLBI.IsSelected = settings.comparisonMethod.HasFlag(ComparisonMethod.Size);
+            SHA1LBI.IsSelected = settings.comparisonMethod.HasFlag(ComparisonMethod.FileContentsSHA1);
+            BynaryLBI.IsSelected = settings.comparisonMethod.HasFlag(ComparisonMethod.FileContentsBynary);
+        }
+
         private void TextBox_PreviewTextInput(object sender, TextCompositionEventArgs e)
         {
             e.Handled = nonNumber.IsMatch(e.Text);
