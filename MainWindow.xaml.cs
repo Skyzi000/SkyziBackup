@@ -19,6 +19,7 @@ using System.Windows.Shapes;
 using System.Security.Cryptography;
 using NLog;
 using Skyzi000.Cryptography;
+using System.Diagnostics;
 
 namespace SkyziBackup
 {
@@ -185,6 +186,12 @@ namespace SkyziBackup
         private void CloseButton_Click(object sender, RoutedEventArgs e)
         {
             Close();
+        }
+
+        private void GlobalSettingsMenu_Click(object sender, RoutedEventArgs e)
+        {
+            new SettingsWindow(GlobalBackupSettings).ShowDialog();
+            GlobalBackupSettings = BackupSettings.LoadGlobalSettingsOrNull() ?? GlobalBackupSettings;
         }
     }
 }

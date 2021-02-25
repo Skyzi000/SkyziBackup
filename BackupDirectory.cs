@@ -35,9 +35,9 @@ namespace SkyziBackup
         /// </summary>
         FileContentsSHA1        = 1 << 3,
         /// <summary>
-        /// 生データによる比較(データベースを利用出来ず、暗号化や圧縮と併用できない点に注意)
+        /// 生データによるバイナリ比較(データベースを利用出来ず、暗号化や圧縮と併用できない点に注意)
         /// </summary>
-        FileContentsRaw         = 1 << 4,
+        FileContentsBynary         = 1 << 4,
     }
 
     internal class BackupDirectory
@@ -341,7 +341,7 @@ namespace SkyziBackup
             }
 
             // 生データ(データベースを用いず比較)
-            if (Settings.comparisonMethod.HasFlag(ComparisonMethod.FileContentsRaw))
+            if (Settings.comparisonMethod.HasFlag(ComparisonMethod.FileContentsBynary))
             {
                 if (AesCrypter != null)
                 {
@@ -445,7 +445,7 @@ namespace SkyziBackup
             }
 
             // 生データ
-            if (Settings.comparisonMethod.HasFlag(ComparisonMethod.FileContentsRaw))
+            if (Settings.comparisonMethod.HasFlag(ComparisonMethod.FileContentsBynary))
             {
                 if (AesCrypter != null)
                 {
