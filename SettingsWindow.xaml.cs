@@ -34,6 +34,7 @@ namespace SkyziBackup
             ContentRendered += (s, e) =>
             {
                 DisplaySettings();
+                NoComparisonLBI.Selected += (s, e) => ComparisonMethodListBox.SelectedIndex = 0;
             };
         }
 
@@ -53,7 +54,6 @@ namespace SkyziBackup
             CompressionLevelSlider.Value = (double)settings.compressionLevel;
             PasswordScopeComboBox.SelectedIndex = (int)settings.passwordProtectionScope;
             NoComparisonLBI.IsSelected = settings.comparisonMethod == ComparisonMethod.NoComparison;
-            NoComparisonLBI.Selected += (s, e) => ComparisonMethodListBox.SelectedIndex = 0;
             ArchiveAttributeLBI.IsSelected = settings.comparisonMethod.HasFlag(ComparisonMethod.ArchiveAttribute);
             WriteTimeLBI.IsSelected = settings.comparisonMethod.HasFlag(ComparisonMethod.WriteTime);
             SizeLBI.IsSelected = settings.comparisonMethod.HasFlag(ComparisonMethod.Size);
@@ -76,29 +76,42 @@ namespace SkyziBackup
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
-            settings.IgnorePattern = ignorePatternBox.Text;
-            settings.isUseDatabase = isUseDatabaseCheckBox.IsChecked ?? settings.isUseDatabase;
-            settings.isRecordPassword = isRecordPasswordCheckBox.IsChecked ?? settings.isRecordPassword;
-            settings.isOverwriteReadonly = isOverwriteReadonlyCheckBox.IsChecked ?? settings.isOverwriteReadonly;
-            settings.isEnableDeletion = isEnableDeletionCheckBox.IsChecked ?? settings.isEnableDeletion;
-            settings.isCopyAttributes = isCopyAttributesCheckBox.IsChecked ?? settings.isCopyAttributes;
-            settings.retryCount = int.TryParse(RetryCountTextBox.Text, out int rcount) ? rcount : settings.retryCount;
-            settings.retryWaitMilliSec = int.TryParse(RetryWaitTimeTextBox.Text, out int wait) ? wait : settings.retryWaitMilliSec;
-            settings.compressAlgorithm = (Skyzi000.Cryptography.CompressAlgorithm)CompressAlgorithmComboBox.SelectedIndex;
-            settings.compressionLevel = (System.IO.Compression.CompressionLevel)CompressionLevelSlider.Value;
-            settings.passwordProtectionScope = (System.Security.Cryptography.DataProtectionScope)PasswordScopeComboBox.SelectedIndex;
-            settings.comparisonMethod = 0;
+            var newSettings = new BackupSettings();
+            newSettings.IgnorePattern = ignorePatternBox.Text;
+            newSettings.isUseDatabase = isUseDatabaseCheckBox.IsChecked ?? settings.isUseDatabase;
+            newSettings.isRecordPassword = isRecordPasswordCheckBox.IsChecked ?? settings.isRecordPassword;
+            newSettings.isOverwriteReadonly = isOverwriteReadonlyCheckBox.IsChecked ?? settings.isOverwriteReadonly;
+            newSettings.isEnableDeletion = isEnableDeletionCheckBox.IsChecked ?? settings.isEnableDeletion;
+            newSettings.isCopyAttributes = isCopyAttributesCheckBox.IsChecked ?? settings.isCopyAttributes;
+            newSettings.retryCount = int.TryParse(RetryCountTextBox.Text, out int rcount) ? rcount : settings.retryCount;
+            newSettings.retryWaitMilliSec = int.TryParse(RetryWaitTimeTextBox.Text, out int wait) ? wait : settings.retryWaitMilliSec;
+            newSettings.compressAlgorithm = (Skyzi000.Cryptography.CompressAlgorithm)CompressAlgorithmComboBox.SelectedIndex;
+            newSettings.compressionLevel = (System.IO.Compression.CompressionLevel)CompressionLevelSlider.Value;
+            newSettings.passwordProtectionScope = (System.Security.Cryptography.DataProtectionScope)PasswordScopeComboBox.SelectedIndex;
+            newSettings.comparisonMethod = 0;
             foreach (var item in ComparisonMethodListBox.SelectedItems)
             {
                 int i = ComparisonMethodListBox.Items.IndexOf(item);
                 if (i == 0)
                 {
-                    settings.comparisonMethod = ComparisonMethod.NoComparison;
+                    newSettings.comparisonMethod = ComparisonMethod.NoComparison;
                     break;
                 }
-                settings.comparisonMethod |= (ComparisonMethod)(1 << (i - 1));
+                newSettings.comparisonMethod |= (ComparisonMethod)(1 << (i - 1));
             }
-            MessageBox.Show(settings.ToString());
+            if (settings.ToString() != newSettings.ToString()) // TODO: できればもうちょっとましな比較方法にしたい
+            {
+                var r = MessageBox.Show("設定を保存しますか？", "設定変更の確認", MessageBoxButton.YesNoCancel);
+                if (r == MessageBoxResult.Yes)
+                {
+                    settings = newSettings;
+                    DataContractWriter.Write(settings);
+                }
+                else if (r == MessageBoxResult.Cancel)
+                {
+                    e.Cancel = true;
+                }
+            }
         }
     }
 }
