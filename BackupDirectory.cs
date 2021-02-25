@@ -151,11 +151,28 @@ namespace SkyziBackup
         }
 
         public static Dictionary<string, BackedUpDirectoryData> CopyDirectoryStructure(string sourceBaseDirPath,
-                                                                                string destBaseDirPath,
-                                                                                bool isCopyAttributes = true,
-                                                                                HashSet<System.Text.RegularExpressions.Regex> regices = null,
-                                                                                Dictionary<string, BackedUpDirectoryData> backedUpDirectoriesDict = null)
+                                                                                       string destBaseDirPath,
+                                                                                       bool isCopyAttributes = true,
+                                                                                       HashSet<System.Text.RegularExpressions.Regex> regices = null,
+                                                                                       Dictionary<string, BackedUpDirectoryData> backedUpDirectoriesDict = null,
+                                                                                       bool isForceReturnDictionary = false,
+                                                                                       bool isRestoreAttributesFromDatabase = false)
         {
+            if (string.IsNullOrEmpty(sourceBaseDirPath))
+            {
+                throw new ArgumentException($"'{nameof(sourceBaseDirPath)}' を null または空にすることはできません", nameof(sourceBaseDirPath));
+            }
+
+            if (string.IsNullOrEmpty(destBaseDirPath))
+            {
+                throw new ArgumentException($"'{nameof(destBaseDirPath)}' を null または空にすることはできません", nameof(destBaseDirPath));
+            }
+
+            if (isRestoreAttributesFromDatabase && backedUpDirectoriesDict == null)
+            {
+                throw new ArgumentNullException(nameof(backedUpDirectoriesDict));
+            }
+
             foreach (string originDirPath in Directory.EnumerateDirectories(sourceBaseDirPath, "*", SearchOption.AllDirectories))
             {
                 if (regices != null)
@@ -174,7 +191,7 @@ namespace SkyziBackup
                 }
                 DirectoryInfo originDirInfo = isCopyAttributes ? new DirectoryInfo(originDirPath) : null;
                 DirectoryInfo destDirInfo = null;
-                if (backedUpDirectoriesDict == null || !backedUpDirectoriesDict.ContainsKey(originDirPath))
+                if (backedUpDirectoriesDict == null || !backedUpDirectoriesDict.TryGetValue(originDirPath, out var data))
                 {
                     string destDirPath = originDirPath.Replace(sourceBaseDirPath, destBaseDirPath);
                     Logger.Debug($"存在しなければ作成: '{destDirPath}'");
@@ -187,6 +204,16 @@ namespace SkyziBackup
                         destDirInfo.Attributes = originDirInfo.Attributes;
                     }
                 }
+                else if (isRestoreAttributesFromDatabase)
+                {
+                    string destDirPath = originDirPath.Replace(sourceBaseDirPath, destBaseDirPath);
+                    Logger.Debug($"存在しなければ作成: '{destDirPath}'");
+                    destDirInfo = Directory.CreateDirectory(destDirPath);
+                    Logger.Info("データベースからディレクトリ属性をリストア: '{0}'", destDirPath);
+                    destDirInfo.CreationTime = data.creationTime ?? originDirInfo.CreationTime;
+                    destDirInfo.LastWriteTime = data.lastWriteTime ?? originDirInfo.LastWriteTime;
+                    destDirInfo.Attributes = data.fileAttributes ?? originDirInfo.Attributes;
+                }
                 // 以前のバックアップデータがある場合、変更されたプロパティのみ更新する(変更なしなら何もしない)
                 else if (isCopyAttributes)
                 {
@@ -198,10 +225,10 @@ namespace SkyziBackup
                     if (originDirInfo.Attributes != backedUpDirectoriesDict[originDirPath].fileAttributes)
                         (destDirInfo ?? Directory.CreateDirectory(destDirPath)).Attributes = originDirInfo.Attributes;
                 }
-                if (backedUpDirectoriesDict != null)
-                {
+                if (isForceReturnDictionary && backedUpDirectoriesDict == null)
+                    backedUpDirectoriesDict = new Dictionary<string, BackedUpDirectoryData>();
+                if (backedUpDirectoriesDict != null && !isRestoreAttributesFromDatabase)
                     backedUpDirectoriesDict[originDirPath] = new BackedUpDirectoryData(originDirInfo?.CreationTime, originDirInfo?.LastWriteTime, originDirInfo?.Attributes);
-                }
             }
             return backedUpDirectoriesDict;
         }
