@@ -27,7 +27,7 @@ namespace Skyzi000.Cryptography
         Deflate,
         GZip,
     }
-    class OpensslCompatibleAesCrypter
+    public class OpensslCompatibleAesCrypter
     {
         public HashAlgorithmName HashAlgorithm { get; set; } = HashAlgorithmName.SHA256;
         public CustomCipherMode Mode { get; set; }

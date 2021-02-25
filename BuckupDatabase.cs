@@ -136,8 +136,8 @@ namespace SkyziBackup
             }
         }
         public static string GetPath(string fileName) => Path.Combine(Properties.Settings.Default.AppDataPath, fileName);
-        public static string GetDatabaseDirectoryName(string originBaseDirPath, string destBaseDirPath) => DirectoryBackup.ComputeStringSHA1(originBaseDirPath + destBaseDirPath);
-        public static string GetDatabaseFileName(string originBaseDirPath, string destBaseDirPath) => Path.Combine(ParentDirectoryName, GetDatabaseDirectoryName(originBaseDirPath, destBaseDirPath), DatabaseFileName);
+        public static string GetDatabaseDirectoryName(string originBaseDirPath, string destBaseDirPath) => Path.Combine(ParentDirectoryName, BackupDirectory.ComputeStringSHA1(originBaseDirPath + destBaseDirPath));
+        public static string GetDatabaseFileName(string originBaseDirPath, string destBaseDirPath) => Path.Combine(GetDatabaseDirectoryName(originBaseDirPath, destBaseDirPath), DatabaseFileName);
         public static string GetDatabasePath(string originBaseDirPath, string destBaseDirPath) => GetPath(GetDatabaseFileName(originBaseDirPath, destBaseDirPath));
         // TODO: エラー処理を追加する
         public static void Write<T>(T obj) where T : IDataContractSerializable
