@@ -28,7 +28,7 @@ namespace SkyziBackup
                 dataPath.Text = Properties.Settings.Default.AppDataPath;
             };
         }
-        public SettingsWindow(BackupSettings settings) : this()
+        public SettingsWindow(ref BackupSettings settings) : this()
         {
             this.settings = settings;
             ContentRendered += (s, e) =>

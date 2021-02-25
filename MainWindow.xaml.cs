@@ -190,7 +190,7 @@ namespace SkyziBackup
 
         private void GlobalSettingsMenu_Click(object sender, RoutedEventArgs e)
         {
-            new SettingsWindow(GlobalBackupSettings).ShowDialog();
+            new SettingsWindow(ref GlobalBackupSettings).ShowDialog();
             GlobalBackupSettings = BackupSettings.LoadGlobalSettingsOrNull() ?? GlobalBackupSettings;
         }
     }
