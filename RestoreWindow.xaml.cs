@@ -90,6 +90,11 @@ namespace SkyziBackup
         {
             this.Close();
         }
+        private void GlobalSettingsMenu_Click(object sender, RoutedEventArgs e)
+        {
+            new SettingsWindow(ref MainWindow.GlobalBackupSettings).ShowDialog();
+            MainWindow.GlobalBackupSettings = BackupSettings.LoadGlobalSettingsOrNull() ?? MainWindow.GlobalBackupSettings;
+        }
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {

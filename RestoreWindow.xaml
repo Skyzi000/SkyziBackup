@@ -39,6 +39,7 @@
                     <MenuItem Name="CloseButton" Header="閉じる(_X)" Click="CloseButton_Click"/>
                 </MenuItem>
                 <MenuItem Header="オプション(_O)">
+                    <MenuItem x:Name="GlobalSettingsMenu" Header="グローバル設定(_G)" Click="GlobalSettingsMenu_Click"/>
                     <MenuItem Header="リストア用特殊オプション(プレビュー)">
                         <MenuItem Name="copyAttributesOnDatabaseCheck" IsCheckable="True" Header="データベースからファイル属性をリストアする" />
                         <MenuItem Name="copyOnlyAttributesCheck" IsCheckable="True" Header="ファイル属性だけをコピーする" />

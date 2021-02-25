@@ -45,7 +45,7 @@
                 <MenuItem x:Name="RestoreWindowMenu" Header="リストア(復元)ウィンドウ" Click="RestoreWindowMenu_Click" />
             </MenuItem>
             <MenuItem Header="オプション(_O)">
-                <MenuItem x:Name="GlobalSettingsMenu" Header="グローバル設定" Click="GlobalSettingsMenu_Click"/>
+                <MenuItem x:Name="GlobalSettingsMenu" Header="グローバル設定(_G)" Click="GlobalSettingsMenu_Click"/>
             </MenuItem>
         </Menu>
     </Grid>
