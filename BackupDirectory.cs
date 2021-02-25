@@ -7,6 +7,7 @@ using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Linq;
 using System.Text;
+using Skyzi000;
 
 namespace SkyziBackup
 {
@@ -497,60 +498,15 @@ namespace SkyziBackup
                 }
                 // IsNotReadOnlyInDatabase()の戻り値が true かつバックアップ先ファイルが読み取り専用属性を持つ場合はSystem.UnauthorizedAccessExceptionで失敗する
             }
-            if (AesCrypter != null)
+            try
             {
-                try
+                if (AesCrypter != null)
                 {
+
                     if (AesCrypter.EncryptFile(originFilePath, destFilePath))
                     {
                         // 暗号化成功時処理
-                        FileInfo originInfo = null;
-                        FileInfo destInfo = null;
-                        if (Settings.isCopyAttributes)
-                        {
-                            if (!Settings.isUseDatabase || !Database.backedUpFilesDict.TryGetValue(originFilePath, out var data))
-                            {
-                                Logger.Debug($"属性をコピー");
-                                destInfo = new FileInfo(destFilePath)
-                                {
-                                    CreationTime = (originInfo = new FileInfo(originFilePath)).CreationTime,
-                                    LastWriteTime = originInfo.LastWriteTime,
-                                    Attributes = originInfo.Attributes
-                                };
-                            }
-                            // 以前のバックアップデータがある場合、変更されたプロパティのみ更新する(変更なしなら何もしない)
-                            else
-                            {
-                                if (!data.creationTime.HasValue || (originInfo = new FileInfo(originFilePath)).CreationTime != data.creationTime)
-                                    (destInfo = new FileInfo(destFilePath)).CreationTime = originInfo.CreationTime;
-                                if (!data.lastWriteTime.HasValue || originInfo.LastWriteTime != data.lastWriteTime)
-                                    (destInfo ??= new FileInfo(destFilePath)).LastWriteTime = originInfo.LastWriteTime;
-                                if (!data.fileAttributes.HasValue || originInfo.Attributes != data.fileAttributes)
-                                    (destInfo ?? new FileInfo(destFilePath)).Attributes = originInfo.Attributes;
-                                // バックアップ先ファイルから取り除いた読み取り専用属性を戻す
-                                else if (Settings.isOverwriteReadonly && data.fileAttributes.Value.HasFlag(FileAttributes.ReadOnly))
-                                    (destInfo ?? new FileInfo(destFilePath)).Attributes = data.fileAttributes.Value;
-                            }
-                            if (Settings.comparisonMethod.HasFlag(ComparisonMethod.ArchiveAttribute) && originInfo.Attributes.HasFlag(FileAttributes.Archive))
-                            {
-                                (originInfo ??= new FileInfo(originFilePath)).Attributes = RemoveAttribute(originInfo.Attributes, FileAttributes.Archive);
-                            }
-                        }
-                        if (Settings.isUseDatabase)
-                        {
-                            // 必要なデータだけを保存
-                            Database.backedUpFilesDict[originFilePath] = new BackedUpFileData(
-                                creationTime: Settings.isCopyAttributes ? (originInfo ??= new FileInfo(originFilePath)).CreationTime : (DateTime?)null,
-                                lastWriteTime: Settings.isCopyAttributes || Settings.comparisonMethod.HasFlag(ComparisonMethod.WriteTime) ? (originInfo ??= new FileInfo(originFilePath)).LastWriteTime : (DateTime?)null,
-                                originSize: Settings.comparisonMethod.HasFlag(ComparisonMethod.Size) ? (originInfo ??= new FileInfo(originFilePath)).Length : BackedUpFileData.DefaultSize,
-                                fileAttributes: Settings.isCopyAttributes || Settings.comparisonMethod != ComparisonMethod.NoComparison ? (originInfo ??= new FileInfo(originFilePath)).Attributes : (FileAttributes?)null,
-                                sha1: Settings.comparisonMethod.HasFlag(ComparisonMethod.FileContentsSHA1) ? ComputeFileSHA1(originFilePath) : null
-                                );
-                        }
-                        else
-                        {
-                            Results.successfulFiles.Add(originFilePath);
-                        }
+                        CopyFileAttributesAndUpdateDatabase(originFilePath, destFilePath);
                         Results.failedFiles.Remove(originFilePath);
                     }
                     else
@@ -558,21 +514,82 @@ namespace SkyziBackup
                         Logger.Error(AesCrypter.Error, Results.Message = $"暗号化に失敗しました '{originFilePath}' => '{destFilePath}'\n");
                         Results.failedFiles.Add(originFilePath);
                     }
+
                 }
-                catch (UnauthorizedAccessException ex)
+                else
                 {
-                    Logger.Error(ex, Results.Message = $"アクセスが拒否されました '{originFilePath}' => '{destFilePath}'\n");
-                    Results.failedFiles.Add(originFilePath);
+                    // 暗号化しないでバックアップ
+                    using (FileStream origin = new FileStream(originFilePath, FileMode.Open, FileAccess.Read))
+                    {
+                        using (FileStream dest = new FileStream(destFilePath, FileMode.OpenOrCreate, FileAccess.ReadWrite))
+                        {
+                            origin.CopyWithCompressionTo(dest, Settings.compressionLevel, CompressionMode.Compress, Settings.compressAlgorithm);
+                        }
+                    }
+                    CopyFileAttributesAndUpdateDatabase(originFilePath, destFilePath);
+                    Results.failedFiles.Remove(originFilePath);
                 }
-                catch (Exception ex)
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                Logger.Error(ex, Results.Message = $"アクセスが拒否されました '{originFilePath}' => '{destFilePath}'\n");
+                Results.failedFiles.Add(originFilePath);
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, Results.Message = $"予期しない例外が発生しました '{originFilePath}' => '{destFilePath}'\n");
+                Results.failedFiles.Add(originFilePath);
+            }
+        }
+
+        private void CopyFileAttributesAndUpdateDatabase(string originFilePath, string destFilePath)
+        {
+            FileInfo originInfo = null;
+            FileInfo destInfo = null;
+            if (Settings.isCopyAttributes)
+            {
+                if (!Settings.isUseDatabase || !Database.backedUpFilesDict.TryGetValue(originFilePath, out var data))
                 {
-                    Logger.Error(ex, Results.Message = $"予期しない例外が発生しました '{originFilePath}' => '{destFilePath}'\n");
-                    Results.failedFiles.Add(originFilePath);
+                    Logger.Debug($"属性をコピー");
+                    destInfo = new FileInfo(destFilePath)
+                    {
+                        CreationTime = (originInfo = new FileInfo(originFilePath)).CreationTime,
+                        LastWriteTime = originInfo.LastWriteTime,
+                        Attributes = originInfo.Attributes
+                    };
                 }
+                // 以前のバックアップデータがある場合、変更されたプロパティのみ更新する(変更なしなら何もしない)
+                else
+                {
+                    if (!data.creationTime.HasValue || (originInfo = new FileInfo(originFilePath)).CreationTime != data.creationTime)
+                        (destInfo = new FileInfo(destFilePath)).CreationTime = originInfo.CreationTime;
+                    if (!data.lastWriteTime.HasValue || originInfo.LastWriteTime != data.lastWriteTime)
+                        (destInfo ??= new FileInfo(destFilePath)).LastWriteTime = originInfo.LastWriteTime;
+                    if (!data.fileAttributes.HasValue || originInfo.Attributes != data.fileAttributes)
+                        (destInfo ?? new FileInfo(destFilePath)).Attributes = originInfo.Attributes;
+                    // バックアップ先ファイルから取り除いた読み取り専用属性を戻す
+                    else if (Settings.isOverwriteReadonly && data.fileAttributes.Value.HasFlag(FileAttributes.ReadOnly))
+                        (destInfo ?? new FileInfo(destFilePath)).Attributes = data.fileAttributes.Value;
+                }
+                if (Settings.comparisonMethod.HasFlag(ComparisonMethod.ArchiveAttribute) && originInfo.Attributes.HasFlag(FileAttributes.Archive))
+                {
+                    (originInfo ??= new FileInfo(originFilePath)).Attributes = RemoveAttribute(originInfo.Attributes, FileAttributes.Archive);
+                }
+            }
+            if (Settings.isUseDatabase)
+            {
+                // 必要なデータだけを保存
+                Database.backedUpFilesDict[originFilePath] = new BackedUpFileData(
+                    creationTime: Settings.isCopyAttributes ? (originInfo ??= new FileInfo(originFilePath)).CreationTime : (DateTime?)null,
+                    lastWriteTime: Settings.isCopyAttributes || Settings.comparisonMethod.HasFlag(ComparisonMethod.WriteTime) ? (originInfo ??= new FileInfo(originFilePath)).LastWriteTime : (DateTime?)null,
+                    originSize: Settings.comparisonMethod.HasFlag(ComparisonMethod.Size) ? (originInfo ??= new FileInfo(originFilePath)).Length : BackedUpFileData.DefaultSize,
+                    fileAttributes: Settings.isCopyAttributes || Settings.comparisonMethod != ComparisonMethod.NoComparison ? (originInfo ??= new FileInfo(originFilePath)).Attributes : (FileAttributes?)null,
+                    sha1: Settings.comparisonMethod.HasFlag(ComparisonMethod.FileContentsSHA1) ? ComputeFileSHA1(originFilePath) : null
+                    );
             }
             else
             {
-                throw new NotImplementedException("非暗号化バックアップは未実装です。");
+                Results.successfulFiles.Add(originFilePath);
             }
         }
 
