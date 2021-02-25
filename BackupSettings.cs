@@ -149,12 +149,12 @@ namespace SkyziBackup
         }
         internal string GetRawPassword()
         {
-            if (!isRecordPassword || string.IsNullOrEmpty(protectedPassword)) throw new ArgumentException($"パスワードが保存されていません。");
+            if (!isRecordPassword || string.IsNullOrEmpty(protectedPassword)) return string.Empty;
             return PasswordManager.Decrypt(protectedPassword, passwordProtectionScope);
         }
         public bool IsDifferentPassword(string newPassword)
         {
-            return string.IsNullOrEmpty(protectedPassword) || GetRawPassword() != newPassword;
+            return GetRawPassword() != newPassword;
         }
         private Regex ShapePattern(string strPattern)
         {
