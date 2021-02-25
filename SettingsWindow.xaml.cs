@@ -18,7 +18,8 @@ namespace SkyziBackup
     /// </summary>
     public partial class SettingsWindow : Window
     {
-        private static Regex nonNumber = new Regex(@"\D", RegexOptions.Compiled);
+        private static readonly Regex NonNumber = new Regex(@"\D", RegexOptions.Compiled);
+        private BackupSettings settings;
         public SettingsWindow()
         {
             InitializeComponent();
@@ -29,13 +30,14 @@ namespace SkyziBackup
         }
         public SettingsWindow(BackupSettings settings) : this()
         {
+            this.settings = settings;
             ContentRendered += (s, e) =>
             {
-                DisplaySettings(settings);
+                DisplaySettings();
             };
         }
 
-        private void DisplaySettings(BackupSettings settings)
+        private void DisplaySettings()
         {
             settingsPath.Text = DataContractWriter.GetPath(settings);
             ignorePatternBox.Text = settings.IgnorePattern;
@@ -49,7 +51,7 @@ namespace SkyziBackup
             RetryWaitTimeTextBox.Text = settings.retryWaitMilliSec.ToString();
             CompressAlgorithmComboBox.SelectedIndex = (int)settings.compressAlgorithm;
             CompressionLevelSlider.Value = (double)settings.compressionLevel;
-            PasswordScopeComboBox.SelectedItem = settings.passwordProtectionScope;
+            PasswordScopeComboBox.SelectedIndex = (int)settings.passwordProtectionScope;
             NoComparisonLBI.IsSelected = settings.comparisonMethod == ComparisonMethod.NoComparison;
             NoComparisonLBI.Selected += (s, e) => ComparisonMethodListBox.SelectedIndex = 0;
             ArchiveAttributeLBI.IsSelected = settings.comparisonMethod.HasFlag(ComparisonMethod.ArchiveAttribute);
@@ -61,7 +63,7 @@ namespace SkyziBackup
 
         private void TextBox_PreviewTextInput(object sender, TextCompositionEventArgs e)
         {
-            e.Handled = nonNumber.IsMatch(e.Text);
+            e.Handled = NonNumber.IsMatch(e.Text);
         }
 
         private void TextBox_PreviewExecuted(object sender, ExecutedRoutedEventArgs e)
@@ -70,6 +72,33 @@ namespace SkyziBackup
             {
                 e.Handled = true;
             }
+        }
+
+        private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            settings.IgnorePattern = ignorePatternBox.Text;
+            settings.isUseDatabase = isUseDatabaseCheckBox.IsChecked ?? settings.isUseDatabase;
+            settings.isRecordPassword = isRecordPasswordCheckBox.IsChecked ?? settings.isRecordPassword;
+            settings.isOverwriteReadonly = isOverwriteReadonlyCheckBox.IsChecked ?? settings.isOverwriteReadonly;
+            settings.isEnableDeletion = isEnableDeletionCheckBox.IsChecked ?? settings.isEnableDeletion;
+            settings.isCopyAttributes = isCopyAttributesCheckBox.IsChecked ?? settings.isCopyAttributes;
+            settings.retryCount = int.TryParse(RetryCountTextBox.Text, out int rcount) ? rcount : settings.retryCount;
+            settings.retryWaitMilliSec = int.TryParse(RetryWaitTimeTextBox.Text, out int wait) ? wait : settings.retryWaitMilliSec;
+            settings.compressAlgorithm = (Skyzi000.Cryptography.CompressAlgorithm)CompressAlgorithmComboBox.SelectedIndex;
+            settings.compressionLevel = (System.IO.Compression.CompressionLevel)CompressionLevelSlider.Value;
+            settings.passwordProtectionScope = (System.Security.Cryptography.DataProtectionScope)PasswordScopeComboBox.SelectedIndex;
+            settings.comparisonMethod = 0;
+            foreach (var item in ComparisonMethodListBox.SelectedItems)
+            {
+                int i = ComparisonMethodListBox.Items.IndexOf(item);
+                if (i == 0)
+                {
+                    settings.comparisonMethod = ComparisonMethod.NoComparison;
+                    break;
+                }
+                settings.comparisonMethod |= (ComparisonMethod)(1 << (i - 1));
+            }
+            MessageBox.Show(settings.ToString());
         }
     }
 }
