@@ -90,7 +90,7 @@ namespace SkyziBackup
         {
             var sb = new StringBuilder();
             sb.AppendFormat("設定ファイルのパス---------------: {0}\n", DataContractWriter.GetPath(this));
-            sb.AppendFormat("これはグローバル設定か-----------: {0}\n", IsGlobal);
+            sb.AppendFormat("グローバル設定である-------------: {0}\n", IsGlobal);
             sb.AppendFormat("データベースを利用する-----------: {0}\n", isUseDatabase);
             sb.AppendFormat("属性をコピーする-----------------: {0}\n", isCopyAttributes);
             sb.AppendFormat("読み取り専用ファイルを上書きする-: {0}\n", isOverwriteReadonly);

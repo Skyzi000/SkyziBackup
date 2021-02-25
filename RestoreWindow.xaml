@@ -40,7 +40,7 @@
                 </MenuItem>
                 <MenuItem Header="オプション(_O)">
                     <MenuItem Header="リストア用特殊オプション(プレビュー)">
-                        <MenuItem Name="copyAttributesOnDatabaseCheck" IsCheckable="True" Header="データベース上のファイル属性をコピーする" />
+                        <MenuItem Name="copyAttributesOnDatabaseCheck" IsCheckable="True" Header="データベースからファイル属性をリストアする" />
                         <MenuItem Name="copyOnlyAttributesCheck" IsCheckable="True" Header="ファイル属性だけをコピーする" />
                         <MenuItem Name="isEnableWriteDatabaseCheck" IsCheckable="True" Header="ファイル属性をデータベースに保存する" />
                     </MenuItem>
