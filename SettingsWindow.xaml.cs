@@ -88,6 +88,10 @@ namespace SkyziBackup
             newSettings.compressAlgorithm = (Skyzi000.Cryptography.CompressAlgorithm)CompressAlgorithmComboBox.SelectedIndex;
             newSettings.compressionLevel = (System.IO.Compression.CompressionLevel)CompressionLevelSlider.Value;
             newSettings.passwordProtectionScope = (System.Security.Cryptography.DataProtectionScope)PasswordScopeComboBox.SelectedIndex;
+            if (newSettings.isRecordPassword)
+            {
+                newSettings.ProtectedPassword = settings.GetRawPassword();
+            }
             newSettings.comparisonMethod = 0;
             foreach (var item in ComparisonMethodListBox.SelectedItems)
             {
@@ -111,6 +115,15 @@ namespace SkyziBackup
                 {
                     e.Cancel = true;
                 }
+            }
+        }
+
+        private void ResetSettingsButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (MessageBox.Show("設定を初期値にリセットします。よろしいですか？", "設定リセットの確認", MessageBoxButton.OKCancel) == MessageBoxResult.OK)
+            {
+                settings = settings.IsGlobal ? new BackupSettings() : new BackupSettings(settings.SaveFileName);
+                DataContractWriter.Write(settings);
             }
         }
     }

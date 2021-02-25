@@ -18,7 +18,8 @@
                         <Label x:Name="DataPathLabel" Content="設定等保存先" HorizontalAlignment="Left" VerticalAlignment="Top"/>
                         <TextBox x:Name="dataPath" HorizontalAlignment="Stretch" Text="" TextWrapping="NoWrap" VerticalAlignment="Top"/>
                         <Label Content="設定ファイルのパス"/>
-                        <TextBox x:Name="settingsPath" HorizontalAlignment="Stretch" TextWrapping="NoWrap" IsReadOnly="True"/>
+                        <Button x:Name="ResetSettingsButton" Content="設定を初期値にリセット" Click="ResetSettingsButton_Click" HorizontalAlignment="Right" Margin="0,-26,0,0"/>
+                        <TextBlock x:Name="settingsPath" HorizontalAlignment="Stretch" TextWrapping="NoWrap"/>
                     </StackPanel>
                 </GroupBox>
                 <GroupBox Header="データベース">
