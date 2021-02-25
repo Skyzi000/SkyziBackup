@@ -16,7 +16,7 @@ namespace SkyziBackup
         public BackupSettings Settings { get; set; }
         public BackupDatabase Database { get; private set; } = null;
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
-        private readonly string originBaseDirPath;
+        private readonly string sourceBaseDirPath;
         private readonly string destBaseDirPath;
         private readonly bool isRestoreAttributesFromDatabase = false;
         private readonly bool isCopyOnlyFileAttributes = false;
@@ -29,16 +29,16 @@ namespace SkyziBackup
                                 bool isCopyOnlyFileAttributes = false,
                                 bool isEnableWriteDatabase = false)
         {
-            this.originBaseDirPath = Path.TrimEndingDirectorySeparator(sourceDirPath);
+            this.sourceBaseDirPath = Path.TrimEndingDirectorySeparator(sourceDirPath);
             this.destBaseDirPath = Path.TrimEndingDirectorySeparator(destDirPath);
-            Settings = settings ?? BackupSettings.LoadLocalSettingsOrNull(destBaseDirPath, originBaseDirPath) ?? BackupSettings.GetGlobalSettings();
+            Settings = settings ?? BackupSettings.LoadLocalSettingsOrNull(destBaseDirPath, sourceBaseDirPath) ?? BackupSettings.GetGlobalSettings();
             //if (Settings.isUseDatabase && Settings.comparisonMethod.HasFlag(ComparisonMethod.FileContentsSHA1))
             // TODO: データベースに記録されたSHA1と比較できるようにする
-            if (isCopyAttributesOnDatabase && File.Exists(DataContractWriter.GetDatabasePath(destBaseDirPath, originBaseDirPath)))
+            if (isCopyAttributesOnDatabase && File.Exists(DataContractWriter.GetDatabasePath(destBaseDirPath, sourceBaseDirPath)))
             {
                 try
                 {
-                    Database = DataContractWriter.Read<BackupDatabase>(DataContractWriter.GetDatabaseFileName(destBaseDirPath, originBaseDirPath));
+                    Database = DataContractWriter.Read<BackupDatabase>(DataContractWriter.GetDatabaseFileName(destBaseDirPath, sourceBaseDirPath));
                 }
                 catch (Exception) { }
             }
@@ -46,9 +46,9 @@ namespace SkyziBackup
             this.isEnableWriteDatabase = isEnableWriteDatabase;
             if (this.isEnableWriteDatabase && Database == null)
             {
-                Database = File.Exists(DataContractWriter.GetDatabasePath(destBaseDirPath, originBaseDirPath))
-                    ? DataContractWriter.Read<BackupDatabase>(DataContractWriter.GetDatabaseFileName(destBaseDirPath, originBaseDirPath))
-                    : new BackupDatabase(destBaseDirPath, originBaseDirPath);
+                Database = File.Exists(DataContractWriter.GetDatabasePath(destBaseDirPath, sourceBaseDirPath))
+                    ? DataContractWriter.Read<BackupDatabase>(DataContractWriter.GetDatabaseFileName(destBaseDirPath, sourceBaseDirPath))
+                    : new BackupDatabase(destBaseDirPath, sourceBaseDirPath);
             }
             if (!string.IsNullOrEmpty(password))
             {
@@ -69,7 +69,7 @@ namespace SkyziBackup
 ファイル属性だけをコピーする: {1}
 ファイル属性をデータベースに保存する: {2}",
                 isRestoreAttributesFromDatabase, isCopyOnlyFileAttributes, isEnableWriteDatabase);
-            Logger.Info("リストアを開始'{0}' => '{1}'", originBaseDirPath, destBaseDirPath);
+            Logger.Info("リストアを開始'{0}' => '{1}'", sourceBaseDirPath, destBaseDirPath);
 
             Results.successfulFiles = new HashSet<string>();
             Results.failedFiles = new HashSet<string>();
@@ -79,16 +79,16 @@ namespace SkyziBackup
                 return CopyOnlyFileAttributes();
             }
 
-            if (!Directory.Exists(originBaseDirPath) || (Directory.Exists(destBaseDirPath) && Directory.EnumerateFileSystemEntries(destBaseDirPath).Any()))
+            if (!Directory.Exists(sourceBaseDirPath) || (Directory.Exists(destBaseDirPath) && Directory.EnumerateFileSystemEntries(destBaseDirPath).Any()))
             {
-                Logger.Error(Results.Message = !Directory.Exists(originBaseDirPath)
-                    ? $"リストアを中止: リストア元のディレクトリ'{originBaseDirPath}'が見つかりません。"
+                Logger.Error(Results.Message = !Directory.Exists(sourceBaseDirPath)
+                    ? $"リストアを中止: リストア元のディレクトリ'{sourceBaseDirPath}'が見つかりません。"
                     : $"リストアを中止: リストア先のディレクトリ'{destBaseDirPath}'が空ではありません。");
                 Results.IsFinished = true;
                 return Results;
             }
             if (isEnableWriteDatabase)
-                Database.backedUpDirectoriesDict = BackupDirectory.CopyDirectoryStructure(sourceBaseDirPath: originBaseDirPath,
+                Database.backedUpDirectoriesDict = BackupDirectory.CopyDirectoryStructure(sourceBaseDirPath: sourceBaseDirPath,
                                                                                           destBaseDirPath: destBaseDirPath,
                                                                                           isCopyAttributes: Settings.isCopyAttributes,
                                                                                           regices: null,
@@ -96,15 +96,15 @@ namespace SkyziBackup
                                                                                           isForceCreateDirectoryAndReturnDictionary: true,
                                                                                           isRestoreAttributesFromDatabase: isRestoreAttributesFromDatabase);
             else
-                BackupDirectory.CopyDirectoryStructure(sourceBaseDirPath: originBaseDirPath,
+                BackupDirectory.CopyDirectoryStructure(sourceBaseDirPath: sourceBaseDirPath,
                                                        destBaseDirPath: destBaseDirPath,
                                                        isCopyAttributes: Settings.isCopyAttributes,
                                                        backedUpDirectoriesDict: Database?.backedUpDirectoriesDict,
                                                        isRestoreAttributesFromDatabase: isRestoreAttributesFromDatabase);
 
-            foreach (string originFilePath in Directory.EnumerateFiles(originBaseDirPath, "*", SearchOption.AllDirectories))
+            foreach (string originFilePath in Directory.EnumerateFiles(sourceBaseDirPath, "*", SearchOption.AllDirectories))
             {
-                string destFilePath = originFilePath.Replace(originBaseDirPath, destBaseDirPath);
+                string destFilePath = originFilePath.Replace(sourceBaseDirPath, destBaseDirPath);
                 RestoreFile(originFilePath, destFilePath);
             }
             Results.isSuccess = !Results.failedFiles.Any();
@@ -219,9 +219,9 @@ namespace SkyziBackup
                 Results.IsFinished = true;
                 return Results;
             }
-            if (!isRestoreAttributesFromDatabase && !Directory.Exists(originBaseDirPath))
+            if (!isRestoreAttributesFromDatabase && !Directory.Exists(sourceBaseDirPath))
             {
-                Logger.Error(Results.Message = $"リストアを中止: リストア元のディレクトリ'{originBaseDirPath}'が見つかりません。");
+                Logger.Error(Results.Message = $"リストアを中止: リストア元のディレクトリ'{sourceBaseDirPath}'が見つかりません。");
                 Results.IsFinished = true;
                 return Results;
             }
@@ -231,7 +231,7 @@ namespace SkyziBackup
                 var newFileDict = isEnableWriteDatabase ? new Dictionary<string, BackedUpFileData>() : null;
                 foreach (string originDirPath in Database.backedUpDirectoriesDict.Keys)
                 {
-                    string destDirPath = originDirPath.Replace(originBaseDirPath, destBaseDirPath);
+                    string destDirPath = originDirPath.Replace(sourceBaseDirPath, destBaseDirPath);
                     if (!Directory.Exists(destDirPath))
                     {
                         Logger.Warn("コピー先のディレクトリが見つかりません: {0}", destDirPath);
@@ -277,7 +277,7 @@ namespace SkyziBackup
                 }
                 foreach (string originFilePath in Database.backedUpFilesDict.Keys)
                 {
-                    string destFilePath = originFilePath.Replace(originBaseDirPath, destBaseDirPath);
+                    string destFilePath = originFilePath.Replace(sourceBaseDirPath, destBaseDirPath);
                     if (!File.Exists(destFilePath))
                     {
                         Logger.Warn(Results.Message = $"コピー先のファイルが見つかりません '{destFilePath}'");
@@ -312,9 +312,9 @@ namespace SkyziBackup
             }
             else
             {
-                foreach (string originDirPath in Directory.EnumerateDirectories(originBaseDirPath, "*", SearchOption.AllDirectories))
+                foreach (string originDirPath in Directory.EnumerateDirectories(sourceBaseDirPath, "*", SearchOption.AllDirectories))
                 {
-                    string destDirPath = originDirPath.Replace(originBaseDirPath, destBaseDirPath);
+                    string destDirPath = originDirPath.Replace(sourceBaseDirPath, destBaseDirPath);
                     if (!Directory.Exists(destDirPath))
                     {
                         Logger.Warn("コピー先のディレクトリが見つかりません: {0}", destDirPath);
@@ -356,9 +356,9 @@ namespace SkyziBackup
                         Results.failedFiles.Add(originDirPath);
                     }
                 }
-                foreach (string originFilePath in Directory.EnumerateFiles(originBaseDirPath, "*", SearchOption.AllDirectories))
+                foreach (string originFilePath in Directory.EnumerateFiles(sourceBaseDirPath, "*", SearchOption.AllDirectories))
                 {
-                    string destFilePath = originFilePath.Replace(originBaseDirPath, destBaseDirPath);
+                    string destFilePath = originFilePath.Replace(sourceBaseDirPath, destBaseDirPath);
                     if (!File.Exists(destFilePath))
                     {
                         Logger.Warn("コピー先のファイルが見つかりません: '{0}'", destFilePath);
