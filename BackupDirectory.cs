@@ -155,7 +155,7 @@ namespace SkyziBackup
                                                                                        bool isCopyAttributes = true,
                                                                                        HashSet<System.Text.RegularExpressions.Regex> regices = null,
                                                                                        Dictionary<string, BackedUpDirectoryData> backedUpDirectoriesDict = null,
-                                                                                       bool isForceReturnDictionary = false,
+                                                                                       bool isForceCreateDirectoryAndReturnDictionary = false,
                                                                                        bool isRestoreAttributesFromDatabase = false)
         {
             if (string.IsNullOrEmpty(sourceBaseDirPath))
@@ -191,7 +191,7 @@ namespace SkyziBackup
                 }
                 DirectoryInfo originDirInfo = isCopyAttributes ? new DirectoryInfo(originDirPath) : null;
                 DirectoryInfo destDirInfo = null;
-                if (backedUpDirectoriesDict == null || !backedUpDirectoriesDict.TryGetValue(originDirPath, out var data))
+                if (backedUpDirectoriesDict == null || !backedUpDirectoriesDict.TryGetValue(originDirPath, out var data) || (isForceCreateDirectoryAndReturnDictionary && !isRestoreAttributesFromDatabase))
                 {
                     string destDirPath = originDirPath.Replace(sourceBaseDirPath, destBaseDirPath);
                     Logger.Debug($"存在しなければ作成: '{destDirPath}'");
@@ -225,7 +225,7 @@ namespace SkyziBackup
                     if (originDirInfo.Attributes != backedUpDirectoriesDict[originDirPath].fileAttributes)
                         (destDirInfo ?? Directory.CreateDirectory(destDirPath)).Attributes = originDirInfo.Attributes;
                 }
-                if (isForceReturnDictionary && backedUpDirectoriesDict == null)
+                if (isForceCreateDirectoryAndReturnDictionary && backedUpDirectoriesDict == null)
                     backedUpDirectoriesDict = new Dictionary<string, BackedUpDirectoryData>();
                 if (backedUpDirectoriesDict != null && !isRestoreAttributesFromDatabase)
                     backedUpDirectoriesDict[originDirPath] = new BackedUpDirectoryData(originDirInfo?.CreationTime, originDirInfo?.LastWriteTime, originDirInfo?.Attributes);
