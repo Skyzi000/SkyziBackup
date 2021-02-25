@@ -24,11 +24,6 @@
             <TextBox x:Name="destPath" HorizontalAlignment="Stretch" Text="G:\Temp\SkyziBackup\Dest" TextWrapping="NoWrap" VerticalAlignment="Top"/>
             <Label x:Name="passwordLabel" Content="パスワード" HorizontalAlignment="Left" VerticalAlignment="Top"/>
             <PasswordBox x:Name="password" HorizontalAlignment="Stretch" Password="password" VerticalAlignment="Top"/>
-            <Label x:Name="ignorePatternLabel" Content="除外パターン" HorizontalAlignment="Left" VerticalAlignment="Top"/>
-            <TextBox x:Name="ignorePatternBox" AcceptsReturn="True" MinLines="4" MaxLines="4"/>
-            <Label x:Name="DataPathLabel" Content="設定等保存先" HorizontalAlignment="Left" VerticalAlignment="Top"/>
-            <TextBox x:Name="dataPath" HorizontalAlignment="Stretch" Text="" TextWrapping="NoWrap" VerticalAlignment="Top"/>
-
             <Button x:Name="encryptButton" Click="EncryptButton_ClickAsync" Content="バックアップ開始" HorizontalAlignment="Stretch" VerticalAlignment="Top" Grid.ColumnSpan="3" Grid.Row="1" Margin="10"/>
             <ProgressBar x:Name="progressBar" Height="20" Margin="10,-30,10,10" IsIndeterminate="True" Grid.ColumnSpan="2" Visibility="Hidden" VerticalAlignment="Top" />
 

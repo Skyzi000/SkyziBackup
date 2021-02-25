@@ -40,9 +40,6 @@ namespace SkyziBackup
             _mainContext = SynchronizationContext.Current;
             ContentRendered += (s, e) =>
             {
-                dataPath.TextChanged += DataPath_TextChanged;
-                dataPath.Text = Properties.Settings.Default.AppDataPath;
-                ignorePatternBox.Text = GlobalBackupSettings.IgnorePattern;
                 password.Password = LoadPasswordOrNull() ?? string.Empty;
             };
         }
@@ -71,23 +68,6 @@ namespace SkyziBackup
             }
         }
         public static string LoadPasswordOrNull() => TryLoadPassword(out string password) ? password : null;
-        private void DataPath_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            if (dataPath.Text == "")
-            {
-                Properties.Settings.Default.AppDataPath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "Skyzi000", "SkyziBackup");
-                System.IO.Directory.CreateDirectory(Properties.Settings.Default.AppDataPath);
-                dataPath.Text = Properties.Settings.Default.AppDataPath;
-            }
-            if (System.IO.Directory.Exists(dataPath.Text))
-            {
-                Properties.Settings.Default.AppDataPath = dataPath.Text;
-                Properties.Settings.Default.Save();
-                dataPath.Text = Properties.Settings.Default.AppDataPath;
-                Logger.Debug("DataPath : " + dataPath.Text);
-                NLog.GlobalDiagnosticsContext.Set("AppDataPath", dataPath.Text);
-            }
-        }
 
         private async void EncryptButton_ClickAsync(object sender, RoutedEventArgs e)
         {
@@ -123,7 +103,6 @@ namespace SkyziBackup
                         break;
                 }
             }
-            GlobalBackupSettings.IgnorePattern = ignorePatternBox.Text;
             GlobalBackupSettings.comparisonMethod = ComparisonMethod.WriteTime | ComparisonMethod.Size | ComparisonMethod.FileContentsSHA1;
             message.Text = $"設定を保存: '{DataContractWriter.GetPath(GlobalBackupSettings)}'";
             Logger.Info(message.Text);
