@@ -76,18 +76,20 @@ namespace SkyziBackup
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
-            var newSettings = new BackupSettings();
-            newSettings.IgnorePattern = ignorePatternBox.Text;
-            newSettings.isUseDatabase = isUseDatabaseCheckBox.IsChecked ?? settings.isUseDatabase;
-            newSettings.isRecordPassword = isRecordPasswordCheckBox.IsChecked ?? settings.isRecordPassword;
-            newSettings.isOverwriteReadonly = isOverwriteReadonlyCheckBox.IsChecked ?? settings.isOverwriteReadonly;
-            newSettings.isEnableDeletion = isEnableDeletionCheckBox.IsChecked ?? settings.isEnableDeletion;
-            newSettings.isCopyAttributes = isCopyAttributesCheckBox.IsChecked ?? settings.isCopyAttributes;
-            newSettings.retryCount = int.TryParse(RetryCountTextBox.Text, out int rcount) ? rcount : settings.retryCount;
-            newSettings.retryWaitMilliSec = int.TryParse(RetryWaitTimeTextBox.Text, out int wait) ? wait : settings.retryWaitMilliSec;
-            newSettings.compressAlgorithm = (Skyzi000.Cryptography.CompressAlgorithm)CompressAlgorithmComboBox.SelectedIndex;
-            newSettings.compressionLevel = (System.IO.Compression.CompressionLevel)CompressionLevelSlider.Value;
-            newSettings.passwordProtectionScope = (System.Security.Cryptography.DataProtectionScope)PasswordScopeComboBox.SelectedIndex;
+            var newSettings = new BackupSettings
+            {
+                IgnorePattern = ignorePatternBox.Text,
+                isUseDatabase = isUseDatabaseCheckBox.IsChecked ?? settings.isUseDatabase,
+                isRecordPassword = isRecordPasswordCheckBox.IsChecked ?? settings.isRecordPassword,
+                isOverwriteReadonly = isOverwriteReadonlyCheckBox.IsChecked ?? settings.isOverwriteReadonly,
+                isEnableDeletion = isEnableDeletionCheckBox.IsChecked ?? settings.isEnableDeletion,
+                isCopyAttributes = isCopyAttributesCheckBox.IsChecked ?? settings.isCopyAttributes,
+                retryCount = int.TryParse(RetryCountTextBox.Text, out int rcount) ? rcount : settings.retryCount,
+                retryWaitMilliSec = int.TryParse(RetryWaitTimeTextBox.Text, out int wait) ? wait : settings.retryWaitMilliSec,
+                compressAlgorithm = (Skyzi000.Cryptography.CompressAlgorithm)CompressAlgorithmComboBox.SelectedIndex,
+                compressionLevel = (System.IO.Compression.CompressionLevel)CompressionLevelSlider.Value,
+                passwordProtectionScope = (System.Security.Cryptography.DataProtectionScope)PasswordScopeComboBox.SelectedIndex
+            };
             if (newSettings.isRecordPassword)
             {
                 newSettings.ProtectedPassword = settings.GetRawPassword();
@@ -108,6 +110,13 @@ namespace SkyziBackup
                 var r = MessageBox.Show("設定を保存しますか？", "設定変更の確認", MessageBoxButton.YesNoCancel);
                 if (r == MessageBoxResult.Yes)
                 {
+                    if (Properties.Settings.Default.AppDataPath != dataPath.Text && System.IO.Directory.Exists(dataPath.Text))
+                    {
+                        Properties.Settings.Default.AppDataPath = dataPath.Text;
+                        Properties.Settings.Default.Save();
+                        dataPath.Text = Properties.Settings.Default.AppDataPath;
+                        NLog.GlobalDiagnosticsContext.Set("AppDataPath", dataPath.Text);
+                    }
                     settings = newSettings;
                     DataContractWriter.Write(settings);
                 }

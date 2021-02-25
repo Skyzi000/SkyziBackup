@@ -7,7 +7,7 @@
         xmlns:Primitives="clr-namespace:System.Windows.Controls.Ribbon.Primitives;assembly=System.Windows.Controls.Ribbon" x:Class="SkyziBackup.SettingsWindow"
         mc:Ignorable="d"
         Closing="Window_Closing"
-        Title="SkyziBackup - 設定" Height="840" Width="500">
+        Title="SkyziBackup - 設定" Height="800" Width="500">
     <Grid>
         <!--  <TabControl>
                <TabItem Header="一般" ToolTip=""> -->
@@ -18,7 +18,7 @@
                         <Label x:Name="DataPathLabel" Content="設定等保存先" HorizontalAlignment="Left" VerticalAlignment="Top"/>
                         <TextBox x:Name="dataPath" HorizontalAlignment="Stretch" Text="" TextWrapping="NoWrap" VerticalAlignment="Top"/>
                         <Label Content="設定ファイルのパス"/>
-                        <Button x:Name="ResetSettingsButton" Content="設定を初期値にリセット" Click="ResetSettingsButton_Click" HorizontalAlignment="Right" Margin="0,-26,0,0"/>
+                        <Button x:Name="ResetSettingsButton" Content="設定をリセット" Click="ResetSettingsButton_Click" HorizontalAlignment="Right" Margin="0,-26,0,0"/>
                         <TextBlock x:Name="settingsPath" HorizontalAlignment="Stretch" TextWrapping="NoWrap"/>
                     </StackPanel>
                 </GroupBox>
