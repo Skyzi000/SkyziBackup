@@ -7,29 +7,45 @@
         mc:Ignorable="d"
         Title="SkyziBackup" Height="450" Width="800">
     <Grid Margin="10,18,10,5">
-        <TextBox x:Name="originPath" HorizontalAlignment="Left" Margin="0,50,0,0" Text="G:\Temp\SkyziBackup\Origin" TextWrapping="NoWrap" VerticalAlignment="Top" Width="180"/>
-        <TextBox x:Name="destPath" HorizontalAlignment="Left" Margin="0,90,0,0" Text="G:\Temp\SkyziBackup\Dest" TextWrapping="NoWrap" VerticalAlignment="Top" Width="180"/>
-        <PasswordBox x:Name="password" HorizontalAlignment="Left" Margin="0,130,0,0" Password="password" VerticalAlignment="Top" Width="180"/>
-        <Button x:Name="encryptButton" Click="EncryptButton_ClickAsync" Content="暗号化！" HorizontalAlignment="Left" Margin="0,160,0,0" VerticalAlignment="Top"/>
-        <TextBlock x:Name="message" HorizontalAlignment="Left" Margin="0,190,0,0" Text="" TextWrapping="Wrap" VerticalAlignment="Top"/>
-        <TextBox x:Name="dataPath" HorizontalAlignment="Left" Margin="580,50,0,0" Text="" TextWrapping="NoWrap" VerticalAlignment="Top" Width="180"/>
-        <Label x:Name="originPathLabel" Content="バックアップ元" HorizontalAlignment="Left" Margin="0,30,0,0" VerticalAlignment="Top"/>
-        <Label x:Name="destPathLabel" Content="バックアップ先" HorizontalAlignment="Left" Margin="0,70,0,0" VerticalAlignment="Top"/>
-        <Label x:Name="passwordLabel" Content="パスワード" HorizontalAlignment="Left" Margin="0,110,0,0" VerticalAlignment="Top"/>
-        <Label x:Name="DataPathLabel" Content="設定データ等保存先" HorizontalAlignment="Left" Margin="580,30,0,0" VerticalAlignment="Top"/>
-        <Label x:Name="ignorePatternLabel" Content="除外パターン" HorizontalAlignment="Left" Margin="250,30,0,0" VerticalAlignment="Top"/>
-        <TextBox x:Name="ignorePatternBox" Margin="250,50,400,250" AcceptsReturn="True"/>
-      <!--  <d:DockPanel LastChildFill="False" Grid.Column="0" Grid.ColumnSpan="2" Margin="-10,0,-10,0" VerticalAlignment="Top" Height="18"> -->
-            <Menu DockPanel.Dock="Top" Height="18" VerticalAlignment="Top" Margin="-10,-18,-10,0">
-                <MenuItem Header="ファイル(_F)">
-                    <MenuItem x:Name="CloseButton" Header="閉じる(_X)" Click="CloseButton_Click"/>
-                </MenuItem>
-                <MenuItem Header="表示(_V)">
-                    <MenuItem x:Name="RestoreWindowMenu" Header="リストア(復元)ウィンドウ" Click="RestoreWindowMenu_Click" />
-                </MenuItem>
-                <MenuItem Header="オプション(_O)">
-                </MenuItem>
-            </Menu>
-       <!-- </d:DockPanel> -->
+        <Grid.RowDefinitions>
+            <RowDefinition/>
+            <RowDefinition/>
+            <RowDefinition MaxHeight="100"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition MaxWidth="500" Width="*"/>
+            <ColumnDefinition/>
+            <ColumnDefinition/>
+        </Grid.ColumnDefinitions>
+        <StackPanel Margin="0,0,10,0" Grid.RowSpan="3">
+            <Label x:Name="originPathLabel" Content="バックアップ元" HorizontalAlignment="Left" VerticalAlignment="Top"/>
+            <TextBox x:Name="originPath" HorizontalAlignment="Stretch" Text="G:\Temp\SkyziBackup\Origin" TextWrapping="NoWrap" VerticalAlignment="Top" />
+            <Label x:Name="destPathLabel" Content="バックアップ先" HorizontalAlignment="Left" VerticalAlignment="Top"/>
+            <TextBox x:Name="destPath" HorizontalAlignment="Stretch" Text="G:\Temp\SkyziBackup\Dest" TextWrapping="NoWrap" VerticalAlignment="Top"/>
+            <Label x:Name="passwordLabel" Content="パスワード" HorizontalAlignment="Left" VerticalAlignment="Top"/>
+            <PasswordBox x:Name="password" HorizontalAlignment="Stretch" Password="password" VerticalAlignment="Top"/>
+            <Label x:Name="ignorePatternLabel" Content="除外パターン" HorizontalAlignment="Left" VerticalAlignment="Top"/>
+            <TextBox x:Name="ignorePatternBox" AcceptsReturn="True" MinLines="4" MaxLines="4"/>
+            <Label x:Name="DataPathLabel" Content="設定等保存先" HorizontalAlignment="Left" VerticalAlignment="Top"/>
+            <TextBox x:Name="dataPath" HorizontalAlignment="Stretch" Text="" TextWrapping="NoWrap" VerticalAlignment="Top"/>
+
+            <Button x:Name="encryptButton" Click="EncryptButton_ClickAsync" Content="バックアップ開始" HorizontalAlignment="Stretch" VerticalAlignment="Top" Grid.ColumnSpan="3" Grid.Row="1" Margin="10"/>
+            <ProgressBar x:Name="progressBar" Height="20" Margin="10,-30,10,10" IsIndeterminate="True" Grid.ColumnSpan="2" Visibility="Hidden" VerticalAlignment="Top" />
+
+        </StackPanel>
+        <ScrollViewer Name="MessageScrollViewer" Grid.Row="2" Grid.Column="1" VerticalScrollBarVisibility="Auto" BorderBrush="Black" Grid.ColumnSpan="2">
+            <TextBlock x:Name="message" HorizontalAlignment="Left" Text="" TextWrapping="Wrap" VerticalAlignment="Top"/>
+        </ScrollViewer>
+
+        <Menu DockPanel.Dock="Top" Height="18" VerticalAlignment="Top" Margin="-10,-18,-10,0" Grid.ColumnSpan="3">
+            <MenuItem Header="ファイル(_F)">
+                <MenuItem x:Name="CloseButton" Header="閉じる(_X)" Click="CloseButton_Click"/>
+            </MenuItem>
+            <MenuItem Header="表示(_V)">
+                <MenuItem x:Name="RestoreWindowMenu" Header="リストア(復元)ウィンドウ" Click="RestoreWindowMenu_Click" />
+            </MenuItem>
+            <MenuItem Header="オプション(_O)">
+            </MenuItem>
+        </Menu>
     </Grid>
 </Window>
