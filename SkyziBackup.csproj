@@ -10,6 +10,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="SkyziBackup.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Include="LICENSE">
       <Pack>True</Pack>
       <PackagePath></PackagePath>
@@ -19,6 +23,10 @@
   <ItemGroup>
     <PackageReference Include="NLog" Version="4.7.7" />
     <PackageReference Include="NLog.Config" Version="4.7.7" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="SkyziBackup.ico" />
   </ItemGroup>
 
   <ItemGroup>
