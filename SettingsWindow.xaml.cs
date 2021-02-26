@@ -133,6 +133,7 @@ namespace SkyziBackup
             {
                 settings = settings.IsGlobal ? new BackupSettings() : new BackupSettings(settings.SaveFileName);
                 DataContractWriter.Write(settings);
+                DisplaySettings();
             }
         }
     }
