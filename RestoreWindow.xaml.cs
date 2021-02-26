@@ -45,7 +45,7 @@ namespace SkyziBackup
             if (!Directory.Exists(originPath.Text.Trim()) && !(copyAttributesOnDatabaseCheck.IsChecked && copyOnlyAttributesCheck.IsChecked))
             {
                 MessageBox.Show($"{originPathLabel.Content}が不正です。\n正しいディレクトリパスを入力してください。",
-                                $"{MainWindow.AssemblyName.Name} - 警告",
+                                $"{App.AssemblyName.Name} - 警告",
                                 MessageBoxButton.OK,
                                 MessageBoxImage.Warning);
                 return;
@@ -56,7 +56,7 @@ namespace SkyziBackup
             if (settings.isRecordPassword && settings.IsDifferentPassword(password.Password))
             {
                 var changePassword = MessageBox.Show("入力されたパスワードが保存されているパスワードと異なります。\nこのまま続行しますか？",
-                                                     $"{MainWindow.AssemblyName.Name} - パスワードの確認",
+                                                     $"{App.AssemblyName.Name} - パスワードの確認",
                                                      MessageBoxButton.YesNo,
                                                      MessageBoxImage.Information);
                 switch (changePassword)
