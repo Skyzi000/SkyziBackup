@@ -20,7 +20,11 @@ namespace SkyziBackup
         protected override void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
-            
+            if (string.IsNullOrEmpty(SkyziBackup.Properties.Settings.Default.AppDataPath))
+            {
+                SkyziBackup.Properties.Settings.Default.AppDataPath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "Skyzi000", "SkyziBackup");
+                System.IO.Directory.CreateDirectory(SkyziBackup.Properties.Settings.Default.AppDataPath);
+            }
             var icon = GetResourceStream(new Uri("SkyziBackup.ico", UriKind.Relative)).Stream;
             var menu = new ContextMenuStrip();
             menu.Items.Add("メイン画面を表示する", null, MainShow_Click);
