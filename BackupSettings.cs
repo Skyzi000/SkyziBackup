@@ -149,6 +149,11 @@ namespace SkyziBackup
             return false;
         }
         public static BackupSettings LoadLocalSettingsOrNull(string originBaseDirPath, string destBaseDirPath) => TryLoadLocalSettings(originBaseDirPath, destBaseDirPath, out BackupSettings localSettings) ? localSettings : null;
+        public BackupSettings ConvertToLocalSettings(string originBaseDirPath, string destBaseDirPath)
+        {
+            localFileName = Path.Combine(DataContractWriter.GetDatabaseDirectoryName(originBaseDirPath, destBaseDirPath), FileName);
+            return this;
+        }
         public void UpdateRegices()
         {
             string[] patStrArr = IgnorePattern.Split(new[] { "\r\n", "\n", "\r", "|" }, StringSplitOptions.None);

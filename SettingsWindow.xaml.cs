@@ -23,19 +23,31 @@ namespace SkyziBackup
         public SettingsWindow()
         {
             InitializeComponent();
+            dataPath.Text = Properties.Settings.Default.AppDataPath;
             ContentRendered += (s, e) =>
             {
-                dataPath.Text = Properties.Settings.Default.AppDataPath;
+                NoComparisonLBI.Selected += (s, e) => ComparisonMethodListBox.SelectedIndex = 0;
             };
         }
         public SettingsWindow(ref BackupSettings settings) : this()
         {
             this.settings = settings;
-            ContentRendered += (s, e) =>
+            DisplaySettings();
+        }
+        /// <summary>
+        /// ローカル設定をファイルから読み込んで変更する。対応するローカル設定が存在していなければ新規作成する。
+        /// </summary>
+        public SettingsWindow(string originBaseDirPath, string destBaseDirPath) : this()
+        {
+            if (BackupSettings.TryLoadLocalSettings(originBaseDirPath, destBaseDirPath, out var settings))
             {
-                DisplaySettings();
-                NoComparisonLBI.Selected += (s, e) => ComparisonMethodListBox.SelectedIndex = 0;
-            };
+                this.settings = settings;
+            }
+            else
+            {
+                this.settings = BackupSettings.GetGlobalSettings().ConvertToLocalSettings(originBaseDirPath, destBaseDirPath);
+            }
+            DisplaySettings();
         }
 
         private void DisplaySettings()
