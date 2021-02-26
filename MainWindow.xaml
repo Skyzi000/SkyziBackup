@@ -10,7 +10,7 @@
         <Grid.RowDefinitions>
             <RowDefinition/>
             <RowDefinition/>
-            <RowDefinition MaxHeight="100"/>
+            <RowDefinition MaxHeight="150" Height="*"/>
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition MaxWidth="500" Width="*"/>
@@ -28,9 +28,12 @@
             <ProgressBar x:Name="progressBar" Height="20" Margin="10,-30,10,10" IsIndeterminate="True" Grid.ColumnSpan="2" Visibility="Hidden" VerticalAlignment="Top" />
 
         </StackPanel>
-        <ScrollViewer Name="MessageScrollViewer" Grid.Row="2" Grid.Column="1" VerticalScrollBarVisibility="Auto" BorderBrush="Black" Grid.ColumnSpan="2">
-            <TextBlock x:Name="message" HorizontalAlignment="Left" Text="" TextWrapping="Wrap" VerticalAlignment="Top"/>
-        </ScrollViewer>
+        <GroupBox Header="メッセージ" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3">
+            <ScrollViewer Name="MessageScrollViewer" VerticalScrollBarVisibility="Auto" BorderBrush="Black">
+                <TextBlock x:Name="message" HorizontalAlignment="Left" Text="" TextWrapping="Wrap" VerticalAlignment="Top"/>
+            </ScrollViewer>
+        </GroupBox>
+        
 
         <Menu DockPanel.Dock="Top" Height="18" VerticalAlignment="Top" Margin="-10,-18,-10,0" Grid.ColumnSpan="3">
             <MenuItem Header="ファイル(_F)">
