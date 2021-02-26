@@ -8,6 +8,7 @@
     <Copyright>Copyright (c) 2020 Skyzi000</Copyright>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
     <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationIcon>SkyziBackup.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
