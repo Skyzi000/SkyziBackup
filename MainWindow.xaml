@@ -44,11 +44,11 @@
                 <MenuItem Name="RestoreWindowMenu" Header="リストア(復元)ウィンドウ" Click="RestoreWindowMenu_Click"/>
             </MenuItem>
             <MenuItem Header="オプション(_O)">
-                <MenuItem Name="GlobalSettingsMenu" Header="グローバル設定(_G)" Click="GlobalSettingsMenu_Click"/>
-                <MenuItem Name="LocalSettingsMenu" Header="ローカル設定(_L)" Click="LocalSettingsMenu_Click"/>
+                <MenuItem x:Name="GlobalSettingsMenu" Header="グローバル設定(_G)" Click="GlobalSettingsMenu_Click"/>
+                <MenuItem x:Name="LocalSettingsMenu" Header="ローカル設定(_L)" Click="LocalSettingsMenu_Click"/>
                 <MenuItem Name="ShowCurrentSettings" Header="現在の設定を表示" Click="ShowCurrentSettings_Click"/>
                 <Separator/>
-                <MenuItem Name="DeleteLocalSettings" Header="ローカル設定を削除" Click="DeleteLocalSettings_Click"/>
+                <MenuItem x:Name="DeleteLocalSettings" Header="ローカル設定を削除" Click="DeleteLocalSettings_Click"/>
             </MenuItem>
         </Menu>
     </Grid>

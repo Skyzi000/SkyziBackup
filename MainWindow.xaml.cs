@@ -35,6 +35,17 @@ namespace SkyziBackup
         private readonly SynchronizationContext _mainContext;
 
         private BackupSettings LoadCurrentSettings => BackupSettings.LoadLocalSettingsOrNull(Path.TrimEndingDirectorySeparator(originPath.Text.Trim()), Path.TrimEndingDirectorySeparator(destPath.Text.Trim())) ?? BackupSettings.LoadGlobalSettingsOrNull() ?? GlobalBackupSettings;
+        private bool ButtonsIsEnabled
+        {
+            get => StartBackupButton.IsEnabled;
+            set
+            {
+                StartBackupButton.IsEnabled = value;
+                GlobalSettingsMenu.IsEnabled = value;
+                LocalSettingsMenu.IsEnabled = value;
+                DeleteLocalSettings.IsEnabled = value;
+            }
+        }
 
         public MainWindow()
         {
@@ -55,14 +66,14 @@ namespace SkyziBackup
                 MessageBox.Show($"{originPath.Text.Trim()}は存在しません。\n正しいディレクトリパスを入力してください。", $"{AssemblyName.Name} - 警告", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
-            StartBackupButton.IsEnabled = false;
+            ButtonsIsEnabled = false;
             var settings = LoadCurrentSettings;
             if (settings.isRecordPassword && settings.IsDifferentPassword(password.Password))
             {
                 var changePassword = MessageBox.Show("前回のパスワードと異なります。\nパスワードを変更しますか？\n\n※パスワードを変更する場合、既存のバックアップやデータベースを削除し、\n　再度初めからバックアップし直すことをおすすめします。\n　異なるパスワードでバックアップされたファイルが共存する場合、\n　復元が難しくなります。", $"{AssemblyName.Name} - パスワード変更の確認", MessageBoxButton.YesNoCancel);
                 switch (changePassword)
                 {
-                    
+
                     case MessageBoxResult.Yes:
                         Logger.Info("パスワードを保存");
                         PasswordManager.SavePassword(settings, password.Password);
@@ -75,7 +86,7 @@ namespace SkyziBackup
                             goto case MessageBoxResult.Cancel;
                         break;
                     case MessageBoxResult.Cancel:
-                        StartBackupButton.IsEnabled = true;
+                        ButtonsIsEnabled = true;
                         return;
                 }
             }
@@ -87,10 +98,10 @@ namespace SkyziBackup
             db.Results.MessageChanged += (_s, _e) => { _mainContext.Post((d) => { message.Text = m + db.Results.Message + "\n"; }, null); };
             await Task.Run(() => db.StartBackup());
             progressBar.Visibility = Visibility.Hidden;
-            StartBackupButton.IsEnabled = true;
+            ButtonsIsEnabled = true;
         }
 
-        
+
 
         /// <summary>
         /// データベースを削除するかどうかの確認ウィンドウを出してから削除する。
@@ -165,7 +176,7 @@ namespace SkyziBackup
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
-            if (!StartBackupButton.IsEnabled)
+            if (!ButtonsIsEnabled)
             {
                 if (MessageBoxResult.Yes != MessageBox.Show("バックアップ実行中です。ウィンドウを閉じますか？\n※バックアップ中に中断するとバックアップ先ファイルが壊れる可能性があります。",
                                                             "確認",
