@@ -37,13 +37,17 @@
 
         <Menu DockPanel.Dock="Top" Height="18" VerticalAlignment="Top" Margin="-10,-18,-10,0" Grid.ColumnSpan="3">
             <MenuItem Header="ファイル(_F)">
-                <MenuItem x:Name="CloseButton" Header="閉じる(_X)" Click="CloseButton_Click"/>
+                <MenuItem Name="CloseButton" Header="閉じる(_X)" Click="CloseButton_Click"/>
             </MenuItem>
             <MenuItem Header="表示(_V)">
-                <MenuItem x:Name="RestoreWindowMenu" Header="リストア(復元)ウィンドウ" Click="RestoreWindowMenu_Click" />
+                <MenuItem Name="RestoreWindowMenu" Header="リストア(復元)ウィンドウ" Click="RestoreWindowMenu_Click"/>
             </MenuItem>
             <MenuItem Header="オプション(_O)">
-                <MenuItem x:Name="GlobalSettingsMenu" Header="グローバル設定(_G)" Click="GlobalSettingsMenu_Click"/>
+                <MenuItem Name="GlobalSettingsMenu" Header="グローバル設定(_G)" Click="GlobalSettingsMenu_Click"/>
+                <MenuItem Name="LocalSettingsMenu" Header="ローカル設定(_L)" Click="LocalSettingsMenu_Click"/>
+                <MenuItem Name="ShowCurrentSettings" Header="現在の設定を表示" Click="ShowCurrentSettings_Click"/>
+                <Separator/>
+                <MenuItem Name="DeleteLocalSettings" Header="ローカル設定を削除" Click="DeleteLocalSettings_Click"/>
             </MenuItem>
         </Menu>
     </Grid>
