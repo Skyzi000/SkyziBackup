@@ -20,7 +20,7 @@ namespace SkyziBackup
         protected override void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
-
+            
             var icon = GetResourceStream(new Uri("SkyziBackup.ico", UriKind.Relative)).Stream;
             var menu = new ContextMenuStrip();
             menu.Items.Add("メイン画面を表示する", null, MainShow_Click);
@@ -32,6 +32,10 @@ namespace SkyziBackup
                 Text = AssemblyName.Name,
                 ContextMenuStrip = menu
             };
+            if (!e.Args.Any())
+            {
+                ShowMainWindowIfClosed();
+            }
             NotifyIcon.MouseClick += new MouseEventHandler(NotifyIcon_Click);
         }
         private void ShowMainWindowIfClosed()
