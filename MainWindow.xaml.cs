@@ -137,6 +137,7 @@ namespace SkyziBackup
         {
             new SettingsWindow(ref GlobalBackupSettings).ShowDialog();
             GlobalBackupSettings = BackupSettings.LoadGlobalSettingsOrNull() ?? GlobalBackupSettings;
+            password.Password = PasswordManager.LoadPasswordOrNull(LoadCurrentSettings) ?? string.Empty;
         }
     }
 }

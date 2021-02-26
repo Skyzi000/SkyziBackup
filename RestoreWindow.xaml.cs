@@ -95,6 +95,7 @@ namespace SkyziBackup
         {
             new SettingsWindow(ref MainWindow.GlobalBackupSettings).ShowDialog();
             MainWindow.GlobalBackupSettings = BackupSettings.LoadGlobalSettingsOrNull() ?? MainWindow.GlobalBackupSettings;
+            password.Password = PasswordManager.LoadPasswordOrNull(LoadCurrentSettings) ?? string.Empty;
         }
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
