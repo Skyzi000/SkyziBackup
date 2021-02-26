@@ -48,14 +48,14 @@ namespace SkyziBackup
 
        
 
-        private async void EncryptButton_ClickAsync(object sender, RoutedEventArgs e)
+        private async void StartBackupButton_ClickAsync(object sender, RoutedEventArgs e)
         {
             if (!Directory.Exists(originPath.Text.Trim()))
             {
                 MessageBox.Show($"{originPath.Text.Trim()}は存在しません。\n正しいディレクトリパスを入力してください。", $"{AssemblyName.Name} - 警告", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
-            encryptButton.IsEnabled = false;
+            StartBackupButton.IsEnabled = false;
             var settings = LoadCurrentSettings;
             if (settings.isRecordPassword && settings.IsDifferentPassword(password.Password))
             {
@@ -75,7 +75,7 @@ namespace SkyziBackup
                             goto case MessageBoxResult.Cancel;
                         break;
                     case MessageBoxResult.Cancel:
-                        encryptButton.IsEnabled = true;
+                        StartBackupButton.IsEnabled = true;
                         return;
                 }
             }
@@ -87,7 +87,7 @@ namespace SkyziBackup
             db.Results.MessageChanged += (_s, _e) => { _mainContext.Post((d) => { message.Text = m + db.Results.Message + "\n"; }, null); };
             await Task.Run(() => db.StartBackup());
             progressBar.Visibility = Visibility.Hidden;
-            encryptButton.IsEnabled = true;
+            StartBackupButton.IsEnabled = true;
         }
 
         
@@ -160,6 +160,21 @@ namespace SkyziBackup
                 if (MessageBox.Show("現在のバックアップペアに対応するローカル設定を削除します。", $"{AssemblyName.Name} - 確認", MessageBoxButton.OKCancel, MessageBoxImage.Warning) == MessageBoxResult.Cancel) return;
                 DataContractWriter.Delete(currentSettings);
                 password.Password = PasswordManager.LoadPasswordOrNull(LoadCurrentSettings) ?? string.Empty;
+            }
+        }
+
+        private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            if (!StartBackupButton.IsEnabled)
+            {
+                if (MessageBoxResult.Yes != MessageBox.Show("バックアップ実行中です。ウィンドウを閉じますか？\n※バックアップ中に中断するとバックアップ先ファイルが壊れる可能性があります。",
+                                                            "確認",
+                                                            MessageBoxButton.YesNo,
+                                                            MessageBoxImage.Information))
+                {
+                    e.Cancel = true;
+                    return;
+                }
             }
         }
     }

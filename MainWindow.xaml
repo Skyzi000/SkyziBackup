@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:SkyziBackup"
         mc:Ignorable="d"
+        Closing="Window_Closing"
         Title="SkyziBackup" Height="450" Width="800">
     <Grid Margin="10,18,10,5">
         <Grid.RowDefinitions>
@@ -24,7 +25,7 @@
             <TextBox x:Name="destPath" HorizontalAlignment="Stretch" Text="G:\Temp\SkyziBackup\Dest" TextWrapping="NoWrap" VerticalAlignment="Top"/>
             <Label x:Name="passwordLabel" Content="パスワード" HorizontalAlignment="Left" VerticalAlignment="Top"/>
             <PasswordBox x:Name="password" HorizontalAlignment="Stretch" Password="password" VerticalAlignment="Top"/>
-            <Button x:Name="encryptButton" Click="EncryptButton_ClickAsync" Content="バックアップ開始" HorizontalAlignment="Stretch" VerticalAlignment="Top" Grid.ColumnSpan="3" Grid.Row="1" Margin="10"/>
+            <Button x:Name="StartBackupButton" Click="StartBackupButton_ClickAsync" Content="バックアップ開始" HorizontalAlignment="Stretch" VerticalAlignment="Top" Grid.ColumnSpan="3" Grid.Row="1" Margin="10"/>
             <ProgressBar x:Name="progressBar" Height="20" Margin="10,-30,10,10" IsIndeterminate="True" Grid.ColumnSpan="2" Visibility="Hidden" VerticalAlignment="Top" />
 
         </StackPanel>
