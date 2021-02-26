@@ -51,40 +51,34 @@ namespace SkyziBackup
         {
             if (!Directory.Exists(originPath.Text.Trim()))
             {
-                MessageBox.Show($"{originPathLabel.Content}が不正です。\n正しいディレクトリパスを入力してください。", $"{AssemblyName.Name} - 警告", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show($"{originPathLabel.Content}は存在しません。\n正しいディレクトリパスを入力してください。", $"{AssemblyName.Name} - 警告", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
             encryptButton.IsEnabled = false;
             var settings = LoadCurrentSettings;
             if (settings.isRecordPassword && settings.IsDifferentPassword(password.Password))
             {
-                var changePassword = MessageBox.Show("前回のパスワードと異なります。\nパスワードを変更しますか？\n\n※パスワードを変更する場合、既存のバックアップやデータベースを削除し、\n　再度初めからバックアップし直すことをおすすめします。\n　異なるパスワードでバックアップされたファイルが共存する場合、\n　復元が難しくなります。", $"{AssemblyName.Name} - パスワード変更の確認", MessageBoxButton.YesNo, MessageBoxImage.Information);
+                var changePassword = MessageBox.Show("前回のパスワードと異なります。\nパスワードを変更しますか？\n\n※パスワードを変更する場合、既存のバックアップやデータベースを削除し、\n　再度初めからバックアップし直すことをおすすめします。\n　異なるパスワードでバックアップされたファイルが共存する場合、\n　復元が難しくなります。", $"{AssemblyName.Name} - パスワード変更の確認", MessageBoxButton.YesNoCancel);
                 switch (changePassword)
                 {
+                    
                     case MessageBoxResult.Yes:
                         Logger.Info("パスワードを保存");
                         PasswordManager.SavePassword(settings, password.Password);
                         DeleteDatabase();
                         break;
                     case MessageBoxResult.No:
-                    default:
-                        MessageBox.Show("保存されたパスワードを使用します。");
-                        if (PasswordManager.TryLoadPassword(settings, out string pass))
-                        {
+                        if (MessageBox.Show("前回のパスワードを使用します。", AssemblyName.Name, MessageBoxButton.OKCancel, MessageBoxImage.Information) == MessageBoxResult.OK && PasswordManager.TryLoadPassword(settings, out string pass))
                             password.Password = pass;
-                        }
                         else
-                        {
-                            encryptButton.IsEnabled = true;
-                            return;
-                        }
+                            goto case MessageBoxResult.Cancel;
                         break;
+                    case MessageBoxResult.Cancel:
+                        encryptButton.IsEnabled = true;
+                        return;
                 }
             }
-            message.Text = $"設定を保存: '{DataContractWriter.GetPath(settings)}'";
-            Logger.Info(message.Text);
-            DataContractWriter.Write(settings);
-            message.Text += $"\n'{originPath.Text.Trim()}' => '{destPath.Text.Trim()}'";
+            message.Text = $"\n'{originPath.Text.Trim()}' => '{destPath.Text.Trim()}'";
             message.Text += $"\nバックアップ開始: {DateTime.Now}\n";
             progressBar.Visibility = Visibility.Visible;
             var db = new BackupDirectory(originPath.Text.Trim(), destPath.Text.Trim(), password.Password, settings);
