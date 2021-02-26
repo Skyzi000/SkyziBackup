@@ -7,6 +7,7 @@
     <Authors>Skyzi000</Authors>
     <Copyright>Copyright (c) 2020 Skyzi000</Copyright>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <UseWindowsForms>true</UseWindowsForms>
   </PropertyGroup>
 
   <ItemGroup>
