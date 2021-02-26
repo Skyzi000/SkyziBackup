@@ -26,7 +26,7 @@
             <Label x:Name="passwordLabel" Content="パスワード" HorizontalAlignment="Left" VerticalAlignment="Top"/>
             <PasswordBox x:Name="password" HorizontalAlignment="Stretch" Password="password" VerticalAlignment="Top"/>
             <Button x:Name="StartBackupButton" Click="StartBackupButton_ClickAsync" Content="バックアップ開始" HorizontalAlignment="Stretch" VerticalAlignment="Top" Grid.ColumnSpan="3" Grid.Row="1" Margin="10"/>
-            <ProgressBar x:Name="progressBar" Height="20" Margin="10,-30,10,10" IsIndeterminate="True" Grid.ColumnSpan="2" Visibility="Hidden" VerticalAlignment="Top" />
+            <ProgressBar x:Name="progressBar" Height="20" Margin="10,-30,10,10" IsIndeterminate="True" Grid.ColumnSpan="2" Visibility="Collapsed" VerticalAlignment="Top" />
 
         </StackPanel>
         <GroupBox Header="メッセージ" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3">

@@ -67,7 +67,7 @@ namespace SkyziBackup
                     default:
                         MessageBox.Show("リストアを中止します。");
                         RestoreButton.IsEnabled = true;
-                        progressBar.Visibility = Visibility.Hidden;
+                        progressBar.Visibility = Visibility.Collapsed;
                         return;
                 }
             }
@@ -84,7 +84,7 @@ namespace SkyziBackup
             restore.Results.MessageChanged += (_s, _e) => { _mainContext.Post((d) => { Message.Text = m + restore.Results.Message + "\n"; }, null); };
             await Task.Run(() => restore.StartRestore());
             RestoreButton.IsEnabled = true;
-            progressBar.Visibility = Visibility.Hidden;
+            progressBar.Visibility = Visibility.Collapsed;
         }
 
         private void CloseButton_Click(object sender, RoutedEventArgs e)
