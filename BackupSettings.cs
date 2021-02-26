@@ -54,6 +54,9 @@ namespace SkyziBackup
         public static readonly string FileName = nameof(BackupSettings) + ".xml";
 
         public bool IsGlobal => string.IsNullOrEmpty(localFileName);
+        /// <summary>
+        /// グローバル設定であれば <see cref="FileName"/> 、そうでなければ <see cref="localFileName"/> 
+        /// </summary>
         public string SaveFileName => IsGlobal ? FileName : localFileName;
 
         public string IgnorePattern { get => ignorePattern; set { ignorePattern = value; UpdateRegices(); } }
@@ -84,6 +87,10 @@ namespace SkyziBackup
         public BackupSettings(string originBaseDirPath, string destBaseDirPath) : this()
         {
             localFileName = Path.Combine(DataContractWriter.GetDatabaseDirectoryName(originBaseDirPath, destBaseDirPath), FileName);
+        }
+        public BackupSettings(string localFileName) : this()
+        {
+            this.localFileName = localFileName;
         }
 
         public override string ToString()
@@ -142,6 +149,11 @@ namespace SkyziBackup
             return false;
         }
         public static BackupSettings LoadLocalSettingsOrNull(string originBaseDirPath, string destBaseDirPath) => TryLoadLocalSettings(originBaseDirPath, destBaseDirPath, out BackupSettings localSettings) ? localSettings : null;
+        public BackupSettings ConvertToLocalSettings(string originBaseDirPath, string destBaseDirPath)
+        {
+            localFileName = Path.Combine(DataContractWriter.GetDatabaseDirectoryName(originBaseDirPath, destBaseDirPath), FileName);
+            return this;
+        }
         public void UpdateRegices()
         {
             string[] patStrArr = IgnorePattern.Split(new[] { "\r\n", "\n", "\r", "|" }, StringSplitOptions.None);
