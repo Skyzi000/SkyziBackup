@@ -41,9 +41,9 @@
                 <MenuItem Header="オプション(_O)">
                     <MenuItem x:Name="GlobalSettingsMenu" Header="グローバル設定(_G)" Click="GlobalSettingsMenu_Click"/>
                     <MenuItem Header="リストア用特殊オプション(プレビュー)">
-                        <MenuItem Name="copyAttributesOnDatabaseCheck" IsCheckable="True" Header="データベースからファイル属性をリストアする" />
-                        <MenuItem Name="copyOnlyAttributesCheck" IsCheckable="True" Header="ファイル属性だけをコピーする" />
-                        <MenuItem Name="isEnableWriteDatabaseCheck" IsCheckable="True" Header="ファイル属性をデータベースに保存する" />
+                        <MenuItem Name="copyAttributesOnDatabaseCheck" IsCheckable="True" Header="データベースからファイル属性をリストアする" StaysOpenOnClick="True" />
+                        <MenuItem Name="copyOnlyAttributesCheck" IsCheckable="True" Header="ファイル属性だけをコピーする" StaysOpenOnClick="True" />
+                        <MenuItem Name="isEnableWriteDatabaseCheck" IsCheckable="True" Header="ファイル属性をデータベースに保存する" StaysOpenOnClick="True" />
                     </MenuItem>
                 </MenuItem>
             </Menu>
