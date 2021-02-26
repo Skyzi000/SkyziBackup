@@ -1,4 +1,5 @@
 ﻿using NLog;
+using Skyzi000.Cryptography;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -21,7 +22,7 @@ namespace SkyziBackup
     /// </summary>
     public partial class RestoreWindow : Window
     {
-        private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
+        private BackupSettings LoadCurrentSettings => BackupSettings.LoadLocalSettingsOrNull(destPath.Text.Trim(), originPath.Text.Trim()) ?? BackupSettings.LoadGlobalSettingsOrNull() ?? MainWindow.GlobalBackupSettings;
 
         private readonly SynchronizationContext _mainContext;
         public RestoreWindow()
@@ -30,7 +31,7 @@ namespace SkyziBackup
             _mainContext = SynchronizationContext.Current;
             ContentRendered += (s, e) =>
             {
-                password.Password = MainWindow.LoadPasswordOrNull() ?? string.Empty;
+                password.Password = PasswordManager.LoadPasswordOrNull(LoadCurrentSettings) ?? string.Empty;
             };
         }
         public RestoreWindow(string restoreSourcePath, string restoreDestinationPath) : this()
@@ -51,7 +52,7 @@ namespace SkyziBackup
             }
             RestoreButton.IsEnabled = false;
             progressBar.Visibility = Visibility.Visible;
-            BackupSettings settings = BackupSettings.LoadLocalSettingsOrNull(destPath.Text.Trim(), originPath.Text.Trim()) ?? BackupSettings.LoadGlobalSettingsOrNull() ?? MainWindow.GlobalBackupSettings;
+            BackupSettings settings = LoadCurrentSettings;
             if (settings.isRecordPassword && settings.IsDifferentPassword(password.Password))
             {
                 var changePassword = MessageBox.Show("入力されたパスワードが保存されているパスワードと異なります。\nこのまま続行しますか？",
