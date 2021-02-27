@@ -23,6 +23,7 @@ namespace SkyziBackup
             if (string.IsNullOrEmpty(SkyziBackup.Properties.Settings.Default.AppDataPath))
             {
                 SkyziBackup.Properties.Settings.Default.AppDataPath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "Skyzi000", "SkyziBackup");
+                SkyziBackup.Properties.Settings.Default.Save();
                 System.IO.Directory.CreateDirectory(SkyziBackup.Properties.Settings.Default.AppDataPath);
             }
             var icon = GetResourceStream(new Uri("SkyziBackup.ico", UriKind.Relative)).Stream;
