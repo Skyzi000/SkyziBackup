@@ -183,7 +183,7 @@ namespace SkyziBackup
                 {
                     CreationTime = (data.creationTime = (originInfo = new FileInfo(originFilePath)).CreationTime).Value,
                     LastWriteTime = (data.lastWriteTime = originInfo.LastWriteTime).Value,
-                    Attributes = (data.fileAttributes = originInfo.Attributes).Value
+                    Attributes = (data.FileAttributes = originInfo.Attributes).Value
                 };
                 return data;
             }
@@ -205,7 +205,7 @@ namespace SkyziBackup
                 {
                     CreationTime = data.creationTime ?? (originInfo = new FileInfo(originFilePath)).CreationTime,
                     LastWriteTime = data.lastWriteTime ?? (originInfo ??= new FileInfo(originFilePath)).LastWriteTime,
-                    Attributes = data.fileAttributes ?? (originInfo ?? new FileInfo(originFilePath)).Attributes
+                    Attributes = data.FileAttributes ?? (originInfo ?? new FileInfo(originFilePath)).Attributes
                 };
             }
             return null;
@@ -248,7 +248,7 @@ namespace SkyziBackup
                             {
                                 CreationTime = (data.creationTime = (originInfo = new DirectoryInfo(originDirPath)).CreationTime).Value,
                                 LastWriteTime = (data.lastWriteTime = originInfo.LastWriteTime).Value,
-                                Attributes = (data.fileAttributes = originInfo.Attributes).Value
+                                Attributes = (data.FileAttributes = originInfo.Attributes).Value
                             };
                             newDirDict[originDirPath] = data;
                         }
@@ -260,7 +260,7 @@ namespace SkyziBackup
                             {
                                 CreationTime = data.creationTime ?? (originInfo = new DirectoryInfo(originDirPath)).CreationTime,
                                 LastWriteTime = data.lastWriteTime ?? (originInfo ??= new DirectoryInfo(originDirPath)).LastWriteTime,
-                                Attributes = data.fileAttributes ?? (originInfo ?? new DirectoryInfo(originDirPath)).Attributes
+                                Attributes = data.FileAttributes ?? (originInfo ?? new DirectoryInfo(originDirPath)).Attributes
                             };
                         }
                     }
@@ -331,7 +331,7 @@ namespace SkyziBackup
                             {
                                 CreationTime = (data.creationTime = (originInfo = new DirectoryInfo(originDirPath)).CreationTime).Value,
                                 LastWriteTime = (data.lastWriteTime = originInfo.LastWriteTime).Value,
-                                Attributes = (data.fileAttributes = originInfo.Attributes).Value
+                                Attributes = (data.FileAttributes = originInfo.Attributes).Value
                             };
                             Database.backedUpDirectoriesDict[originDirPath] = data;
                         }

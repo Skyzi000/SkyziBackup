@@ -72,7 +72,6 @@ namespace SkyziBackup
     /// バックアップ済みファイルの詳細データ保管用クラス
     /// </summary>
     [DataContract]
-    [KnownType(typeof(FileAttributes?))]
     [KnownType(typeof(DateTime?))]
     public class BackedUpFileData
     {
@@ -83,16 +82,19 @@ namespace SkyziBackup
         [DataMember]
         public long originSize = DefaultSize;
         [DataMember]
-        public FileAttributes? fileAttributes = null;
+        private int? fileAttributesInt = null;
         [DataMember]
         public string sha1 = null;
+        [IgnoreDataMember]
+        public FileAttributes? FileAttributes { get => (FileAttributes?)fileAttributesInt; set => fileAttributesInt = (int?)value; }
+        [IgnoreDataMember]
         public const long DefaultSize = -1;
         public BackedUpFileData(DateTime? creationTime = null, DateTime? lastWriteTime = null, long originSize = DefaultSize, FileAttributes? fileAttributes = null, string sha1 = null)
         {
             this.creationTime = creationTime;
             this.lastWriteTime = lastWriteTime;
             this.originSize = originSize;
-            this.fileAttributes = fileAttributes;
+            this.FileAttributes = fileAttributes;
             this.sha1 = sha1;
         }
     }
@@ -100,7 +102,6 @@ namespace SkyziBackup
     /// バックアップ済みディレクトリの詳細データ保管用クラス
     /// </summary>
     [DataContract]
-    [KnownType(typeof(FileAttributes?))]
     [KnownType(typeof(DateTime?))]
     public class BackedUpDirectoryData
     {
@@ -109,13 +110,15 @@ namespace SkyziBackup
         [DataMember]
         public DateTime? lastWriteTime = null;
         [DataMember]
-        public FileAttributes? fileAttributes = null;
+        private int? fileAttributesInt = null;
+        [IgnoreDataMember]
+        public FileAttributes? FileAttributes { get => (FileAttributes?)fileAttributesInt; set => fileAttributesInt = (int?)value; }
 
         public BackedUpDirectoryData(DateTime? creationTime = null, DateTime? lastWriteTime = null, FileAttributes? fileAttributes = null)
         {
             this.creationTime = creationTime;
             this.lastWriteTime = lastWriteTime;
-            this.fileAttributes = fileAttributes;
+            this.FileAttributes = fileAttributes;
         }
     }
 
