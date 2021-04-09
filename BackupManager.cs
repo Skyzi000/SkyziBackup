@@ -30,7 +30,7 @@ namespace SkyziBackup
                 {
                     string m;
                     Logger.Info(m = $"バックアップ('{backup.originBaseDirPath}' => '{backup.destBaseDirPath}')の開始をキャンセル: 既に別のプロセスによって実行中です。");
-                    return new BackupResults(false, true, m);
+                    return new BackupResults(true, false, m);
                 }
                 runningBackups.Add((backup.originBaseDirPath, backup.destBaseDirPath), backup);
                 App.NotifyIcon.Text = IsRunning ? $"{App.AssemblyName.Name} - バックアップ中" : App.AssemblyName.Name;
