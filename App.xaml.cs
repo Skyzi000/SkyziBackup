@@ -63,7 +63,6 @@ namespace SkyziBackup
                 var results = await StartBackupAsync(originPath, destPath, settings.isRecordPassword ? settings.GetRawPassword() : null, settings);
                 if (results.isSuccess)
                 {
-                    NotifyIcon.Visible = false;
                     Shutdown();
                 }
                 else
@@ -107,9 +106,41 @@ namespace SkyziBackup
         }
         private void Exit_Click(object sender, EventArgs e)
         {
-            // TODO: バックアップ中は確認する
-            NotifyIcon.Visible = false;
+            if (IsRunning)
+            {
+                if (MessageBoxResult.Yes != MessageBox.Show("バックアップ実行中です。アプリケーションを終了しますか？\n※バックアップ中に中断するとバックアップ先ファイルが壊れる可能性があります。",
+                                                            $"{AssemblyName.Name} - 確認",
+                                                            MessageBoxButton.YesNo,
+                                                            MessageBoxImage.Warning))
+                {
+                    return;
+                }
+            }
             Shutdown();
+        }
+        protected override void OnSessionEnding(SessionEndingCancelEventArgs e)
+        {
+            base.OnSessionEnding(e);
+            if (IsRunning)
+            {
+                if (MessageBoxResult.Yes != MessageBox.Show("バックアップ実行中です。アプリケーションを終了しますか？\n※バックアップ中に中断するとバックアップ先ファイルが壊れる可能性があります。",
+                                                            $"{AssemblyName.Name} - 確認",
+                                                            MessageBoxButton.YesNo,
+                                                            MessageBoxImage.Warning))
+                {
+                    e.Cancel = true;
+                    return;
+                }
+            }
+        }
+        protected override void OnExit(ExitEventArgs e)
+        {
+            base.OnExit(e);
+            NotifyIcon.Visible = false;
+            if (IsRunning)
+            {
+                Logger.Warn("バックアップ実行中にアプリケーションを強制終了しました。(終了コード:{0})\n=============================\n\n", e.ApplicationExitCode);
+            }
         }
     }
 }
