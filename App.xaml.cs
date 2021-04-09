@@ -77,7 +77,6 @@ namespace SkyziBackup
                 MainWindow = new MainWindow();
                 MainWindow.Closed += (s, e) =>
                 {
-                    NotifyIcon.ShowBalloonTip(10000, $"{AssemblyName.Name}", "終了するには通知アイコンを右クリックしてください。", ToolTipIcon.Info);
                     MainWindow = null;
                 };
                 MainWindow.Show();
