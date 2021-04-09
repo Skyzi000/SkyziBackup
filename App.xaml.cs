@@ -71,11 +71,15 @@ namespace SkyziBackup
                 }
             }
         }
-        public async Task<BackupResults> StartBackupAsync(string originPath, string destPath, string password, BackupSettings settings)
+        public static async Task<BackupResults> StartBackupAsync(string originPath, string destPath, string password, BackupSettings settings)
         {            
-            IsRunning = true;
             var db = new BackupDirectory(originPath, destPath, password, settings);
-            var result = await Task.Run(() => db.StartBackup());
+            return await StartBackupAsync(db);
+        }
+        public static async Task<BackupResults> StartBackupAsync(BackupDirectory backup)
+        {
+            IsRunning = true;
+            var result = await Task.Run(() => backup.StartBackup());
             IsRunning = false;
             return result;
         }

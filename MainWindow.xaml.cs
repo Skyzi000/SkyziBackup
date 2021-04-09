@@ -60,6 +60,11 @@ namespace SkyziBackup
 
         private async void StartBackupButton_ClickAsync(object sender, RoutedEventArgs e)
         {
+            if (App.IsRunning)
+            {
+                MessageBox.Show("バックアップは既に実行中です。", $"{App.AssemblyName.Name} - 警告", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
             if (!Directory.Exists(originPath.Text.Trim()))
             {
                 MessageBox.Show($"{originPath.Text.Trim()}は存在しません。\n正しいディレクトリパスを入力してください。", $"{App.AssemblyName.Name} - 警告", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -96,7 +101,7 @@ namespace SkyziBackup
             var db = new BackupDirectory(originPath.Text.Trim(), destPath.Text.Trim(), password.Password, settings);
             string m = message.Text;
             db.Results.MessageChanged += (_s, _e) => { _mainContext.Post((d) => { message.Text = m + db.Results.Message + "\n"; }, null); };
-            var results = await Task.Run(() => db.StartBackup());
+            var results = await App.StartBackupAsync(db);
             App.IsRunning = false;
             progressBar.Visibility = Visibility.Collapsed;
             if (!results.isSuccess)
@@ -174,21 +179,6 @@ namespace SkyziBackup
                 if (MessageBox.Show("現在のバックアップペアに対応するローカル設定を削除します。", $"{App.AssemblyName.Name} - 確認", MessageBoxButton.OKCancel, MessageBoxImage.Warning) == MessageBoxResult.Cancel) return;
                 DataContractWriter.Delete(currentSettings);
                 password.Password = PasswordManager.LoadPasswordOrNull(LoadCurrentSettings) ?? string.Empty;
-            }
-        }
-
-        private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
-        {
-            if (!ButtonsIsEnabled)
-            {
-                if (MessageBoxResult.Yes != MessageBox.Show("バックアップ実行中です。ウィンドウを閉じますか？\n※バックアップ中に中断するとバックアップ先ファイルが壊れる可能性があります。",
-                                                            "確認",
-                                                            MessageBoxButton.YesNo,
-                                                            MessageBoxImage.Information))
-                {
-                    e.Cancel = true;
-                    return;
-                }
             }
         }
     }
