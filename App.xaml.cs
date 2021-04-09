@@ -59,7 +59,7 @@ namespace SkyziBackup
                 }
                 var settings = BackupSettings.LoadLocalSettingsOrNull(originPath, destPath) ?? BackupSettings.GetGlobalSettings();
                 var results = await BackupManager.StartBackupAsync(originPath, destPath, settings.isRecordPassword ? settings.GetRawPassword() : null, settings);
-                if (results.isSuccess)
+                if (results?.isSuccess ?? true)
                 {
                     Shutdown();
                 }
