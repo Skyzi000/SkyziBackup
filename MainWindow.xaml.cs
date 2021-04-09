@@ -92,10 +92,12 @@ namespace SkyziBackup
             message.Text = $"\n'{originPath.Text.Trim()}' => '{destPath.Text.Trim()}'";
             message.Text += $"\nバックアップ開始: {DateTime.Now}\n";
             progressBar.Visibility = Visibility.Visible;
+            App.IsRunning = true;
             var db = new BackupDirectory(originPath.Text.Trim(), destPath.Text.Trim(), password.Password, settings);
             string m = message.Text;
             db.Results.MessageChanged += (_s, _e) => { _mainContext.Post((d) => { message.Text = m + db.Results.Message + "\n"; }, null); };
             var results = await Task.Run(() => db.StartBackup());
+            App.IsRunning = false;
             progressBar.Visibility = Visibility.Collapsed;
             if (!results.isSuccess)
                 App.NotifyIcon.ShowBalloonTip(10000, $"{App.AssemblyName.Name} - エラー", "バックアップに失敗しました。", System.Windows.Forms.ToolTipIcon.Error);

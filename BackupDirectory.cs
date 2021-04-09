@@ -40,7 +40,7 @@ namespace SkyziBackup
         FileContentsBynary         = 1 << 4,
     }
 
-    internal class BackupDirectory
+    public class BackupDirectory
     {
         public BackupResults Results { get; private set; } = new BackupResults(false);
         public OpensslCompatibleAesCrypter AesCrypter { get; set; }

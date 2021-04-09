@@ -1,12 +1,15 @@
-﻿using System;
+﻿using NLog;
+using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Forms;
+using MessageBox = System.Windows.MessageBox;
 
 namespace SkyziBackup
 {
@@ -17,14 +20,17 @@ namespace SkyziBackup
     {
         public static NotifyIcon NotifyIcon { get; private set; }
         public static AssemblyName AssemblyName = Assembly.GetExecutingAssembly().GetName();
-        protected override void OnStartup(StartupEventArgs e)
+        public static bool IsRunning { get => _isRunning; set { _isRunning = value; NotifyIcon.Text = _isRunning ? $"{AssemblyName.Name} - バックアップ中" : AssemblyName.Name; } }
+        private static bool _isRunning;
+        private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
+        protected override async void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
             if (string.IsNullOrEmpty(SkyziBackup.Properties.Settings.Default.AppDataPath))
             {
-                SkyziBackup.Properties.Settings.Default.AppDataPath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "Skyzi000", "SkyziBackup");
+                SkyziBackup.Properties.Settings.Default.AppDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "Skyzi000", "SkyziBackup");
                 SkyziBackup.Properties.Settings.Default.Save();
-                System.IO.Directory.CreateDirectory(SkyziBackup.Properties.Settings.Default.AppDataPath);
+                Directory.CreateDirectory(SkyziBackup.Properties.Settings.Default.AppDataPath);
             }
             var icon = GetResourceStream(new Uri("SkyziBackup.ico", UriKind.Relative)).Stream;
             var menu = new ContextMenuStrip();
@@ -37,11 +43,42 @@ namespace SkyziBackup
                 Text = AssemblyName.Name,
                 ContextMenuStrip = menu
             };
+            NotifyIcon.MouseClick += new MouseEventHandler(NotifyIcon_Click);
             if (!e.Args.Any())
             {
                 ShowMainWindowIfClosed();
             }
-            NotifyIcon.MouseClick += new MouseEventHandler(NotifyIcon_Click);
+            else if (e.Args.Length == 2)
+            {
+                var originPath = Path.TrimEndingDirectorySeparator(e.Args[0].Trim());
+                var destPath = Path.TrimEndingDirectorySeparator(e.Args[1].Trim());
+                if (!Directory.Exists(originPath))
+                {
+                    Logger.Error($"'{originPath}'は存在しません。");
+                    MessageBox.Show($"{originPath}は存在しません。\n正しいディレクトリパスを入力してください。", $"{AssemblyName.Name} - 警告", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    Shutdown();
+                    return;
+                }
+                var settings = BackupSettings.LoadLocalSettingsOrNull(originPath, destPath) ?? BackupSettings.GetGlobalSettings();
+                var results = await StartBackupAsync(originPath, destPath, settings.isRecordPassword ? settings.GetRawPassword() : null, settings);
+                if (results.isSuccess)
+                {
+                    NotifyIcon.Visible = false;
+                    Shutdown();
+                }
+                else
+                {
+                    NotifyIcon.ShowBalloonTip(10000, $"{AssemblyName.Name} - エラー", "バックアップに失敗しました。", ToolTipIcon.Error);
+                }
+            }
+        }
+        public async Task<BackupResults> StartBackupAsync(string originPath, string destPath, string password, BackupSettings settings)
+        {            
+            IsRunning = true;
+            var db = new BackupDirectory(originPath, destPath, password, settings);
+            var result = await Task.Run(() => db.StartBackup());
+            IsRunning = false;
+            return result;
         }
         private void ShowMainWindowIfClosed()
         {
