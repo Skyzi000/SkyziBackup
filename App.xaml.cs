@@ -20,8 +20,6 @@ namespace SkyziBackup
     {
         public static NotifyIcon NotifyIcon { get; private set; }
         public static AssemblyName AssemblyName = Assembly.GetExecutingAssembly().GetName();
-        public static bool IsRunning { get => _isRunning; set { _isRunning = value; NotifyIcon.Text = _isRunning ? $"{AssemblyName.Name} - バックアップ中" : AssemblyName.Name; } }
-        private static bool _isRunning;
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         protected override async void OnStartup(StartupEventArgs e)
         {
@@ -60,7 +58,7 @@ namespace SkyziBackup
                     return;
                 }
                 var settings = BackupSettings.LoadLocalSettingsOrNull(originPath, destPath) ?? BackupSettings.GetGlobalSettings();
-                var results = await StartBackupAsync(originPath, destPath, settings.isRecordPassword ? settings.GetRawPassword() : null, settings);
+                var results = await BackupManager.StartBackupAsync(originPath, destPath, settings.isRecordPassword ? settings.GetRawPassword() : null, settings);
                 if (results.isSuccess)
                 {
                     Shutdown();
@@ -71,18 +69,7 @@ namespace SkyziBackup
                 }
             }
         }
-        public static async Task<BackupResults> StartBackupAsync(string originPath, string destPath, string password, BackupSettings settings)
-        {            
-            var db = new BackupDirectory(originPath, destPath, password, settings);
-            return await StartBackupAsync(db);
-        }
-        public static async Task<BackupResults> StartBackupAsync(BackupDirectory backup)
-        {
-            IsRunning = true;
-            var result = await Task.Run(() => backup.StartBackup());
-            IsRunning = false;
-            return result;
-        }
+        
         private void ShowMainWindowIfClosed()
         {
             if (MainWindow == null)
@@ -110,7 +97,7 @@ namespace SkyziBackup
         }
         private void Exit_Click(object sender, EventArgs e)
         {
-            if (IsRunning)
+            if (BackupManager.IsRunning)
             {
                 if (MessageBoxResult.Yes != MessageBox.Show("バックアップ実行中です。アプリケーションを終了しますか？\n※バックアップ中に中断するとバックアップ先ファイルが壊れる可能性があります。",
                                                             $"{AssemblyName.Name} - 確認",
@@ -125,7 +112,7 @@ namespace SkyziBackup
         protected override void OnSessionEnding(SessionEndingCancelEventArgs e)
         {
             base.OnSessionEnding(e);
-            if (IsRunning)
+            if (BackupManager.IsRunning)
             {
                 if (MessageBoxResult.Yes != MessageBox.Show("バックアップ実行中です。アプリケーションを終了しますか？\n※バックアップ中に中断するとバックアップ先ファイルが壊れる可能性があります。",
                                                             $"{AssemblyName.Name} - 確認",
@@ -141,7 +128,7 @@ namespace SkyziBackup
         {
             base.OnExit(e);
             NotifyIcon.Visible = false;
-            if (IsRunning)
+            if (BackupManager.IsRunning)
             {
                 Logger.Warn("バックアップ実行中にアプリケーションを強制終了しました。(終了コード:{0})\n=============================\n\n", e.ApplicationExitCode);
             }

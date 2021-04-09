@@ -46,11 +46,11 @@ namespace SkyziBackup
         public OpensslCompatibleAesCrypter AesCrypter { get; set; }
         public BackupSettings Settings { get; set; }
         public BackupDatabase Database { get; private set; } = null;
+        public readonly string originBaseDirPath;
+        public readonly string destBaseDirPath;
 
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         private static readonly HashAlgorithm SHA1Provider = new SHA1CryptoServiceProvider();
-        private readonly string originBaseDirPath;
-        private readonly string destBaseDirPath;
         private int currentRetryCount = 0;
 
         public BackupDirectory(string originPath, string destPath, string password = null, BackupSettings settings = null)

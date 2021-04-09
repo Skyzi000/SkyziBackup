@@ -36,7 +36,7 @@ namespace SkyziBackup
         private BackupSettings LoadCurrentSettings => BackupSettings.LoadLocalSettingsOrNull(Path.TrimEndingDirectorySeparator(originPath.Text.Trim()), Path.TrimEndingDirectorySeparator(destPath.Text.Trim())) ?? BackupSettings.LoadGlobalSettingsOrNull() ?? GlobalBackupSettings;
         private bool ButtonsIsEnabled
         {
-            get => StartBackupButton.IsEnabled;
+            get => StartBackupButton.IsEnabled || GlobalSettingsMenu.IsEnabled || LocalSettingsMenu.IsEnabled || DeleteLocalSettings.IsEnabled;
             set
             {
                 StartBackupButton.IsEnabled = value;
@@ -54,13 +54,28 @@ namespace SkyziBackup
             {
                 password.Password = PasswordManager.LoadPasswordOrNull(LoadCurrentSettings) ?? string.Empty;
             };
+            if (BackupManager.IsRunning)
+            {
+                ButtonsIsEnabled = false;
+                progressBar.Visibility = Visibility.Visible;
+                var running = BackupManager.GetRunningBackups()[0];
+                originPath.Text = running.originBaseDirPath;
+                destPath.Text = running.destBaseDirPath;
+                string m = message.Text = $"\n'{originPath.Text.Trim()}' => '{destPath.Text.Trim()}'\nバックアップ実行中";
+                running.Results.MessageChanged += (_s, _e) => { _mainContext.Post((d) => { message.Text = m + running.Results.Message + "\n"; }, null); };
+                running.Results.Finished += (s, e) => { _mainContext.Post((d) =>
+                {
+                    progressBar.Visibility = Visibility.Collapsed;
+                    ButtonsIsEnabled = true;
+                }, null); };
+            }
         }
 
        
 
         private async void StartBackupButton_ClickAsync(object sender, RoutedEventArgs e)
         {
-            if (App.IsRunning)
+            if (BackupManager.GetBackupIfRunning(originPath.Text.Trim(), destPath.Text.Trim()) != null)
             {
                 MessageBox.Show("バックアップは既に実行中です。", $"{App.AssemblyName.Name} - 警告", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
@@ -97,15 +112,11 @@ namespace SkyziBackup
             message.Text = $"\n'{originPath.Text.Trim()}' => '{destPath.Text.Trim()}'";
             message.Text += $"\nバックアップ開始: {DateTime.Now}\n";
             progressBar.Visibility = Visibility.Visible;
-            App.IsRunning = true;
             var db = new BackupDirectory(originPath.Text.Trim(), destPath.Text.Trim(), password.Password, settings);
             string m = message.Text;
             db.Results.MessageChanged += (_s, _e) => { _mainContext.Post((d) => { message.Text = m + db.Results.Message + "\n"; }, null); };
-            var results = await App.StartBackupAsync(db);
-            App.IsRunning = false;
+            var results = await BackupManager.StartBackupAsync(db);
             progressBar.Visibility = Visibility.Collapsed;
-            if (!results.isSuccess)
-                App.NotifyIcon.ShowBalloonTip(10000, $"{App.AssemblyName.Name} - エラー", "バックアップに失敗しました。", System.Windows.Forms.ToolTipIcon.Error);
             ButtonsIsEnabled = true;
         }
 
