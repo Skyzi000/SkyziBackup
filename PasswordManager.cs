@@ -42,7 +42,7 @@ namespace Skyzi000.Cryptography
                 {
                     Logger.Warn(ex, "パスワード読み込みエラー");
                     password = null;
-                    MessageBox.Show("パスワードを読み込めませんでした。\nパスワードを再度入力してください。", $"{MainWindow.AssemblyName.Name} - 読み込みエラー", MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show("パスワードを読み込めませんでした。\nパスワードを再度入力してください。", $"{App.AssemblyName.Name} - 読み込みエラー", MessageBoxButton.OK, MessageBoxImage.Error);
                     return false;
                 }
                 return true;

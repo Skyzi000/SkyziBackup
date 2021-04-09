@@ -24,8 +24,8 @@
             <TextBox x:Name="destPath" HorizontalAlignment="Stretch" Text="G:\Temp\SkyziBackup\Dest" TextWrapping="NoWrap" VerticalAlignment="Top"/>
             <Label x:Name="passwordLabel" Content="パスワード" HorizontalAlignment="Left" VerticalAlignment="Top"/>
             <PasswordBox x:Name="password" HorizontalAlignment="Stretch" Password="password" VerticalAlignment="Top"/>
-            <Button x:Name="encryptButton" Click="EncryptButton_ClickAsync" Content="バックアップ開始" HorizontalAlignment="Stretch" VerticalAlignment="Top" Grid.ColumnSpan="3" Grid.Row="1" Margin="10"/>
-            <ProgressBar x:Name="progressBar" Height="20" Margin="10,-30,10,10" IsIndeterminate="True" Grid.ColumnSpan="2" Visibility="Hidden" VerticalAlignment="Top" />
+            <Button x:Name="StartBackupButton" Click="StartBackupButton_ClickAsync" Content="バックアップ開始" HorizontalAlignment="Stretch" VerticalAlignment="Top" Grid.ColumnSpan="3" Grid.Row="1" Margin="10"/>
+            <ProgressBar x:Name="progressBar" Height="20" Margin="10,-30,10,10" IsIndeterminate="True" Grid.ColumnSpan="2" Visibility="Collapsed" VerticalAlignment="Top" />
 
         </StackPanel>
         <GroupBox Header="メッセージ" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3">
@@ -43,11 +43,11 @@
                 <MenuItem Name="RestoreWindowMenu" Header="リストア(復元)ウィンドウ" Click="RestoreWindowMenu_Click"/>
             </MenuItem>
             <MenuItem Header="オプション(_O)">
-                <MenuItem Name="GlobalSettingsMenu" Header="グローバル設定(_G)" Click="GlobalSettingsMenu_Click"/>
-                <MenuItem Name="LocalSettingsMenu" Header="ローカル設定(_L)" Click="LocalSettingsMenu_Click"/>
+                <MenuItem x:Name="GlobalSettingsMenu" Header="グローバル設定(_G)" Click="GlobalSettingsMenu_Click"/>
+                <MenuItem x:Name="LocalSettingsMenu" Header="ローカル設定(_L)" Click="LocalSettingsMenu_Click"/>
                 <MenuItem Name="ShowCurrentSettings" Header="現在の設定を表示" Click="ShowCurrentSettings_Click"/>
                 <Separator/>
-                <MenuItem Name="DeleteLocalSettings" Header="ローカル設定を削除" Click="DeleteLocalSettings_Click"/>
+                <MenuItem x:Name="DeleteLocalSettings" Header="ローカル設定を削除" Click="DeleteLocalSettings_Click"/>
             </MenuItem>
         </Menu>
     </Grid>

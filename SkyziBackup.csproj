@@ -7,7 +7,13 @@
     <Authors>Skyzi000</Authors>
     <Copyright>Copyright (c) 2020 Skyzi000</Copyright>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationIcon>SkyziBackup.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="SkyziBackup.ico" />
+  </ItemGroup>
 
   <ItemGroup>
     <None Include="LICENSE">
@@ -19,6 +25,10 @@
   <ItemGroup>
     <PackageReference Include="NLog" Version="4.7.7" />
     <PackageReference Include="NLog.Config" Version="4.7.7" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="SkyziBackup.ico" />
   </ItemGroup>
 
   <ItemGroup>

@@ -23,7 +23,7 @@
             <TextBox x:Name="destPath" HorizontalAlignment="Stretch" Text="" TextWrapping="NoWrap" VerticalAlignment="Top"/>
         </StackPanel>
         <Button x:Name="RestoreButton" Click="RestoreButton_ClickAsync" Content="リストア開始" Margin="50,100,50,0" VerticalAlignment="Top" Grid.ColumnSpan="2" Height="20"/>
-        <ProgressBar x:Name="progressBar" Height="20" Margin="50,100,50,0" IsIndeterminate="True" Grid.ColumnSpan="2" Visibility="Hidden" />
+        <ProgressBar x:Name="progressBar" Height="20" Margin="50,100,50,0" IsIndeterminate="True" Grid.ColumnSpan="2" Visibility="Collapsed" />
         <ScrollViewer Name="MessageScrollViewer" Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" TabIndex="2147483644" VerticalScrollBarVisibility="Auto" BorderBrush="Black" BorderThickness="5">
             <TextBlock Name="Message" HorizontalAlignment="Left" Text="" TextWrapping="Wrap" VerticalAlignment="Top"/>
         </ScrollViewer>

@@ -40,17 +40,17 @@ namespace SkyziBackup
         FileContentsBynary         = 1 << 4,
     }
 
-    internal class BackupDirectory
+    public class BackupDirectory
     {
         public BackupResults Results { get; private set; } = new BackupResults(false);
         public OpensslCompatibleAesCrypter AesCrypter { get; set; }
         public BackupSettings Settings { get; set; }
         public BackupDatabase Database { get; private set; } = null;
+        public readonly string originBaseDirPath;
+        public readonly string destBaseDirPath;
 
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         private static readonly HashAlgorithm SHA1Provider = new SHA1CryptoServiceProvider();
-        private readonly string originBaseDirPath;
-        private readonly string destBaseDirPath;
         private int currentRetryCount = 0;
 
         public BackupDirectory(string originPath, string destPath, string password = null, BackupSettings settings = null)
@@ -213,7 +213,7 @@ namespace SkyziBackup
                     Logger.Info("データベースからディレクトリ属性をリストア: '{0}'", destDirPath);
                     destDirInfo.CreationTime = data.creationTime ?? originDirInfo.CreationTime;
                     destDirInfo.LastWriteTime = data.lastWriteTime ?? originDirInfo.LastWriteTime;
-                    destDirInfo.Attributes = data.fileAttributes ?? originDirInfo.Attributes;
+                    destDirInfo.Attributes = data.FileAttributes ?? originDirInfo.Attributes;
                 }
                 // 以前のバックアップデータがある場合、変更されたプロパティのみ更新する(変更なしなら何もしない)
                 else if (isCopyAttributes)
@@ -223,7 +223,7 @@ namespace SkyziBackup
                         (destDirInfo = Directory.CreateDirectory(destDirPath)).CreationTime = originDirInfo.CreationTime;
                     if (originDirInfo.LastWriteTime != backedUpDirectoriesDict[originDirPath].lastWriteTime)
                         (destDirInfo ??= Directory.CreateDirectory(destDirPath)).LastWriteTime = originDirInfo.LastWriteTime;
-                    if (originDirInfo.Attributes != backedUpDirectoriesDict[originDirPath].fileAttributes)
+                    if (originDirInfo.Attributes != backedUpDirectoriesDict[originDirPath].FileAttributes)
                         (destDirInfo ?? Directory.CreateDirectory(destDirPath)).Attributes = originDirInfo.Attributes;
                 }
                 if (isForceCreateDirectoryAndReturnDictionary && backedUpDirectoriesDict == null)
@@ -481,7 +481,7 @@ namespace SkyziBackup
         /// 読み取り専用属性を持っていないとデータベースに記録されているファイルかどうか。
         /// </summary>
         /// <returns>前回のバックアップ時に読み取り専用属性がなかった場合 true, 対象のファイルが読み取り専用属性を持っていたり、データが無い場合は false</returns>
-        private bool IsNotReadOnlyInDatabase(string originFilePath) => Database.backedUpFilesDict.TryGetValue(originFilePath, out BackedUpFileData data) && data.fileAttributes.HasValue && !data.fileAttributes.Value.HasFlag(FileAttributes.ReadOnly);
+        private bool IsNotReadOnlyInDatabase(string originFilePath) => Database.backedUpFilesDict.TryGetValue(originFilePath, out BackedUpFileData data) && data.FileAttributes.HasValue && !data.FileAttributes.Value.HasFlag(FileAttributes.ReadOnly);
         private void BackupFile(string originFilePath, string destFilePath)
         {
             Logger.Info(Results.Message = $"ファイルをバックアップ: '{originFilePath}' => '{destFilePath}'");
@@ -565,11 +565,11 @@ namespace SkyziBackup
                         (destInfo = new FileInfo(destFilePath)).CreationTime = originInfo.CreationTime;
                     if (!data.lastWriteTime.HasValue || originInfo.LastWriteTime != data.lastWriteTime)
                         (destInfo ??= new FileInfo(destFilePath)).LastWriteTime = originInfo.LastWriteTime;
-                    if (!data.fileAttributes.HasValue || originInfo.Attributes != data.fileAttributes)
+                    if (!data.FileAttributes.HasValue || originInfo.Attributes != data.FileAttributes)
                         (destInfo ?? new FileInfo(destFilePath)).Attributes = originInfo.Attributes;
                     // バックアップ先ファイルから取り除いた読み取り専用属性を戻す
-                    else if (Settings.isOverwriteReadonly && data.fileAttributes.Value.HasFlag(FileAttributes.ReadOnly))
-                        (destInfo ?? new FileInfo(destFilePath)).Attributes = data.fileAttributes.Value;
+                    else if (Settings.isOverwriteReadonly && data.FileAttributes.Value.HasFlag(FileAttributes.ReadOnly))
+                        (destInfo ?? new FileInfo(destFilePath)).Attributes = data.FileAttributes.Value;
                 }
                 if (Settings.comparisonMethod.HasFlag(ComparisonMethod.ArchiveAttribute) && originInfo.Attributes.HasFlag(FileAttributes.Archive))
                 {

@@ -30,11 +30,21 @@ namespace SkyziBackup
     public partial class MainWindow : Window
     {
         public static BackupSettings GlobalBackupSettings = BackupSettings.GetGlobalSettings();
-        public static AssemblyName AssemblyName = Assembly.GetExecutingAssembly().GetName();
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         private readonly SynchronizationContext _mainContext;
 
         private BackupSettings LoadCurrentSettings => BackupSettings.LoadLocalSettingsOrNull(Path.TrimEndingDirectorySeparator(originPath.Text.Trim()), Path.TrimEndingDirectorySeparator(destPath.Text.Trim())) ?? BackupSettings.LoadGlobalSettingsOrNull() ?? GlobalBackupSettings;
+        private bool ButtonsIsEnabled
+        {
+            get => StartBackupButton.IsEnabled || GlobalSettingsMenu.IsEnabled || LocalSettingsMenu.IsEnabled || DeleteLocalSettings.IsEnabled;
+            set
+            {
+                StartBackupButton.IsEnabled = value;
+                GlobalSettingsMenu.IsEnabled = value;
+                LocalSettingsMenu.IsEnabled = value;
+                DeleteLocalSettings.IsEnabled = value;
+            }
+        }
 
         public MainWindow()
         {
@@ -44,38 +54,58 @@ namespace SkyziBackup
             {
                 password.Password = PasswordManager.LoadPasswordOrNull(LoadCurrentSettings) ?? string.Empty;
             };
+            if (BackupManager.IsRunning)
+            {
+                ButtonsIsEnabled = false;
+                progressBar.Visibility = Visibility.Visible;
+                var running = BackupManager.GetRunningBackups()[0];
+                originPath.Text = running.originBaseDirPath;
+                destPath.Text = running.destBaseDirPath;
+                string m = message.Text = $"\n'{originPath.Text.Trim()}' => '{destPath.Text.Trim()}'\nバックアップ実行中";
+                running.Results.MessageChanged += (_s, _e) => { _mainContext.Post((d) => { message.Text = m + running.Results.Message + "\n"; }, null); };
+                running.Results.Finished += (s, e) => { _mainContext.Post((d) =>
+                {
+                    progressBar.Visibility = Visibility.Collapsed;
+                    ButtonsIsEnabled = true;
+                }, null); };
+            }
         }
 
        
 
-        private async void EncryptButton_ClickAsync(object sender, RoutedEventArgs e)
+        private async void StartBackupButton_ClickAsync(object sender, RoutedEventArgs e)
         {
-            if (!Directory.Exists(originPath.Text.Trim()))
+            if (BackupManager.GetBackupIfRunning(originPath.Text.Trim(), destPath.Text.Trim()) != null)
             {
-                MessageBox.Show($"{originPath.Text.Trim()}は存在しません。\n正しいディレクトリパスを入力してください。", $"{AssemblyName.Name} - 警告", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("バックアップは既に実行中です。", $"{App.AssemblyName.Name} - 警告", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
-            encryptButton.IsEnabled = false;
+            if (!Directory.Exists(originPath.Text.Trim()))
+            {
+                MessageBox.Show($"{originPath.Text.Trim()}は存在しません。\n正しいディレクトリパスを入力してください。", $"{App.AssemblyName.Name} - 警告", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            ButtonsIsEnabled = false;
             var settings = LoadCurrentSettings;
             if (settings.isRecordPassword && settings.IsDifferentPassword(password.Password))
             {
-                var changePassword = MessageBox.Show("前回のパスワードと異なります。\nパスワードを変更しますか？\n\n※パスワードを変更する場合、既存のバックアップやデータベースを削除し、\n　再度初めからバックアップし直すことをおすすめします。\n　異なるパスワードでバックアップされたファイルが共存する場合、\n　復元が難しくなります。", $"{AssemblyName.Name} - パスワード変更の確認", MessageBoxButton.YesNoCancel);
+                var changePassword = MessageBox.Show("前回のパスワードと異なります。\nパスワードを変更しますか？\n\n※パスワードを変更する場合、既存のバックアップやデータベースを削除し、\n　再度初めからバックアップし直すことをおすすめします。\n　異なるパスワードでバックアップされたファイルが共存する場合、\n　復元が難しくなります。", $"{App.AssemblyName.Name} - パスワード変更の確認", MessageBoxButton.YesNoCancel);
                 switch (changePassword)
                 {
-                    
+
                     case MessageBoxResult.Yes:
                         Logger.Info("パスワードを保存");
                         PasswordManager.SavePassword(settings, password.Password);
                         DeleteDatabase();
                         break;
                     case MessageBoxResult.No:
-                        if (MessageBox.Show("前回のパスワードを使用します。", AssemblyName.Name, MessageBoxButton.OKCancel, MessageBoxImage.Information) == MessageBoxResult.OK && PasswordManager.TryLoadPassword(settings, out string pass))
+                        if (MessageBox.Show("前回のパスワードを使用します。", App.AssemblyName.Name, MessageBoxButton.OKCancel, MessageBoxImage.Information) == MessageBoxResult.OK && PasswordManager.TryLoadPassword(settings, out string pass))
                             password.Password = pass;
                         else
                             goto case MessageBoxResult.Cancel;
                         break;
                     case MessageBoxResult.Cancel:
-                        encryptButton.IsEnabled = true;
+                        ButtonsIsEnabled = true;
                         return;
                 }
             }
@@ -85,12 +115,12 @@ namespace SkyziBackup
             var db = new BackupDirectory(originPath.Text.Trim(), destPath.Text.Trim(), password.Password, settings);
             string m = message.Text;
             db.Results.MessageChanged += (_s, _e) => { _mainContext.Post((d) => { message.Text = m + db.Results.Message + "\n"; }, null); };
-            await Task.Run(() => db.StartBackup());
-            progressBar.Visibility = Visibility.Hidden;
-            encryptButton.IsEnabled = true;
+            var results = await BackupManager.StartBackupAsync(db);
+            progressBar.Visibility = Visibility.Collapsed;
+            ButtonsIsEnabled = true;
         }
 
-        
+
 
         /// <summary>
         /// データベースを削除するかどうかの確認ウィンドウを出してから削除する。
@@ -101,7 +131,7 @@ namespace SkyziBackup
             string databasePath;
             if (GlobalBackupSettings.isUseDatabase && File.Exists(databasePath = DataContractWriter.GetDatabasePath(Path.TrimEndingDirectorySeparator(originPath.Text.Trim()), Path.TrimEndingDirectorySeparator(destPath.Text.Trim()))))
             {
-                var deleteDatabase = MessageBox.Show($"{databasePath}\n上記データベースを削除しますか？\nなお、データベースを削除すると全てのファイルを初めからバックアップすることになります。", $"{AssemblyName.Name} - 確認", MessageBoxButton.YesNo);
+                var deleteDatabase = MessageBox.Show($"{databasePath}\n上記データベースを削除しますか？\nなお、データベースを削除すると全てのファイルを初めからバックアップすることになります。", $"{App.AssemblyName.Name} - 確認", MessageBoxButton.YesNo);
                 switch (deleteDatabase)
                 {
                     case MessageBoxResult.Yes:
@@ -138,14 +168,14 @@ namespace SkyziBackup
         private void LocalSettingsMenu_Click(object sender, RoutedEventArgs e)
         {
             if (LoadCurrentSettings.IsGlobal)
-                if (MessageBox.Show("現在のバックアップペアに対応するローカル設定を新規作成します。", $"{AssemblyName.Name} - 確認", MessageBoxButton.OKCancel) == MessageBoxResult.Cancel) return;
+                if (MessageBox.Show("現在のバックアップペアに対応するローカル設定を新規作成します。", $"{App.AssemblyName.Name} - 確認", MessageBoxButton.OKCancel) == MessageBoxResult.Cancel) return;
             new SettingsWindow(Path.TrimEndingDirectorySeparator(originPath.Text.Trim()), Path.TrimEndingDirectorySeparator(destPath.Text.Trim())).ShowDialog();
             password.Password = PasswordManager.LoadPasswordOrNull(LoadCurrentSettings) ?? string.Empty;
         }
 
         private void ShowCurrentSettings_Click(object sender, RoutedEventArgs e)
         {
-            MessageBox.Show(LoadCurrentSettings.ToString(), $"{AssemblyName.Name} - 現在の設定");
+            MessageBox.Show(LoadCurrentSettings.ToString(), $"{App.AssemblyName.Name} - 現在の設定");
         }
 
         private void DeleteLocalSettings_Click(object sender, RoutedEventArgs e)
@@ -153,11 +183,11 @@ namespace SkyziBackup
             var currentSettings = LoadCurrentSettings;
             if (currentSettings.IsGlobal)
             {
-                MessageBox.Show("現在のバックアップペアに対応するローカル設定は存在しません。", AssemblyName.Name, MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show("現在のバックアップペアに対応するローカル設定は存在しません。", App.AssemblyName.Name, MessageBoxButton.OK, MessageBoxImage.Information);
             }
             else
             {
-                if (MessageBox.Show("現在のバックアップペアに対応するローカル設定を削除します。", $"{AssemblyName.Name} - 確認", MessageBoxButton.OKCancel, MessageBoxImage.Warning) == MessageBoxResult.Cancel) return;
+                if (MessageBox.Show("現在のバックアップペアに対応するローカル設定を削除します。", $"{App.AssemblyName.Name} - 確認", MessageBoxButton.OKCancel, MessageBoxImage.Warning) == MessageBoxResult.Cancel) return;
                 DataContractWriter.Delete(currentSettings);
                 password.Password = PasswordManager.LoadPasswordOrNull(LoadCurrentSettings) ?? string.Empty;
             }
