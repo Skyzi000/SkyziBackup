@@ -37,7 +37,33 @@ namespace SkyziBackup
         /// <summary>
         /// 生データによるバイナリ比較(データベースを利用出来ず、暗号化や圧縮と併用できない点に注意)
         /// </summary>
-        FileContentsBynary         = 1 << 4,
+        FileContentsBynary      = 1 << 4,
+    }
+
+    public enum VersioningMethod
+    {
+        /// <summary>
+        /// 完全消去する(バージョン管理を行わない)
+        /// </summary>
+        PermanentDeletion       = 0,
+        /// <summary>
+        /// ゴミ箱に送る(ゴミ箱が利用できない時は完全消去する)
+        /// </summary>
+        RecycleBin              = 1,
+        /// <summary>
+        /// 指定されたディレクトリにそのまま移動し、既存のファイルを置き換える
+        /// </summary>
+        Replace                 = 2,
+        /// <summary>
+        /// 新規作成されたタイムスタンプ付きのディレクトリ以下に移動する
+        /// <code>\YYYY-MM-DD_hhmmss\Directory\hoge.txt</code>
+        /// </summary>
+        DirectoryTimeStamp      = 3,
+        /// <summary>
+        /// タイムスタンプを追加したファイル名で、指定されたディレクトリに移動する
+        /// <code>\Directory\File.txt_YYYY-MM-DD_hhmmss.txt</code>
+        /// </summary>
+        FileTimeStamp           = 4,
     }
 
     public class BackupDirectory
