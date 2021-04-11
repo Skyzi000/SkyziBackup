@@ -25,7 +25,7 @@ namespace SkyziBackup
             Semaphore semaphore = null;
             try
             {
-                semaphore = new Semaphore(1, 1, BackupDirectory.ComputeStringSHA1(backup.originBaseDirPath + backup.destBaseDirPath), out bool createdNew);
+                semaphore = new Semaphore(1, 1, App.AssemblyName.Name + BackupDirectory.ComputeStringSHA1(backup.originBaseDirPath + backup.destBaseDirPath), out bool createdNew);
                 if (!createdNew)
                 {
                     string m;
