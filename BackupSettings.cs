@@ -114,8 +114,10 @@ namespace SkyziBackup
         /// グローバル設定であれば <see cref="FileName"/> 、そうでなければ <see cref="localFileName"/> 
         /// </summary>
         public string SaveFileName => IsGlobal ? FileName : localFileName;
-
-        public string IgnorePattern { get => ignorePattern; set { ignorePattern = value; UpdateRegices(); } }
+        /// <summary>
+        /// 除外パターン
+        /// </summary>
+        public string IgnorePattern { get => ignorePattern; set { ignorePattern = value; Regices = Pattern2Regices(IgnorePattern); } }
         /// <summary>
         /// 暗号化されたパスワード。代入した場合自動的に暗号化される。(予め暗号化する必要はない)
         /// </summary>
@@ -216,10 +218,10 @@ namespace SkyziBackup
             localFileName = Path.Combine(DataContractWriter.GetDatabaseDirectoryName(originBaseDirPath, destBaseDirPath), FileName);
             return this;
         }
-        public void UpdateRegices()
+        public static HashSet<Regex> Pattern2Regices(string pattern)
         {
-            string[] patStrArr = IgnorePattern.Split(new[] { "\r\n", "\n", "\r", "|" }, StringSplitOptions.None);
-            Regices = new HashSet<Regex>(patStrArr.Select(s => ShapePattern(s)));
+            string[] patStrArr = pattern.Split(new[] { "\r\n", "\n", "\r", "|" }, StringSplitOptions.None);
+            return new HashSet<Regex>(patStrArr.Select(s => ShapePattern(s)));
         }
         internal string GetRawPassword()
         {
@@ -230,7 +232,7 @@ namespace SkyziBackup
         {
             return GetRawPassword() != newPassword;
         }
-        private Regex ShapePattern(string strPattern)
+        private static Regex ShapePattern(string strPattern)
         {
             var sb = new StringBuilder("^");
             if (!strPattern.StartsWith(Path.DirectorySeparatorChar) && !strPattern.StartsWith('*')) sb.Append(Path.DirectorySeparatorChar, 2);
