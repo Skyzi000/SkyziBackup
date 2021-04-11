@@ -116,6 +116,8 @@ namespace SkyziBackup
             string m = message.Text;
             db.Results.MessageChanged += (_s, _e) => { _mainContext.Post((d) => { message.Text = m + db.Results.Message + "\n"; }, null); };
             var results = await BackupManager.StartBackupAsync(db);
+            if (results != null)
+                message.Text = m + results.Message + "\n";
             progressBar.Visibility = Visibility.Collapsed;
             ButtonsIsEnabled = true;
         }

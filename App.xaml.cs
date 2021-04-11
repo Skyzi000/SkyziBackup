@@ -59,7 +59,7 @@ namespace SkyziBackup
                 }
                 var settings = BackupSettings.LoadLocalSettingsOrNull(originPath, destPath) ?? BackupSettings.GetGlobalSettings();
                 var results = await BackupManager.StartBackupAsync(originPath, destPath, settings.isRecordPassword ? settings.GetRawPassword() : null, settings);
-                if (results.isSuccess)
+                if (results?.isSuccess ?? true)
                 {
                     Shutdown();
                 }
@@ -77,7 +77,6 @@ namespace SkyziBackup
                 MainWindow = new MainWindow();
                 MainWindow.Closed += (s, e) =>
                 {
-                    NotifyIcon.ShowBalloonTip(10000, $"{AssemblyName.Name}", "終了するには通知アイコンを右クリックしてください。", ToolTipIcon.Info);
                     MainWindow = null;
                 };
                 MainWindow.Show();
