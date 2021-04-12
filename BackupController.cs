@@ -732,12 +732,16 @@ namespace SkyziBackup
         private void BackupFile(string originFilePath, string destFilePath)
         {
             Logger.Info(Results.Message = $"ファイルをバックアップ: '{originFilePath}' => '{destFilePath}'");
-            if (Settings.isOverwriteReadonly)
-            {
-                RemoveReadonlyAttribute(originFilePath, destFilePath);
-            }
             try
             {
+                if (Settings.versioning != VersioningMethod.PermanentDeletion && (Database?.backedUpFilesDict.ContainsKey(originFilePath) ?? File.Exists(destFilePath)))
+                {
+                    DeleteFile(destFilePath);
+                }
+                if (Settings.isOverwriteReadonly)
+                {
+                    RemoveReadonlyAttribute(originFilePath, destFilePath);
+                }
                 if (AesCrypter != null)
                 {
 
