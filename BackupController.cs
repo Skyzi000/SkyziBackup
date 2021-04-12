@@ -282,22 +282,7 @@ namespace SkyziBackup
                         Database.backedUpFilesDict.Remove(originFilePath);
                         continue;
                     }
-
-                    if (Settings.isOverwriteReadonly)
-                    {
-                        RemoveReadonlyAttribute(originFilePath, destFilePath);
-                    }
-                    try
-                    {
-                        Logger.Info(Results.Message = $"ファイルを削除: '{destFilePath}'");
-                        DeleteFile(destFilePath);
-                        Results.deletedFiles.Add(originFilePath);
-                        Database.backedUpFilesDict.Remove(originFilePath);
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.Error(ex, Results.Message = $"ファイルの削除に失敗しました: '{destFilePath}'\n");
-                    }
+                    DeleteFile(destFilePath, originFilePath);
                 }
             }
             else // データベースを使わない
@@ -323,41 +308,36 @@ namespace SkyziBackup
             try
             {
                 Logger.Info(Results.Message = $"ファイルを削除: '{destFilePath}'");
-                DeleteFile(destFilePath);
+                string revisionFilePath;
+                switch (Settings.versioning)
+                {
+                    case VersioningMethod.PermanentDeletion:
+                        File.Delete(destFilePath);
+                        break;
+                    case VersioningMethod.RecycleBin:
+                        Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(destFilePath, Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs, Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
+                        break;
+                    case VersioningMethod.Replace:
+                        revisionFilePath = destFilePath.Replace(destBaseDirPath, Settings.revisionsDirPath);
+                        MoveRevisionFile(destFilePath, revisionFilePath);
+                        break;
+                    case VersioningMethod.DirectoryTimeStamp:
+                        revisionFilePath = Path.Combine(Settings.revisionsDirPath, StartTime.ToString("yyyy-MM-dd_HHmmss"), destFilePath.Replace(destBaseDirPath, null));
+                        MoveRevisionFile(destFilePath, revisionFilePath);
+                        break;
+                    case VersioningMethod.FileTimeStamp:
+                        revisionFilePath = destFilePath.Replace(destBaseDirPath, Settings.revisionsDirPath) + StartTime.ToString("_yyyy-MM-dd_HHmmss") + Path.GetExtension(destFilePath);
+                        MoveRevisionFile(destFilePath, revisionFilePath);
+                        break;
+                    default:
+                        return;
+                }
                 Results.deletedFiles.Add(originFilePath);
                 Database.backedUpFilesDict.Remove(originFilePath);
             }
             catch (Exception ex)
             {
                 Logger.Error(ex, Results.Message = $"ファイルの削除に失敗しました: '{destFilePath}'\n");
-            }
-        }
-
-        private void DeleteFile(string destFilePath)
-        {
-            string revisionFilePath;
-            switch (Settings.versioning)
-            {
-                case VersioningMethod.PermanentDeletion:
-                    File.Delete(destFilePath);
-                    break;
-                case VersioningMethod.RecycleBin:
-                    Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(destFilePath, Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs, Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
-                    break;
-                case VersioningMethod.Replace:
-                    revisionFilePath = destFilePath.Replace(destBaseDirPath, Settings.revisionsDirPath);
-                    MoveRevisionFile(destFilePath, revisionFilePath);
-                    break;
-                case VersioningMethod.DirectoryTimeStamp:
-                    revisionFilePath = Path.Combine(Settings.revisionsDirPath, StartTime.ToString("yyyy-MM-dd_HHmmss"), destFilePath.Replace(destBaseDirPath, null));
-                    MoveRevisionFile(destFilePath, revisionFilePath);
-                    break;
-                case VersioningMethod.FileTimeStamp:
-                    revisionFilePath = destFilePath.Replace(destBaseDirPath, Settings.revisionsDirPath) + StartTime.ToString("_yyyy-MM-dd_HHmmss") + Path.GetExtension(destFilePath);
-                    MoveRevisionFile(destFilePath, revisionFilePath);
-                    break;
-                default:
-                    return;
             }
         }
 
