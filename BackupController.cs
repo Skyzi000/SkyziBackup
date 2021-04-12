@@ -66,7 +66,7 @@ namespace SkyziBackup
         FileTimeStamp           = 4,
     }
 
-    public class BackupDirectory
+    public class BackupController
     {
         public BackupResults Results { get; private set; } = new BackupResults(false);
         public OpensslCompatibleAesCrypter AesCrypter { get; set; }
@@ -80,7 +80,7 @@ namespace SkyziBackup
         private static readonly HashAlgorithm SHA1Provider = new SHA1CryptoServiceProvider();
         private int currentRetryCount = 0;
 
-        public BackupDirectory(string originPath, string destPath, string password = null, BackupSettings settings = null)
+        public BackupController(string originPath, string destPath, string password = null, BackupSettings settings = null)
         {
             originBaseDirPath = Path.TrimEndingDirectorySeparator(originPath);
             destBaseDirPath = Path.TrimEndingDirectorySeparator(destPath);

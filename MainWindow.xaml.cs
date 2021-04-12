@@ -112,10 +112,10 @@ namespace SkyziBackup
             message.Text = $"\n'{originPath.Text.Trim()}' => '{destPath.Text.Trim()}'";
             message.Text += $"\nバックアップ開始: {DateTime.Now}\n";
             progressBar.Visibility = Visibility.Visible;
-            var db = new BackupDirectory(originPath.Text.Trim(), destPath.Text.Trim(), password.Password, settings);
+            var bc = new BackupController(originPath.Text.Trim(), destPath.Text.Trim(), password.Password, settings);
             string m = message.Text;
-            db.Results.MessageChanged += (_s, _e) => { _mainContext.Post((d) => { message.Text = m + db.Results.Message + "\n"; }, null); };
-            var results = await BackupManager.StartBackupAsync(db);
+            bc.Results.MessageChanged += (_s, _e) => { _mainContext.Post((d) => { message.Text = m + bc.Results.Message + "\n"; }, null); };
+            var results = await BackupManager.StartBackupAsync(bc);
             if (results != null)
                 message.Text = m + results.Message + "\n";
             progressBar.Visibility = Visibility.Collapsed;

@@ -90,21 +90,21 @@ namespace SkyziBackup
                 return Results;
             }
             if (isEnableWriteDatabase)
-                Database.backedUpDirectoriesDict = BackupDirectory.CopyDirectoryStructure(sourceBaseDirPath: sourceBaseDirPath,
-                                                                                          destBaseDirPath: destBaseDirPath,
-                                                                                          results: Results,
-                                                                                          isCopyAttributes: Settings.isCopyAttributes,
-                                                                                          regices: null,
-                                                                                          backedUpDirectoriesDict: Database.backedUpDirectoriesDict,
-                                                                                          isForceCreateDirectoryAndReturnDictionary: true,
-                                                                                          isRestoreAttributesFromDatabase: isRestoreAttributesFromDatabase);
+                Database.backedUpDirectoriesDict = BackupController.CopyDirectoryStructure(sourceBaseDirPath: sourceBaseDirPath,
+                                                                                           destBaseDirPath: destBaseDirPath,
+                                                                                           results: Results,
+                                                                                           isCopyAttributes: Settings.isCopyAttributes,
+                                                                                           regices: null,
+                                                                                           backedUpDirectoriesDict: Database.backedUpDirectoriesDict,
+                                                                                           isForceCreateDirectoryAndReturnDictionary: true,
+                                                                                           isRestoreAttributesFromDatabase: isRestoreAttributesFromDatabase);
             else
-                BackupDirectory.CopyDirectoryStructure(sourceBaseDirPath: sourceBaseDirPath,
-                                                       destBaseDirPath: destBaseDirPath,
-                                                       results: Results,
-                                                       isCopyAttributes: Settings.isCopyAttributes,
-                                                       backedUpDirectoriesDict: Database?.backedUpDirectoriesDict,
-                                                       isRestoreAttributesFromDatabase: isRestoreAttributesFromDatabase);
+                BackupController.CopyDirectoryStructure(sourceBaseDirPath: sourceBaseDirPath,
+                                                        destBaseDirPath: destBaseDirPath,
+                                                        results: Results,
+                                                        isCopyAttributes: Settings.isCopyAttributes,
+                                                        backedUpDirectoriesDict: Database?.backedUpDirectoriesDict,
+                                                        isRestoreAttributesFromDatabase: isRestoreAttributesFromDatabase);
 
             foreach (string originFilePath in Directory.EnumerateFiles(sourceBaseDirPath, "*", SearchOption.AllDirectories))
             {
