@@ -47,6 +47,11 @@ namespace SkyziBackup
         [DataMember]
         public VersioningMethod versioning;
         /// <summary>
+        /// 削除または上書きされたファイルの移動先ディレクトリ
+        /// </summary>
+        [DataMember]
+        public string revisionsDirPath;
+        /// <summary>
         /// パスワードを記録する
         /// </summary>
         [DataMember]
@@ -130,6 +135,7 @@ namespace SkyziBackup
             isOverwriteReadonly = false;
             isEnableDeletion = false;
             versioning = VersioningMethod.PermanentDeletion;
+            revisionsDirPath = null;
             isRecordPassword = true;
             passwordProtectionScope = DataProtectionScope.LocalMachine;
             protectedPassword = null;
