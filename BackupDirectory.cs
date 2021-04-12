@@ -110,7 +110,6 @@ namespace SkyziBackup
             if (Settings.isUseDatabase)
             {
                 Logger.Info("データベースを保存: '{0}'", DataContractWriter.GetPath(Database));
-                Database.failedFiles = Results.failedFiles;
                 DataContractWriter.Write(Database);
             }
             Results.Message = (Results.isSuccess ? "バックアップ完了: " : Results.Message + "\nバックアップ失敗: ") + DateTime.Now;
@@ -142,30 +141,27 @@ namespace SkyziBackup
             }
 
             if (Settings.isUseDatabase)
-                Database.backedUpDirectoriesDict = CopyDirectoryStructure(originBaseDirPath, destBaseDirPath, Settings.isCopyAttributes, Settings.Regices, Database.backedUpDirectoriesDict);
+                Database.backedUpDirectoriesDict = CopyDirectoryStructure(originBaseDirPath, destBaseDirPath, Results, Settings.isCopyAttributes, Settings.Regices, Database.backedUpDirectoriesDict);
             else
-                _ = CopyDirectoryStructure(originBaseDirPath, destBaseDirPath, Settings.isCopyAttributes, Settings.Regices);
+                _ = CopyDirectoryStructure(originBaseDirPath, destBaseDirPath, Results, Settings.isCopyAttributes, Settings.Regices);
 
             // ファイルの処理
             foreach (string originFilePath in Directory.EnumerateFiles(originBaseDirPath, "*", SearchOption.AllDirectories))
             {
                 string destFilePath = originFilePath.Replace(originBaseDirPath, destBaseDirPath);
-                if (!IsIgnoredFile(originFilePath, destFilePath))
+                // 除外パターンと一致せず、バックアップ済みファイルと一致しないファイルをバックアップする
+                if (!IsIgnoredFile(originFilePath, destFilePath) && !(Settings.isUseDatabase ? IsUnchangedFileOnDatabase(originFilePath, destFilePath) : IsUnchangedFileWithoutDatabase(originFilePath, destFilePath)))
                 {
                     Directory.CreateDirectory(Path.GetDirectoryName(destFilePath));
                     BackupFile(originFilePath, destFilePath);
                 }
-                else if (Settings.isUseDatabase)
-                {
-                    Database.ignoreFiles.Add(originFilePath);
-                }
             }
 
             // 成功判定
-            Results.isSuccess = !Results.failedFiles.Any();
+            Results.isSuccess = !Results.failedDirectories.Any() && !Results.failedFiles.Any();
 
             // リトライ処理
-            if (Results.failedFiles.Any() && Settings.retryCount > 0)
+            if ((Results.failedDirectories.Any() || Results.failedFiles.Any()) && Settings.retryCount > 0)
             {
                 Logger.Info($"{Settings.retryWaitMilliSec} ミリ秒毎に {Settings.retryCount} 回リトライ");
                 RetryStart();
@@ -179,6 +175,7 @@ namespace SkyziBackup
 
         public static Dictionary<string, BackedUpDirectoryData> CopyDirectoryStructure(string sourceBaseDirPath,
                                                                                        string destBaseDirPath,
+                                                                                       BackupResults results,
                                                                                        bool isCopyAttributes = true,
                                                                                        HashSet<System.Text.RegularExpressions.Regex> regices = null,
                                                                                        Dictionary<string, BackedUpDirectoryData> backedUpDirectoriesDict = null,
@@ -210,12 +207,29 @@ namespace SkyziBackup
                         if (reg.IsMatch((originDirPath + Path.DirectorySeparatorChar).Substring(sourceBaseDirPath.Length)))
                         {
                             Logger.Info("ディレクトリをスキップ(除外パターン '{0}' に一致) : '{1}'", reg, originDirPath);
+                            results.ignoredDirectories.Add(originDirPath);
                             isIgnore = true;
                             break;
                         }
                     }
                     if (isIgnore) continue;
                 }
+                backedUpDirectoriesDict = CopyDirectory(originDirPath, sourceBaseDirPath, destBaseDirPath, results, isCopyAttributes, backedUpDirectoriesDict, isForceCreateDirectoryAndReturnDictionary, isRestoreAttributesFromDatabase);
+            }
+            return backedUpDirectoriesDict;
+        }
+
+        private static Dictionary<string, BackedUpDirectoryData> CopyDirectory(string originDirPath,
+                                                                               string sourceBaseDirPath,
+                                                                               string destBaseDirPath,
+                                                                               BackupResults results,
+                                                                               bool isCopyAttributes = true,
+                                                                               Dictionary<string, BackedUpDirectoryData> backedUpDirectoriesDict = null,
+                                                                               bool isForceCreateDirectoryAndReturnDictionary = false,
+                                                                               bool isRestoreAttributesFromDatabase = false)
+        {
+            try
+            {
                 DirectoryInfo originDirInfo = isCopyAttributes ? new DirectoryInfo(originDirPath) : null;
                 DirectoryInfo destDirInfo = null;
                 if (backedUpDirectoriesDict == null || !backedUpDirectoriesDict.TryGetValue(originDirPath, out var data) || (isForceCreateDirectoryAndReturnDictionary && !isRestoreAttributesFromDatabase))
@@ -252,11 +266,19 @@ namespace SkyziBackup
                     if (originDirInfo.Attributes != backedUpDirectoriesDict[originDirPath].FileAttributes)
                         (destDirInfo ?? Directory.CreateDirectory(destDirPath)).Attributes = originDirInfo.Attributes;
                 }
+                results.successfulDirectories.Add(originDirPath);
+                results.failedDirectories.Remove(originDirPath);
                 if (isForceCreateDirectoryAndReturnDictionary && backedUpDirectoriesDict == null)
                     backedUpDirectoriesDict = new Dictionary<string, BackedUpDirectoryData>();
                 if (backedUpDirectoriesDict != null && !isRestoreAttributesFromDatabase)
                     backedUpDirectoriesDict[originDirPath] = new BackedUpDirectoryData(originDirInfo?.CreationTime, originDirInfo?.LastWriteTime, originDirInfo?.Attributes);
             }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, results.Message = $"予期しない例外が発生しました '{originDirPath}' => '{originDirPath.Replace(sourceBaseDirPath, destBaseDirPath)}'\n");
+                results.failedDirectories.Add(originDirPath);
+            }
+
             return backedUpDirectoriesDict;
         }
 
@@ -274,15 +296,24 @@ namespace SkyziBackup
                         throw new FormatException($"The database value 'destBaseDirPath' is invalid.({Database.destBaseDirPath})");
                     }
                 }
-                Database.failedFiles = new HashSet<string>();
-                Database.ignoreFiles = new HashSet<string>();
-                Database.deletedFiles = new HashSet<string>();
             }
             else
             {
                 Database = null;
-                Results.successfulFiles = new HashSet<string>();
             }
+            Results.successfulFiles = new HashSet<string>();
+            Results.successfulDirectories = new HashSet<string>();
+            Results.failedFiles = new HashSet<string>();
+            Results.failedDirectories = new HashSet<string>();
+            if (!string.IsNullOrEmpty(Settings.IgnorePattern))
+            {
+                Results.ignoredFiles = new HashSet<string>();
+                Results.ignoredDirectories = new HashSet<string>();
+            }
+            if (Settings.comparisonMethod != ComparisonMethod.NoComparison)
+                Results.unchangedFiles = new HashSet<string>();
+            if (Settings.isEnableDeletion)
+                Results.deletedFiles = new HashSet<string>();
         }
 
         private bool IsIgnoredFile(string originFilePath, string destFilePath)
@@ -295,15 +326,18 @@ namespace SkyziBackup
                     if (reg.IsMatch(originFilePath.Substring(originBaseDirPath.Length)))
                     {
                         Logger.Info("ファイルをスキップ(除外パターンに一致 '{0}') : '{1}'", reg, originFilePath);
+                        Results.ignoredFiles.Add(originFilePath);
                         return true;
                     }
                 }
             }
-            // バックアップ済みのファイルと一致したら無視
-            return Settings.isUseDatabase ? IsMatchFileOnDatabase(originFilePath, destFilePath) : IsMatchFileWithoutDatabase(originFilePath, destFilePath);
+            return false;
         }
-
-        private bool IsMatchFileOnDatabase(string originFilePath, string destFilePath)
+        /// <summary>
+        /// データベースにデータが記録されている場合はバックアップ先ファイルにアクセスしない(比較に必要なデータが無い場合はアクセスしに行く)
+        /// </summary>
+        /// <returns>前回のバックアップから変更されていることが確認できたら true</returns>
+        private bool IsUnchangedFileOnDatabase(string originFilePath, string destFilePath)
         {
             if (!Database.backedUpFilesDict.ContainsKey(originFilePath)) return false;
             if (Settings.comparisonMethod == ComparisonMethod.NoComparison) return false;
@@ -402,9 +436,14 @@ namespace SkyziBackup
 
             // 相違が検出されなかった
             Logger.Info("ファイルをスキップ(バックアップ済み): '{0}'", originFilePath);
+            Results.unchangedFiles.Add(originFilePath);
             return true;
         }
-        private bool IsMatchFileWithoutDatabase(string originFilePath, string destFilePath)
+        /// <summary>
+        /// データベースを使わず、実際にファイルを比較する
+        /// </summary>
+        /// <returns>前回のバックアップから変更されていることが確認できたら true</returns>
+        private bool IsUnchangedFileWithoutDatabase(string originFilePath, string destFilePath)
         {
             if (!File.Exists(destFilePath)) return false;
             if (Settings.comparisonMethod == ComparisonMethod.NoComparison) return false;
@@ -501,6 +540,7 @@ namespace SkyziBackup
 
             // 相違が検出されなかった
             Logger.Info("ファイルをスキップ(バックアップ済み): '{0}'", originFilePath);
+            Results.unchangedFiles.Add(originFilePath);
             return true;
         }
         /// <summary>
@@ -533,14 +573,12 @@ namespace SkyziBackup
                     {
                         // 暗号化成功時処理
                         CopyFileAttributesAndUpdateDatabase(originFilePath, destFilePath);
-                        Results.failedFiles.Remove(originFilePath);
                     }
                     else
                     {
                         Logger.Error(AesCrypter.Error, Results.Message = $"暗号化に失敗しました '{originFilePath}' => '{destFilePath}'\n");
                         Results.failedFiles.Add(originFilePath);
                     }
-
                 }
                 else
                 {
@@ -553,7 +591,6 @@ namespace SkyziBackup
                         }
                     }
                     CopyFileAttributesAndUpdateDatabase(originFilePath, destFilePath);
-                    Results.failedFiles.Remove(originFilePath);
                 }
             }
             catch (UnauthorizedAccessException ex)
@@ -613,10 +650,8 @@ namespace SkyziBackup
                     sha1: Settings.comparisonMethod.HasFlag(ComparisonMethod.FileContentsSHA1) ? ComputeFileSHA1(originFilePath) : null
                     );
             }
-            else
-            {
-                Results.successfulFiles.Add(originFilePath);
-            }
+            Results.successfulFiles.Add(originFilePath);
+            Results.failedFiles.Remove(originFilePath);
         }
 
         private void RetryStart()
@@ -632,12 +667,27 @@ namespace SkyziBackup
 
             currentRetryCount++;
             Logger.Info(Results.Message = $"リトライ {currentRetryCount}/{Settings.retryCount} 回目");
-            foreach (string originFilePath in Results.failedFiles.ToArray())
+            if (Results.failedDirectories.Any())
             {
-                string destFilePath = originFilePath.Replace(originBaseDirPath, destBaseDirPath);
-                BackupFile(originFilePath, destFilePath);
+                foreach(string originDirPath in Results.failedDirectories.ToArray())
+                {
+                    if (Settings.isUseDatabase)
+                        Database.backedUpDirectoriesDict = CopyDirectory(originDirPath, originBaseDirPath, destBaseDirPath, Results, Settings.isCopyAttributes, Database.backedUpDirectoriesDict);
+                    else
+                        _ = CopyDirectory(originDirPath, originBaseDirPath, destBaseDirPath, Results, Settings.isCopyAttributes);
+                }
             }
-            Results.isSuccess = !Results.failedFiles.Any();
+            if (Results.failedFiles.Any())
+            {
+                foreach (string originFilePath in Results.failedFiles.ToArray())
+                {
+                    string destFilePath = originFilePath.Replace(originBaseDirPath, destBaseDirPath);
+                    BackupFile(originFilePath, destFilePath);
+                }
+            }
+            
+            Results.isSuccess = !Results.failedDirectories.Any() && !Results.failedFiles.Any();
+            
             if (Results.isSuccess)
             {
                 Results.IsFinished = true;

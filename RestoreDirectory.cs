@@ -72,7 +72,9 @@ namespace SkyziBackup
             Logger.Info("リストアを開始'{0}' => '{1}'", sourceBaseDirPath, destBaseDirPath);
 
             Results.successfulFiles = new HashSet<string>();
+            Results.successfulDirectories = new HashSet<string>();
             Results.failedFiles = new HashSet<string>();
+            Results.failedDirectories = new HashSet<string>();
 
             if (isCopyOnlyFileAttributes)
             {
@@ -90,6 +92,7 @@ namespace SkyziBackup
             if (isEnableWriteDatabase)
                 Database.backedUpDirectoriesDict = BackupDirectory.CopyDirectoryStructure(sourceBaseDirPath: sourceBaseDirPath,
                                                                                           destBaseDirPath: destBaseDirPath,
+                                                                                          results: Results,
                                                                                           isCopyAttributes: Settings.isCopyAttributes,
                                                                                           regices: null,
                                                                                           backedUpDirectoriesDict: Database.backedUpDirectoriesDict,
@@ -98,6 +101,7 @@ namespace SkyziBackup
             else
                 BackupDirectory.CopyDirectoryStructure(sourceBaseDirPath: sourceBaseDirPath,
                                                        destBaseDirPath: destBaseDirPath,
+                                                       results: Results,
                                                        isCopyAttributes: Settings.isCopyAttributes,
                                                        backedUpDirectoriesDict: Database?.backedUpDirectoriesDict,
                                                        isRestoreAttributesFromDatabase: isRestoreAttributesFromDatabase);
@@ -107,7 +111,7 @@ namespace SkyziBackup
                 string destFilePath = originFilePath.Replace(sourceBaseDirPath, destBaseDirPath);
                 RestoreFile(originFilePath, destFilePath);
             }
-            Results.isSuccess = !Results.failedFiles.Any();
+            Results.isSuccess = !Results.failedFiles.Any() && !Results.failedDirectories.Any();
             Results.IsFinished = true;
             return Results;
         }

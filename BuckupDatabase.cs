@@ -24,31 +24,13 @@ namespace SkyziBackup
         /// originFilePathをキーとするバックアップ済みファイルの辞書
         /// </summary>
         [DataMember]
-        public Dictionary<string, BackedUpFileData> backedUpFilesDict;
+        public Dictionary<string, BackedUpFileData> backedUpFilesDict = new Dictionary<string, BackedUpFileData>();
 
         /// <summary>
         /// バックアップ済みディレクトリの辞書
         /// </summary>
         [DataMember]
-        public Dictionary<string, BackedUpDirectoryData> backedUpDirectoriesDict;
-
-        /// <summary>
-        /// 失敗したファイルのリスト
-        /// </summary>
-        [DataMember]
-        public HashSet<string> failedFiles;
-
-        /// <summary>
-        /// 無視したファイルのリスト
-        /// </summary>
-        [DataMember]
-        public HashSet<string> ignoreFiles;
-
-        /// <summary>
-        /// 削除したファイルのリスト(今回もしくは前回削除したもののみ)
-        /// </summary>
-        [DataMember]
-        public HashSet<string> deletedFiles = null;
+        public Dictionary<string, BackedUpDirectoryData> backedUpDirectoriesDict = new Dictionary<string, BackedUpDirectoryData>();
 
 
         /// <summary>
@@ -60,11 +42,6 @@ namespace SkyziBackup
         {
             this.originBaseDirPath = originBaseDirPath;
             this.destBaseDirPath = destBaseDirPath;
-            backedUpFilesDict = new Dictionary<string, BackedUpFileData>();
-            backedUpDirectoriesDict = new Dictionary<string, BackedUpDirectoryData>();
-            failedFiles = new HashSet<string>();
-            ignoreFiles = new HashSet<string>();
-            deletedFiles = null;
         }
     }
 
