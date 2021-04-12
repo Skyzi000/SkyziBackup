@@ -101,11 +101,15 @@ namespace SkyziBackup
         /// </summary>
         [IgnoreDataMember]
         private string localFileName;
+
+        [IgnoreDataMember]
+        private HashSet<Regex> regices;
+
         /// <summary>
         /// <see cref="IgnorePattern"/> を元に生成した除外用の正規表現セット
         /// </summary>
         [IgnoreDataMember]
-        public HashSet<Regex> Regices { get; private set; }
+        public HashSet<Regex> Regices { get => regices ?? (string.IsNullOrEmpty(IgnorePattern) ? null : Regices = Pattern2Regices(IgnorePattern)); private set => regices = value; }
         /// <summary>
         /// バックアップ設定のファイル名
         /// </summary>
