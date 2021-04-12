@@ -272,7 +272,7 @@ namespace SkyziBackup
             {
                 foreach (string originFilePath in Database.backedUpFilesDict.Keys)
                 {
-                    if (Results.successfulFiles.Contains(originFilePath) || Results.failedFiles.Contains(originFilePath) || Results.unchangedFiles == null || Results.unchangedFiles.Contains(originFilePath))
+                    if (Results.successfulFiles.Contains(originFilePath) || Results.failedFiles.Contains(originFilePath) || (Results.unchangedFiles?.Contains(originFilePath) ?? false))
                     {
                         continue;
                     }
@@ -282,20 +282,15 @@ namespace SkyziBackup
                         Database.backedUpFilesDict.Remove(originFilePath);
                         continue;
                     }
-                    bool removedReadonlyAttribute = false;
-                    FileAttributes? destFileAttributes = null;
-                    if (Settings.isOverwriteReadonly && !IsNotReadOnlyInDatabase(originFilePath))
+
+                    if (Settings.isOverwriteReadonly)
                     {
-                        destFileAttributes = Database.backedUpDirectoriesDict.TryGetValue(originFilePath, out var data) && data.FileAttributes.HasValue
-                            ? data.FileAttributes.Value
-                            : File.GetAttributes(destFilePath);
-                        removedReadonlyAttribute = RemoveReadonlyAttribute(destFilePath);
+                        RemoveReadonlyAttribute(originFilePath, destFilePath);
                     }
                     try
                     {
+                        Logger.Info(Results.Message = $"ファイルを削除: '{destFilePath}'");
                         DeleteFile(destFilePath);
-                        if (removedReadonlyAttribute && destFileAttributes.HasValue)
-                            File.SetAttributes(destFilePath, destFileAttributes.Value);
                         Results.deletedFiles.Add(originFilePath);
                         Database.backedUpFilesDict.Remove(originFilePath);
                     }
@@ -310,54 +305,56 @@ namespace SkyziBackup
                 foreach (string destFilePath in Directory.EnumerateFiles(destBaseDirPath, "*", SearchOption.AllDirectories))
                 {
                     string originFilePath = destFilePath.Replace(destBaseDirPath, originBaseDirPath);
-                    if (Results.successfulFiles.Contains(originFilePath) || Results.failedFiles.Contains(originFilePath) || Results.unchangedFiles == null || Results.unchangedFiles.Contains(originFilePath))
+                    if (Results.successfulFiles.Contains(originFilePath) || Results.failedFiles.Contains(originFilePath) || (Results.unchangedFiles?.Contains(originFilePath) ?? false))
                     {
                         continue;
                     }
-                    bool removedReadonlyAttribute = false;
-                    FileAttributes? destFileAttributes = null;
-                    if (Settings.isOverwriteReadonly)
-                    {
-                        destFileAttributes = File.GetAttributes(destFilePath);
-                        removedReadonlyAttribute = RemoveReadonlyAttribute(destFilePath);
-                    }
-                    try
-                    {
-                        DeleteFile(destFilePath);
-                        if (removedReadonlyAttribute && destFileAttributes.HasValue)
-                            File.SetAttributes(destFilePath, destFileAttributes.Value);
-                        Results.deletedFiles.Add(originFilePath);
-                        Database.backedUpFilesDict.Remove(originFilePath);
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.Error(ex, Results.Message = $"ファイルの削除に失敗しました: '{destFilePath}'\n");
-                    }
+                    DeleteFile(destFilePath, originFilePath);
                 }
             }
         }
-        private void DeleteFile(string filePath)
+
+        private void DeleteFile(string destFilePath, string originFilePath)
+        {
+            if (Settings.isOverwriteReadonly)
+            {
+                RemoveReadonlyAttribute(destFilePath);
+            }
+            try
+            {
+                Logger.Info(Results.Message = $"ファイルを削除: '{destFilePath}'");
+                DeleteFile(destFilePath);
+                Results.deletedFiles.Add(originFilePath);
+                Database.backedUpFilesDict.Remove(originFilePath);
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, Results.Message = $"ファイルの削除に失敗しました: '{destFilePath}'\n");
+            }
+        }
+
+        private void DeleteFile(string destFilePath)
         {
             string revisionFilePath;
             switch (Settings.versioning)
             {
                 case VersioningMethod.PermanentDeletion:
-                    File.Delete(filePath);
+                    File.Delete(destFilePath);
                     break;
                 case VersioningMethod.RecycleBin:
-                    Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(filePath, Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs, Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
+                    Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(destFilePath, Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs, Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
                     break;
                 case VersioningMethod.Replace:
-                    revisionFilePath = filePath.Replace(destBaseDirPath, Settings.revisionsDirPath);
-                    MoveRevisionFile(filePath, revisionFilePath);
+                    revisionFilePath = destFilePath.Replace(destBaseDirPath, Settings.revisionsDirPath);
+                    MoveRevisionFile(destFilePath, revisionFilePath);
                     break;
                 case VersioningMethod.DirectoryTimeStamp:
-                    revisionFilePath = Path.Combine(Settings.revisionsDirPath, StartTime.ToString("yyyy-MM-dd_HHmmss"), filePath.Replace(destBaseDirPath, null));
-                    MoveRevisionFile(filePath, revisionFilePath);
+                    revisionFilePath = Path.Combine(Settings.revisionsDirPath, StartTime.ToString("yyyy-MM-dd_HHmmss"), destFilePath.Replace(destBaseDirPath, null));
+                    MoveRevisionFile(destFilePath, revisionFilePath);
                     break;
                 case VersioningMethod.FileTimeStamp:
-                    revisionFilePath = filePath.Replace(destBaseDirPath, Settings.revisionsDirPath) + StartTime.ToString("_yyyy-MM-dd_HHmmss") + Path.GetExtension(filePath);
-                    MoveRevisionFile(filePath, revisionFilePath);
+                    revisionFilePath = destFilePath.Replace(destBaseDirPath, Settings.revisionsDirPath) + StartTime.ToString("_yyyy-MM-dd_HHmmss") + Path.GetExtension(destFilePath);
+                    MoveRevisionFile(destFilePath, revisionFilePath);
                     break;
                 default:
                     return;
@@ -519,7 +516,10 @@ namespace SkyziBackup
             if (Settings.comparisonMethod != ComparisonMethod.NoComparison)
                 Results.unchangedFiles = new HashSet<string>();
             if (Settings.isEnableDeletion)
+            {
                 Results.deletedFiles = new HashSet<string>();
+                Results.deletedDirectories = new HashSet<string>();
+            }
         }
 
         private bool IsIgnoredFile(string originFilePath, string destFilePath)
