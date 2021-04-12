@@ -31,8 +31,8 @@
                     <StackPanel>
                         <CheckBox x:Name="isCopyAttributesCheckBox" Content="作成日時・更新日時・ファイル属性等をコピーする" Margin="5" IsChecked="True"/>
                         <CheckBox x:Name="isOverwriteReadonlyCheckBox" Content="読み取り専用ファイルを強制的に上書きする" Margin="5" IsChecked="False"/>
-                        <CheckBox x:Name="isEnableTempFileCheckBox" Content="一時ファイルを作る(未実装)" Margin="5" IsEnabled="False"/>
-                        <CheckBox x:Name="isEnableDeletionCheckBox" Content="ミラーリング(バックアップ先ファイルの削除を有効化)する(未実装)" Margin="5" IsEnabled="False" ToolTip="バックアップ元から削除されたファイルをバックアップ先からも削除します。"/>
+                        <CheckBox x:Name="isEnableTempFileCheckBox" Content="一時ファイルを作る(未実装)" Margin="5" IsEnabled="False" ToolTip="対象を上書きする前に一時ファイルを作成することで、エラーが発生した場合にバックアップ先ファイルが壊れることを防ぎます。"/>
+                        <CheckBox x:Name="isEnableDeletionCheckBox" Content="ミラーリング(バックアップ先ファイルの削除を有効化)する" Margin="5" ToolTip="バックアップ元に存在しないファイルやディレクトリを、バックアップ先からも削除します。"/>
                         <StackPanel Orientation="Horizontal">
                             <Label Content="リトライ回数" ToolTip="バックアップに失敗した際、自動的にリトライする回数を設定します。"/>
                             <TextBox x:Name="RetryCountTextBox" Text="10" PreviewTextInput="TextBox_PreviewTextInput" CommandManager.PreviewExecuted="TextBox_PreviewExecuted" Width="40"/>
