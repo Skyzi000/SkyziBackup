@@ -308,7 +308,6 @@ namespace SkyziBackup
             try
             {
                 Logger.Info(Results.Message = $"ファイルを削除: '{destFilePath}'");
-                string revisionFilePath;
                 switch (Settings.versioning)
                 {
                     case VersioningMethod.PermanentDeletion:
@@ -318,16 +317,9 @@ namespace SkyziBackup
                         Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(destFilePath, Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs, Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
                         break;
                     case VersioningMethod.Replace:
-                        revisionFilePath = destFilePath.Replace(destBaseDirPath, Settings.revisionsDirPath);
-                        MoveRevisionFile(destFilePath, revisionFilePath);
-                        break;
                     case VersioningMethod.DirectoryTimeStamp:
-                        revisionFilePath = Path.Combine(Settings.revisionsDirPath, StartTime.ToString("yyyy-MM-dd_HHmmss"), destFilePath.Replace(destBaseDirPath, null));
-                        MoveRevisionFile(destFilePath, revisionFilePath);
-                        break;
                     case VersioningMethod.FileTimeStamp:
-                        revisionFilePath = destFilePath.Replace(destBaseDirPath, Settings.revisionsDirPath) + StartTime.ToString("_yyyy-MM-dd_HHmmss") + Path.GetExtension(destFilePath);
-                        MoveRevisionFile(destFilePath, revisionFilePath);
+                        MoveRevisionFile(destFilePath);
                         break;
                     default:
                         return;
@@ -341,19 +333,32 @@ namespace SkyziBackup
             }
         }
 
-        private void MoveRevisionFile(string destFilePath, string revisionFilePath)
+        private bool MoveRevisionFile(string destFilePath)
         {
-            bool removedReadonlyAttributeFromRevisionFile = false;
-            FileAttributes? revisionFileAttributes = null;
-            if (Settings.isOverwriteReadonly && File.Exists(revisionFilePath))
+            string revisionFilePath;
+            switch (Settings.versioning)
             {
-                revisionFileAttributes = File.GetAttributes(revisionFilePath);
-                removedReadonlyAttributeFromRevisionFile = RemoveReadonlyAttribute(revisionFilePath);
+                case VersioningMethod.Replace:
+                    revisionFilePath = destFilePath.Replace(destBaseDirPath, Settings.revisionsDirPath);
+                    break;
+                case VersioningMethod.DirectoryTimeStamp:
+                    revisionFilePath = Path.Combine(Settings.revisionsDirPath, StartTime.ToString("yyyy-MM-dd_HHmmss"), destFilePath.Replace(destBaseDirPath, null));
+                    break;
+                case VersioningMethod.FileTimeStamp:
+                    revisionFilePath = destFilePath.Replace(destBaseDirPath, Settings.revisionsDirPath) + StartTime.ToString("_yyyy-MM-dd_HHmmss") + Path.GetExtension(destFilePath);
+                    break;
+                default:
+                    return false;
             }
+            bool removedReadonlyAttributeFromRevisionFile = false;
+            FileAttributes? fileAttributes = null;
+            if (Settings.isOverwriteReadonly && File.Exists(revisionFilePath) && (removedReadonlyAttributeFromRevisionFile = RemoveReadonlyAttribute(revisionFilePath)))
+                fileAttributes = File.GetAttributes(destFilePath);
             Directory.CreateDirectory(Path.GetDirectoryName(revisionFilePath));
             File.Move(destFilePath, revisionFilePath, true);
-            if (removedReadonlyAttributeFromRevisionFile && revisionFileAttributes.HasValue)
-                File.SetAttributes(revisionFilePath, revisionFileAttributes.Value);
+            if (removedReadonlyAttributeFromRevisionFile && fileAttributes.HasValue)
+                File.SetAttributes(revisionFilePath, fileAttributes.Value);
+            return true;
         }
 
         public static Dictionary<string, BackedUpDirectoryData> CopyDirectoryStructure(string sourceBaseDirPath,
