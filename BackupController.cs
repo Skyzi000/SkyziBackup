@@ -333,7 +333,7 @@ namespace SkyziBackup
                     revisionFilePath = filePath.Replace(destBaseDirPath, Settings.revisionsDirPath);
                     break;
                 case VersioningMethod.DirectoryTimeStamp:
-                    revisionFilePath = Path.Combine(Settings.revisionsDirPath, StartTime.ToString("yyyy-MM-dd_HHmmss"), filePath.Replace(destBaseDirPath, null));
+                    revisionFilePath = Path.Combine(Settings.revisionsDirPath, StartTime.ToString("yyyy-MM-dd_HHmmss"), filePath.Replace(destBaseDirPath, "").TrimStart(Path.DirectorySeparatorChar));
                     break;
                 case VersioningMethod.FileTimeStamp:
                     revisionFilePath = filePath.Replace(destBaseDirPath, Settings.revisionsDirPath) + StartTime.ToString("_yyyy-MM-dd_HHmmss") + Path.GetExtension(filePath);
