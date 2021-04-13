@@ -23,7 +23,7 @@ namespace Skyzi000.Cryptography
             try
             {
                 settings.ProtectedPassword = password;
-                DataContractWriter.Write(settings);
+                DataFileWriter.Write(settings);
             }
             catch (Exception ex)
             {
@@ -32,7 +32,7 @@ namespace Skyzi000.Cryptography
         }
         public static bool TryLoadPassword(BackupSettings settings, out string password)
         {
-            if (settings.isRecordPassword && !string.IsNullOrEmpty(settings.ProtectedPassword))
+            if (settings.IsRecordPassword && !string.IsNullOrEmpty(settings.ProtectedPassword))
             {
                 try
                 {

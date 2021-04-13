@@ -8,6 +8,7 @@ using System.Security.Cryptography;
 using System.Linq;
 using System.Text;
 using Skyzi000;
+using System.Threading.Tasks;
 
 namespace SkyziBackup
 {
@@ -79,45 +80,46 @@ namespace SkyziBackup
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         private static readonly HashAlgorithm SHA1Provider = new SHA1CryptoServiceProvider();
         private int currentRetryCount = 0;
+        private Task<BackupDatabase> loadBackupDatabaseTask = null;
 
         public BackupController(string originPath, string destPath, string password = null, BackupSettings settings = null)
         {
             originBaseDirPath = Path.TrimEndingDirectorySeparator(originPath);
             destBaseDirPath = Path.TrimEndingDirectorySeparator(destPath);
             Settings = settings ?? BackupSettings.LoadLocalSettingsOrNull(originBaseDirPath, destBaseDirPath) ?? BackupSettings.GetGlobalSettings();
-            if (Settings.isUseDatabase)
+            if (Settings.IsUseDatabase)
             {
-                LoadOrCreateDatabase();
+                loadBackupDatabaseTask = LoadOrCreateDatabaseAsync();
             }
             if (!string.IsNullOrEmpty(password))
             {
-                AesCrypter = new OpensslCompatibleAesCrypter(password, compressionLevel: Settings.compressionLevel, compressAlgorithm: Settings.compressAlgorithm);
+                AesCrypter = new OpensslCompatibleAesCrypter(password, compressionLevel: Settings.CompressionLevel, compressAlgorithm: Settings.CompressAlgorithm);
             }
             Results.Finished += Results_Finished;
         }
 
-        private void LoadOrCreateDatabase()
+        private async Task<BackupDatabase> LoadOrCreateDatabaseAsync()
         {
             string databasePath;
-            bool isExists = File.Exists(databasePath = DataContractWriter.GetDatabasePath(originBaseDirPath, destBaseDirPath));
+            bool isExists = File.Exists(databasePath = DataFileWriter.GetDatabasePath(originBaseDirPath, destBaseDirPath));
             Logger.Info(Results.Message = isExists ? $"既存のデータベースをロード: '{databasePath}'" : "新規データベースを初期化");
-            Database = isExists
-                ? DataContractWriter.Read<BackupDatabase>(DataContractWriter.GetDatabaseFileName(originBaseDirPath, destBaseDirPath))
+            return isExists
+                ? await DataFileWriter.ReadAsync<BackupDatabase>(DataFileWriter.GetDatabaseFileName(originBaseDirPath, destBaseDirPath))
                 : new BackupDatabase(originBaseDirPath, destBaseDirPath);
         }
 
         private void Results_Finished(object sender, EventArgs e)
         {
-            if (Settings.isUseDatabase)
+            if (Settings.IsUseDatabase)
             {
-                Logger.Info("データベースを保存: '{0}'", DataContractWriter.GetPath(Database));
-                DataContractWriter.Write(Database);
+                Logger.Info("データベースを保存: '{0}'", DataFileWriter.GetPath(Database));
+                _ = DataFileWriter.WriteAsync(Database);
             }
             Results.Message = (Results.isSuccess ? "バックアップ完了: " : Results.Message + "\nバックアップ失敗: ") + DateTime.Now;
             Logger.Info("{0}\n=============================\n\n", Results.isSuccess ? "バックアップ完了" : "バックアップ失敗");
         }
 
-        public BackupResults StartBackup()
+        public async Task<BackupResults> StartBackupAsync()
         {
             if (Results.IsFinished)
             {
@@ -128,7 +130,7 @@ namespace SkyziBackup
             Logger.Info("バックアップを開始'{0}' => '{1}'", originBaseDirPath, destBaseDirPath);
 
             StartTime = DateTime.Now;
-            Initialize();
+            await InitializeAsync();
 
             if (!Directory.Exists(originBaseDirPath))
             {
@@ -137,17 +139,17 @@ namespace SkyziBackup
                 return Results;
             }
 
-            if (Settings.isUseDatabase)
-                Database.backedUpDirectoriesDict = CopyDirectoryStructure(originBaseDirPath, destBaseDirPath, Results, Settings.isCopyAttributes, Settings.Regices, Database.backedUpDirectoriesDict);
+            if (Settings.IsUseDatabase)
+                Database.BackedUpDirectoriesDict = CopyDirectoryStructure(originBaseDirPath, destBaseDirPath, Results, Settings.IsCopyAttributes, Settings.Regices, Database.BackedUpDirectoriesDict);
             else
-                _ = CopyDirectoryStructure(originBaseDirPath, destBaseDirPath, Results, Settings.isCopyAttributes, Settings.Regices);
+                _ = CopyDirectoryStructure(originBaseDirPath, destBaseDirPath, Results, Settings.IsCopyAttributes, Settings.Regices);
 
             // ファイルの処理
             foreach (string originFilePath in Directory.EnumerateFiles(originBaseDirPath, "*", SearchOption.AllDirectories))
             {
                 string destFilePath = originFilePath.Replace(originBaseDirPath, destBaseDirPath);
                 // 除外パターンと一致せず、バックアップ済みファイルと一致しないファイルをバックアップする
-                if (!IsIgnoredFile(originFilePath, destFilePath) && !(Settings.isUseDatabase ? IsUnchangedFileOnDatabase(originFilePath, destFilePath) : IsUnchangedFileWithoutDatabase(originFilePath, destFilePath)))
+                if (!IsIgnoredFile(originFilePath, destFilePath) && !(Settings.IsUseDatabase ? IsUnchangedFileOnDatabase(originFilePath, destFilePath) : IsUnchangedFileWithoutDatabase(originFilePath, destFilePath)))
                 {
                     Directory.CreateDirectory(Path.GetDirectoryName(destFilePath));
                     BackupFile(originFilePath, destFilePath);
@@ -155,7 +157,7 @@ namespace SkyziBackup
             }
 
             // ミラーリング処理(バックアップ先ファイルの削除)
-            if (Settings.isEnableDeletion)
+            if (Settings.IsEnableDeletion)
             {
                 DeleteFiles();
                 DeleteDirectories();
@@ -165,9 +167,9 @@ namespace SkyziBackup
             Results.isSuccess = !Results.failedDirectories.Any() && !Results.failedFiles.Any();
 
             // リトライ処理
-            if ((Results.failedDirectories.Any() || Results.failedFiles.Any()) && Settings.retryCount > 0)
+            if ((Results.failedDirectories.Any() || Results.failedFiles.Any()) && Settings.RetryCount > 0)
             {
-                Logger.Info($"{Settings.retryWaitMilliSec} ミリ秒毎に {Settings.retryCount} 回リトライ");
+                Logger.Info($"{Settings.RetryWaitMilliSec} ミリ秒毎に {Settings.RetryCount} 回リトライ");
                 RetryStart();
             }
             else
@@ -178,9 +180,9 @@ namespace SkyziBackup
         }
         private void DeleteDirectories()
         {
-            if (Settings.isUseDatabase)
+            if (Settings.IsUseDatabase)
             {
-                foreach (string originDirPath in Database.backedUpDirectoriesDict.Keys)
+                foreach (string originDirPath in Database.BackedUpDirectoriesDict.Keys)
                 {
                     if (Results.successfulDirectories.Contains(originDirPath) || Results.failedDirectories.Contains(originDirPath))
                     {
@@ -189,14 +191,14 @@ namespace SkyziBackup
                     string destDirPath = originDirPath.Replace(originBaseDirPath, destBaseDirPath);
                     if (!Directory.Exists(destDirPath))
                     {
-                        Database.backedUpDirectoriesDict.Remove(originDirPath);
+                        Database.BackedUpDirectoriesDict.Remove(originDirPath);
                         continue;
                     }
                     try
                     {
                         DeleteDirectory(destDirPath);
                         Results.deletedDirectories.Add(originDirPath);
-                        Database.backedUpDirectoriesDict.Remove(originDirPath);
+                        Database.BackedUpDirectoriesDict.Remove(originDirPath);
                     }
                     catch (Exception ex)
                     {
@@ -217,7 +219,7 @@ namespace SkyziBackup
                     {
                         DeleteDirectory(destDirPath);
                         Results.deletedDirectories.Add(originDirPath);
-                        Database.backedUpDirectoriesDict.Remove(originDirPath);
+                        Database.BackedUpDirectoriesDict.Remove(originDirPath);
                     }
                     catch (Exception ex)
                     {
@@ -230,7 +232,7 @@ namespace SkyziBackup
         private void DeleteDirectory(string directoryPath)
         {
             string revDirPath;
-            switch (Settings.versioning)
+            switch (Settings.Versioning)
             {
                 case VersioningMethod.PermanentDeletion:
                     Directory.Delete(directoryPath, true);
@@ -240,11 +242,11 @@ namespace SkyziBackup
                     break;
                 case VersioningMethod.Replace:
                 case VersioningMethod.FileTimeStamp:
-                    revDirPath = directoryPath.Replace(destBaseDirPath, Settings.revisionsDirPath);
+                    revDirPath = directoryPath.Replace(destBaseDirPath, Settings.RevisionsDirPath);
                     MoveDirectory(directoryPath, revDirPath);
                     break;
                 case VersioningMethod.DirectoryTimeStamp:
-                    revDirPath = Path.Combine(Settings.revisionsDirPath, StartTime.ToString("yyyy-MM-dd_HHmmss"), directoryPath.Replace(destBaseDirPath, null));
+                    revDirPath = Path.Combine(Settings.RevisionsDirPath, StartTime.ToString("yyyy-MM-dd_HHmmss"), directoryPath.Replace(destBaseDirPath, null));
                     MoveDirectory(directoryPath, revDirPath);
                     break;
                 default:
@@ -257,7 +259,7 @@ namespace SkyziBackup
             var originDirInfo = new DirectoryInfo(originDirPath);
             Logger.Debug($"存在しなければ作成: '{destDirPath}'");
             var destDirInfo = Directory.CreateDirectory(destDirPath);
-            if (Settings.isCopyAttributes)
+            if (Settings.IsCopyAttributes)
             {
                 Logger.Debug("ディレクトリ属性をコピー");
                 destDirInfo.CreationTime = originDirInfo.CreationTime;
@@ -268,9 +270,9 @@ namespace SkyziBackup
 
         private void DeleteFiles()
         {
-            if (Settings.isUseDatabase)
+            if (Settings.IsUseDatabase)
             {
-                foreach (string originFilePath in Database.backedUpFilesDict.Keys)
+                foreach (string originFilePath in Database.BackedUpFilesDict.Keys)
                 {
                     if (Results.successfulFiles.Contains(originFilePath) || Results.failedFiles.Contains(originFilePath) || (Results.unchangedFiles?.Contains(originFilePath) ?? false))
                     {
@@ -279,7 +281,7 @@ namespace SkyziBackup
                     string destFilePath = originFilePath.Replace(originBaseDirPath, destBaseDirPath);
                     if (!File.Exists(destFilePath))
                     {
-                        Database.backedUpFilesDict.Remove(originFilePath);
+                        Database.BackedUpFilesDict.Remove(originFilePath);
                         continue;
                     }
                     DeleteFile(destFilePath, originFilePath);
@@ -301,7 +303,7 @@ namespace SkyziBackup
 
         private void DeleteFile(string destFilePath, string originFilePath)
         {
-            if (Settings.isOverwriteReadonly)
+            if (Settings.IsOverwriteReadonly)
             {
                 RemoveReadonlyAttribute(destFilePath);
             }
@@ -310,7 +312,7 @@ namespace SkyziBackup
                 Logger.Info(Results.Message = $"ファイルを削除: '{destFilePath}'");
                 DeleteFile(destFilePath);
                 Results.deletedFiles.Add(originFilePath);
-                Database.backedUpFilesDict.Remove(originFilePath);
+                Database.BackedUpFilesDict.Remove(originFilePath);
             }
             catch (Exception ex)
             {
@@ -321,7 +323,7 @@ namespace SkyziBackup
         private void DeleteFile(string filePath)
         {
             string revisionFilePath;
-            switch (Settings.versioning)
+            switch (Settings.Versioning)
             {
                 case VersioningMethod.PermanentDeletion:
                     File.Delete(filePath);
@@ -330,20 +332,20 @@ namespace SkyziBackup
                     Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(filePath, Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs, Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
                     return;
                 case VersioningMethod.Replace:
-                    revisionFilePath = filePath.Replace(destBaseDirPath, Settings.revisionsDirPath);
+                    revisionFilePath = filePath.Replace(destBaseDirPath, Settings.RevisionsDirPath);
                     break;
                 case VersioningMethod.DirectoryTimeStamp:
-                    revisionFilePath = Path.Combine(Settings.revisionsDirPath, StartTime.ToString("yyyy-MM-dd_HHmmss"), filePath.Replace(destBaseDirPath, "").TrimStart(Path.DirectorySeparatorChar));
+                    revisionFilePath = Path.Combine(Settings.RevisionsDirPath, StartTime.ToString("yyyy-MM-dd_HHmmss"), filePath.Replace(destBaseDirPath, "").TrimStart(Path.DirectorySeparatorChar));
                     break;
                 case VersioningMethod.FileTimeStamp:
-                    revisionFilePath = filePath.Replace(destBaseDirPath, Settings.revisionsDirPath) + StartTime.ToString("_yyyy-MM-dd_HHmmss") + Path.GetExtension(filePath);
+                    revisionFilePath = filePath.Replace(destBaseDirPath, Settings.RevisionsDirPath) + StartTime.ToString("_yyyy-MM-dd_HHmmss") + Path.GetExtension(filePath);
                     break;
                 default:
-                    throw new ArgumentOutOfRangeException(nameof(Settings.versioning));
+                    throw new ArgumentOutOfRangeException(nameof(Settings.Versioning));
             }
             bool removedReadonlyAttributeFromRevisionFile = false;
             FileAttributes? fileAttributes = null;
-            if (Settings.isOverwriteReadonly && File.Exists(revisionFilePath) && (removedReadonlyAttributeFromRevisionFile = RemoveReadonlyAttribute(revisionFilePath)))
+            if (Settings.IsOverwriteReadonly && File.Exists(revisionFilePath) && (removedReadonlyAttributeFromRevisionFile = RemoveReadonlyAttribute(revisionFilePath)))
                 fileAttributes = File.GetAttributes(filePath);
             Directory.CreateDirectory(Path.GetDirectoryName(revisionFilePath));
             File.Move(filePath, revisionFilePath, true);
@@ -429,17 +431,17 @@ namespace SkyziBackup
                     Logger.Debug($"存在しなければ作成: '{destDirPath}'");
                     destDirInfo = Directory.CreateDirectory(destDirPath);
                     Logger.Info("データベースからディレクトリ属性をリストア: '{0}'", destDirPath);
-                    destDirInfo.CreationTime = data.creationTime ?? originDirInfo.CreationTime;
-                    destDirInfo.LastWriteTime = data.lastWriteTime ?? originDirInfo.LastWriteTime;
+                    destDirInfo.CreationTime = data.CreationTime ?? originDirInfo.CreationTime;
+                    destDirInfo.LastWriteTime = data.LastWriteTime ?? originDirInfo.LastWriteTime;
                     destDirInfo.Attributes = data.FileAttributes ?? originDirInfo.Attributes;
                 }
                 // 以前のバックアップデータがある場合、変更されたプロパティのみ更新する(変更なしなら何もしない)
                 else if (isCopyAttributes)
                 {
                     string destDirPath = originDirPath.Replace(sourceBaseDirPath, destBaseDirPath);
-                    if (originDirInfo.CreationTime != backedUpDirectoriesDict[originDirPath].creationTime)
+                    if (originDirInfo.CreationTime != backedUpDirectoriesDict[originDirPath].CreationTime)
                         (destDirInfo = Directory.CreateDirectory(destDirPath)).CreationTime = originDirInfo.CreationTime;
-                    if (originDirInfo.LastWriteTime != backedUpDirectoriesDict[originDirPath].lastWriteTime)
+                    if (originDirInfo.LastWriteTime != backedUpDirectoriesDict[originDirPath].LastWriteTime)
                         (destDirInfo ??= Directory.CreateDirectory(destDirPath)).LastWriteTime = originDirInfo.LastWriteTime;
                     if (originDirInfo.Attributes != backedUpDirectoriesDict[originDirPath].FileAttributes)
                         (destDirInfo ?? Directory.CreateDirectory(destDirPath)).Attributes = originDirInfo.Attributes;
@@ -460,18 +462,19 @@ namespace SkyziBackup
             return backedUpDirectoriesDict;
         }
 
-        private void Initialize()
+        private async Task InitializeAsync()
         {
-            if (Settings.isUseDatabase)
+            if (Settings.IsUseDatabase)
             {
+                Database = await loadBackupDatabaseTask;
                 // 万が一データベースと一致しない場合は読み込みなおす(データベースファイルを一旦削除かリネームする処理を入れても良いかも)
-                if (Database.destBaseDirPath != destBaseDirPath)
+                if (Database.DestBaseDirPath != destBaseDirPath)
                 {
-                    LoadOrCreateDatabase();
-                    if (Database.destBaseDirPath != destBaseDirPath)
+                    Database = await LoadOrCreateDatabaseAsync();
+                    if (Database.DestBaseDirPath != destBaseDirPath)
                     {
-                        Logger.Error(Results.Message = $"データベースの読み込み失敗: データベース'{DataContractWriter.GetPath(Database)}'を利用できません。");
-                        throw new FormatException($"The database value 'destBaseDirPath' is invalid.({Database.destBaseDirPath})");
+                        Logger.Error(Results.Message = $"データベースの読み込み失敗: データベース'{DataFileWriter.GetPath(Database)}'を利用できません。");
+                        throw new FormatException($"The database value 'destBaseDirPath' is invalid.({Database.DestBaseDirPath})");
                     }
                 }
             }
@@ -488,9 +491,9 @@ namespace SkyziBackup
                 Results.ignoredFiles = new HashSet<string>();
                 Results.ignoredDirectories = new HashSet<string>();
             }
-            if (Settings.comparisonMethod != ComparisonMethod.NoComparison)
+            if (Settings.ComparisonMethod != ComparisonMethod.NoComparison)
                 Results.unchangedFiles = new HashSet<string>();
-            if (Settings.isEnableDeletion)
+            if (Settings.IsEnableDeletion)
             {
                 Results.deletedFiles = new HashSet<string>();
                 Results.deletedDirectories = new HashSet<string>();
@@ -520,13 +523,13 @@ namespace SkyziBackup
         /// <returns>前回のバックアップから変更されていることが確認できたら true</returns>
         private bool IsUnchangedFileOnDatabase(string originFilePath, string destFilePath)
         {
-            if (!Database.backedUpFilesDict.ContainsKey(originFilePath)) return false;
-            if (Settings.comparisonMethod == ComparisonMethod.NoComparison) return false;
+            if (!Database.BackedUpFilesDict.ContainsKey(originFilePath)) return false;
+            if (Settings.ComparisonMethod == ComparisonMethod.NoComparison) return false;
             FileInfo originFileInfo = null;
-            BackedUpFileData destFileData = Database.backedUpFilesDict[originFilePath];
+            BackedUpFileData destFileData = Database.BackedUpFilesDict[originFilePath];
 
             // Archive属性
-            if (Settings.comparisonMethod.HasFlag(ComparisonMethod.ArchiveAttribute))
+            if (Settings.ComparisonMethod.HasFlag(ComparisonMethod.ArchiveAttribute))
             {
                 if ((originFileInfo = new FileInfo(originFilePath)).Attributes.HasFlag(FileAttributes.Archive))
                 {
@@ -535,61 +538,61 @@ namespace SkyziBackup
             }
 
             // 更新日時
-            if (Settings.comparisonMethod.HasFlag(ComparisonMethod.WriteTime))
+            if (Settings.ComparisonMethod.HasFlag(ComparisonMethod.WriteTime))
             {
-                if (destFileData.lastWriteTime == null)
+                if (destFileData.LastWriteTime == null)
                 {
                     if (!File.Exists(destFilePath))
                     {
                         Logger.Error("データベースに更新日時が記録されていません。バックアップ先にファイルが存在しません。: '{0}'", destFilePath);
                         return false;
                     }
-                    Logger.Warn("データベースに更新日時が記録されていません。バックアップ先の更新日時を記録します。: '{0}'", destFileData.lastWriteTime = File.GetLastWriteTime(destFilePath));
+                    Logger.Warn("データベースに更新日時が記録されていません。バックアップ先の更新日時を記録します。: '{0}'", destFileData.LastWriteTime = File.GetLastWriteTime(destFilePath));
                 }
-                if ((originFileInfo?.LastWriteTime ?? (originFileInfo = new FileInfo(originFilePath)).LastWriteTime) != destFileData.lastWriteTime)
+                if ((originFileInfo?.LastWriteTime ?? (originFileInfo = new FileInfo(originFilePath)).LastWriteTime) != destFileData.LastWriteTime)
                 {
                     return false;
                 }
             }
 
             // サイズ
-            if (Settings.comparisonMethod.HasFlag(ComparisonMethod.Size))
+            if (Settings.ComparisonMethod.HasFlag(ComparisonMethod.Size))
             {
-                if (destFileData.originSize == -1)
+                if (destFileData.OriginSize == -1)
                 {
                     Logger.Warn("ファイルサイズの比較ができません: データベースにファイルサイズが記録されていません。");
                     return false;
                 }
-                if ((originFileInfo?.Length ?? (originFileInfo = new FileInfo(originFilePath)).Length) != destFileData.originSize)
+                if ((originFileInfo?.Length ?? (originFileInfo = new FileInfo(originFilePath)).Length) != destFileData.OriginSize)
                 {
                     return false;
                 }
             }
 
             // SHA1
-            if (Settings.comparisonMethod.HasFlag(ComparisonMethod.FileContentsSHA1))
+            if (Settings.ComparisonMethod.HasFlag(ComparisonMethod.FileContentsSHA1))
             {
-                if (destFileData.sha1 == null)
+                if (destFileData.Sha1 == null)
                 {
                     Logger.Warn("ハッシュの比較ができません: データベースにSHA1が記録されていません。");
                     return false;
                 }
-                Logger.Debug(Results.Message = $"SHA1で比較: '{destFileData.sha1}' : '{originFilePath}'");
-                if (ComputeFileSHA1(originFilePath) != destFileData.sha1)
+                Logger.Debug(Results.Message = $"SHA1で比較: '{destFileData.Sha1}' : '{originFilePath}'");
+                if (ComputeFileSHA1(originFilePath) != destFileData.Sha1)
                 {
                     return false;
                 }
             }
 
             // 生データ(データベースを用いず比較)
-            if (Settings.comparisonMethod.HasFlag(ComparisonMethod.FileContentsBynary))
+            if (Settings.ComparisonMethod.HasFlag(ComparisonMethod.FileContentsBynary))
             {
                 if (AesCrypter != null)
                 {
                     Logger.Error("生データの比較ができません: 暗号化有効時に生データを比較することはできません。");
                     return false;
                 }
-                else if (Settings.compressionLevel != CompressionLevel.NoCompression)
+                else if (Settings.CompressionLevel != CompressionLevel.NoCompression)
                 {
                     Logger.Error("生データの比較ができません: 圧縮有効時に生データを比較することはできません。");
                     return false;
@@ -627,13 +630,13 @@ namespace SkyziBackup
         private bool IsUnchangedFileWithoutDatabase(string originFilePath, string destFilePath)
         {
             if (!File.Exists(destFilePath)) return false;
-            if (Settings.comparisonMethod == ComparisonMethod.NoComparison) return false;
-            if (!Settings.isCopyAttributes) Logger.Error("ファイルを正しく比較出来ません: ファイル属性のコピーが無効になっています。ファイルを比較するにはデータベースを利用するか、ファイル属性のコピーを有効にしてください。");
+            if (Settings.ComparisonMethod == ComparisonMethod.NoComparison) return false;
+            if (!Settings.IsCopyAttributes) Logger.Error("ファイルを正しく比較出来ません: ファイル属性のコピーが無効になっています。ファイルを比較するにはデータベースを利用するか、ファイル属性のコピーを有効にしてください。");
             FileInfo destFileInfo = null;
             FileInfo originFileInfo = null;
 
             // Archive属性
-            if (Settings.comparisonMethod.HasFlag(ComparisonMethod.ArchiveAttribute))
+            if (Settings.ComparisonMethod.HasFlag(ComparisonMethod.ArchiveAttribute))
             {
                 if ((originFileInfo = new FileInfo(originFilePath)).Attributes.HasFlag(FileAttributes.Archive))
                 {
@@ -642,7 +645,7 @@ namespace SkyziBackup
             }
 
             // 更新日時
-            if (Settings.comparisonMethod.HasFlag(ComparisonMethod.WriteTime))
+            if (Settings.ComparisonMethod.HasFlag(ComparisonMethod.WriteTime))
             {
                 if ((originFileInfo?.LastWriteTime ?? (originFileInfo = new FileInfo(originFilePath)).LastWriteTime) != (destFileInfo = new FileInfo(destFilePath)).LastWriteTime)
                 {
@@ -651,14 +654,14 @@ namespace SkyziBackup
             }
 
             // サイズ
-            if (Settings.comparisonMethod.HasFlag(ComparisonMethod.Size))
+            if (Settings.ComparisonMethod.HasFlag(ComparisonMethod.Size))
             {
                 if (AesCrypter != null)
                 {
                     Logger.Error("ファイルサイズの比較ができません: 暗号化有効時にデータベースを利用せずサイズを比較することはできません。データベースを利用してください。");
                     return false;
                 }
-                else if (Settings.compressionLevel != CompressionLevel.NoCompression)
+                else if (Settings.CompressionLevel != CompressionLevel.NoCompression)
                 {
                     Logger.Error("ファイルサイズの比較ができません: 圧縮有効時にデータベースを利用せずサイズを比較することはできません。データベースを利用してください。");
                     return false;
@@ -670,14 +673,14 @@ namespace SkyziBackup
             }
 
             // SHA1
-            if (Settings.comparisonMethod.HasFlag(ComparisonMethod.FileContentsSHA1))
+            if (Settings.ComparisonMethod.HasFlag(ComparisonMethod.FileContentsSHA1))
             {
                 if (AesCrypter != null)
                 {
                     Logger.Error("ハッシュの比較ができません: 暗号化有効時にデータベースを利用せずハッシュを比較することはできません。データベースを利用してください。");
                     return false;
                 }
-                else if (Settings.compressionLevel != CompressionLevel.NoCompression)
+                else if (Settings.CompressionLevel != CompressionLevel.NoCompression)
                 {
                     Logger.Error("ハッシュの比較ができません: 圧縮有効時にデータベースを利用せずハッシュを比較することはできません。データベースを利用してください。");
                     return false;
@@ -691,14 +694,14 @@ namespace SkyziBackup
             }
 
             // 生データ
-            if (Settings.comparisonMethod.HasFlag(ComparisonMethod.FileContentsBynary))
+            if (Settings.ComparisonMethod.HasFlag(ComparisonMethod.FileContentsBynary))
             {
                 if (AesCrypter != null)
                 {
                     Logger.Error("生データの比較ができません: 暗号化有効時に生データを比較することはできません。");
                     return false;
                 }
-                else if (Settings.compressionLevel != CompressionLevel.NoCompression)
+                else if (Settings.CompressionLevel != CompressionLevel.NoCompression)
                 {
                     Logger.Error("生データの比較ができません: 圧縮有効時に生データを比較することはできません。");
                     return false;
@@ -728,17 +731,17 @@ namespace SkyziBackup
         /// 読み取り専用属性を持っていないとデータベースに記録されているファイルかどうか。
         /// </summary>
         /// <returns>前回のバックアップ時に読み取り専用属性がなかった場合 true, 対象のファイルが読み取り専用属性を持っていたり、データが無い場合は false</returns>
-        private bool IsNotReadOnlyInDatabase(string originFilePath) => Database.backedUpFilesDict.TryGetValue(originFilePath, out BackedUpFileData data) && data.FileAttributes.HasValue && !data.FileAttributes.Value.HasFlag(FileAttributes.ReadOnly);
+        private bool IsNotReadOnlyInDatabase(string originFilePath) => Database.BackedUpFilesDict.TryGetValue(originFilePath, out BackedUpFileData data) && data.FileAttributes.HasValue && !data.FileAttributes.Value.HasFlag(FileAttributes.ReadOnly);
         private void BackupFile(string originFilePath, string destFilePath)
         {
             Logger.Info(Results.Message = $"ファイルをバックアップ: '{originFilePath}' => '{destFilePath}'");
             try
             {
-                if (Settings.versioning != VersioningMethod.PermanentDeletion && (Database?.backedUpFilesDict.ContainsKey(originFilePath) ?? File.Exists(destFilePath)))
+                if (Settings.Versioning != VersioningMethod.PermanentDeletion && (Database?.BackedUpFilesDict.ContainsKey(originFilePath) ?? File.Exists(destFilePath)))
                 {
                     DeleteFile(destFilePath);
                 }
-                if (Settings.isOverwriteReadonly)
+                if (Settings.IsOverwriteReadonly)
                 {
                     RemoveReadonlyAttribute(originFilePath, destFilePath);
                 }
@@ -763,7 +766,7 @@ namespace SkyziBackup
                     {
                         using (FileStream dest = new FileStream(destFilePath, FileMode.OpenOrCreate, FileAccess.ReadWrite))
                         {
-                            origin.CopyWithCompressionTo(dest, Settings.compressionLevel, CompressionMode.Compress, Settings.compressAlgorithm);
+                            origin.CopyWithCompressionTo(dest, Settings.CompressionLevel, CompressionMode.Compress, Settings.CompressAlgorithm);
                         }
                     }
                     CopyFileAttributesAndUpdateDatabase(originFilePath, destFilePath);
@@ -789,7 +792,7 @@ namespace SkyziBackup
         /// <returns>読み取り専用を解除したら true</returns>
         private bool RemoveReadonlyAttribute(string originFilePath, string destFilePath)
         {
-            if (!(Settings.isUseDatabase && IsNotReadOnlyInDatabase(originFilePath)))
+            if (!(Settings.IsUseDatabase && IsNotReadOnlyInDatabase(originFilePath)))
                 return RemoveReadonlyAttribute(destFilePath);
             return false;
         }
@@ -808,9 +811,9 @@ namespace SkyziBackup
         {
             FileInfo originInfo = null;
             FileInfo destInfo = null;
-            if (Settings.isCopyAttributes)
+            if (Settings.IsCopyAttributes)
             {
-                if (!Settings.isUseDatabase || !Database.backedUpFilesDict.TryGetValue(originFilePath, out var data))
+                if (!Settings.IsUseDatabase || !Database.BackedUpFilesDict.TryGetValue(originFilePath, out var data))
                 {
                     Logger.Debug($"属性をコピー");
                     destInfo = new FileInfo(destFilePath)
@@ -823,30 +826,30 @@ namespace SkyziBackup
                 // 以前のバックアップデータがある場合、変更されたプロパティのみ更新する(変更なしなら何もしない)
                 else
                 {
-                    if (!data.creationTime.HasValue || (originInfo = new FileInfo(originFilePath)).CreationTime != data.creationTime)
+                    if (!data.CreationTime.HasValue || (originInfo = new FileInfo(originFilePath)).CreationTime != data.CreationTime)
                         (destInfo = new FileInfo(destFilePath)).CreationTime = originInfo.CreationTime;
-                    if (!data.lastWriteTime.HasValue || originInfo.LastWriteTime != data.lastWriteTime)
+                    if (!data.LastWriteTime.HasValue || originInfo.LastWriteTime != data.LastWriteTime)
                         (destInfo ??= new FileInfo(destFilePath)).LastWriteTime = originInfo.LastWriteTime;
                     if (!data.FileAttributes.HasValue || originInfo.Attributes != data.FileAttributes)
                         (destInfo ?? new FileInfo(destFilePath)).Attributes = originInfo.Attributes;
                     // バックアップ先ファイルから取り除いた読み取り専用属性を戻す
-                    else if (Settings.isOverwriteReadonly && data.FileAttributes.Value.HasFlag(FileAttributes.ReadOnly))
+                    else if (Settings.IsOverwriteReadonly && data.FileAttributes.Value.HasFlag(FileAttributes.ReadOnly))
                         (destInfo ?? new FileInfo(destFilePath)).Attributes = data.FileAttributes.Value;
                 }
-                if (Settings.comparisonMethod.HasFlag(ComparisonMethod.ArchiveAttribute) && originInfo.Attributes.HasFlag(FileAttributes.Archive))
+                if (Settings.ComparisonMethod.HasFlag(ComparisonMethod.ArchiveAttribute) && originInfo.Attributes.HasFlag(FileAttributes.Archive))
                 {
                     (originInfo ??= new FileInfo(originFilePath)).Attributes = RemoveAttribute(originInfo.Attributes, FileAttributes.Archive);
                 }
             }
-            if (Settings.isUseDatabase)
+            if (Settings.IsUseDatabase)
             {
                 // 必要なデータだけを保存
-                Database.backedUpFilesDict[originFilePath] = new BackedUpFileData(
-                    creationTime: Settings.isCopyAttributes ? (originInfo ??= new FileInfo(originFilePath)).CreationTime : (DateTime?)null,
-                    lastWriteTime: Settings.isCopyAttributes || Settings.comparisonMethod.HasFlag(ComparisonMethod.WriteTime) ? (originInfo ??= new FileInfo(originFilePath)).LastWriteTime : (DateTime?)null,
-                    originSize: Settings.comparisonMethod.HasFlag(ComparisonMethod.Size) ? (originInfo ??= new FileInfo(originFilePath)).Length : BackedUpFileData.DefaultSize,
-                    fileAttributes: Settings.isCopyAttributes || Settings.comparisonMethod != ComparisonMethod.NoComparison ? (originInfo ??= new FileInfo(originFilePath)).Attributes : (FileAttributes?)null,
-                    sha1: Settings.comparisonMethod.HasFlag(ComparisonMethod.FileContentsSHA1) ? ComputeFileSHA1(originFilePath) : null
+                Database.BackedUpFilesDict[originFilePath] = new BackedUpFileData(
+                    creationTime: Settings.IsCopyAttributes ? (originInfo ??= new FileInfo(originFilePath)).CreationTime : (DateTime?)null,
+                    lastWriteTime: Settings.IsCopyAttributes || Settings.ComparisonMethod.HasFlag(ComparisonMethod.WriteTime) ? (originInfo ??= new FileInfo(originFilePath)).LastWriteTime : (DateTime?)null,
+                    originSize: Settings.ComparisonMethod.HasFlag(ComparisonMethod.Size) ? (originInfo ??= new FileInfo(originFilePath)).Length : BackedUpFileData.DefaultSize,
+                    fileAttributes: Settings.IsCopyAttributes || Settings.ComparisonMethod != ComparisonMethod.NoComparison ? (originInfo ??= new FileInfo(originFilePath)).Attributes : (FileAttributes?)null,
+                    sha1: Settings.ComparisonMethod.HasFlag(ComparisonMethod.FileContentsSHA1) ? ComputeFileSHA1(originFilePath) : null
                     );
             }
             Results.successfulFiles.Add(originFilePath);
@@ -855,25 +858,25 @@ namespace SkyziBackup
 
         private void RetryStart()
         {
-            if (currentRetryCount >= Settings.retryCount)
+            if (currentRetryCount >= Settings.RetryCount)
             {
                 Results.IsFinished = true;
                 return;
             }
-            Logger.Debug(Results.Message = $"リトライ待機中...({currentRetryCount + 1}/{Settings.retryCount}回目)");
+            Logger.Debug(Results.Message = $"リトライ待機中...({currentRetryCount + 1}/{Settings.RetryCount}回目)");
 
-            System.Threading.Thread.Sleep(Settings.retryWaitMilliSec);
+            System.Threading.Thread.Sleep(Settings.RetryWaitMilliSec);
 
             currentRetryCount++;
-            Logger.Info(Results.Message = $"リトライ {currentRetryCount}/{Settings.retryCount} 回目");
+            Logger.Info(Results.Message = $"リトライ {currentRetryCount}/{Settings.RetryCount} 回目");
             if (Results.failedDirectories.Any())
             {
                 foreach(string originDirPath in Results.failedDirectories.ToArray())
                 {
-                    if (Settings.isUseDatabase)
-                        Database.backedUpDirectoriesDict = CopyDirectory(originDirPath, originBaseDirPath, destBaseDirPath, Results, Settings.isCopyAttributes, Database.backedUpDirectoriesDict);
+                    if (Settings.IsUseDatabase)
+                        Database.BackedUpDirectoriesDict = CopyDirectory(originDirPath, originBaseDirPath, destBaseDirPath, Results, Settings.IsCopyAttributes, Database.BackedUpDirectoriesDict);
                     else
-                        _ = CopyDirectory(originDirPath, originBaseDirPath, destBaseDirPath, Results, Settings.isCopyAttributes);
+                        _ = CopyDirectory(originDirPath, originBaseDirPath, destBaseDirPath, Results, Settings.IsCopyAttributes);
                 }
             }
             if (Results.failedFiles.Any())

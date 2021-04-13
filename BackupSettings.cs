@@ -5,157 +5,132 @@ using System.IO;
 using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
-using System.Runtime.Serialization;
 using System.Linq;
 using System.Text;
+using System.Text.Json.Serialization;
 
 namespace SkyziBackup
 {
-    [DataContract]
-    [KnownType(typeof(BackupSettings))]
-    [KnownType(typeof(VersioningMethod))]
-    [KnownType(typeof(DataProtectionScope))]
-    [KnownType(typeof(ComparisonMethod))]
-    [KnownType(typeof(IDataContractSerializable))]
-    [KnownType(typeof(CompressionLevel))]
-    [KnownType(typeof(CompressAlgorithm))]
-    public class BackupSettings : IDataContractSerializable
+    public class BackupSettings : ISaveableData
     {
         /// <summary>
         /// データベースを利用する
         /// </summary>
-        [DataMember]
-        public bool isUseDatabase;
+        public bool IsUseDatabase { get; set; }
         /// <summary>
         /// 属性(作成日時や更新日時を含む)をコピーする
         /// </summary>
-        [DataMember]
-        public bool isCopyAttributes;
+        public bool IsCopyAttributes { get; set; }
         /// <summary>
         /// 読み取り専用ファイルを上書きする
         /// </summary>
-        [DataMember]
-        public bool isOverwriteReadonly;
+        public bool IsOverwriteReadonly { get; set; }
         /// <summary>
         /// ミラーリングする(バックアップ元ファイルの存在しないバックアップ先ファイルを削除する)
         /// </summary>
-        [DataMember]
-        public bool isEnableDeletion;
+        public bool IsEnableDeletion { get; set; }
         /// <summary>
         /// 削除または上書きされたファイルのバージョン管理方法
         /// </summary>
-        [DataMember]
-        public VersioningMethod versioning;
+        public VersioningMethod Versioning { get; set; }
         /// <summary>
         /// 削除または上書きされたファイルの移動先ディレクトリ
         /// </summary>
-        [DataMember]
-        public string revisionsDirPath;
+        public string RevisionsDirPath { get; set; }
         /// <summary>
         /// パスワードを記録する
         /// </summary>
-        [DataMember]
-        public bool isRecordPassword;
+        public bool IsRecordPassword { get; set; }
         /// <summary>
         /// 記録したパスワードのスコープ
         /// </summary>
-        [DataMember]
-        public DataProtectionScope passwordProtectionScope;
+        public DataProtectionScope PasswordProtectionScope { get; set; }
         /// <summary>
-        /// 暗号化されたパスワード
+        /// 暗号化されたパスワード(保存用のプロパティ)
         /// </summary>
-        [DataMember]
-        private string protectedPassword;
+        [JsonPropertyName("ProtectedPassword")]
+        public string SavedProtectedPassword { get; set; }
         /// <summary>
         /// リトライ回数
         /// </summary>
-        [DataMember]
-        public int retryCount;
+        public int RetryCount { get; set; }
         /// <summary>
         /// リトライ待機時間(ミリ秒)
         /// </summary>
-        [DataMember]
-        public int retryWaitMilliSec;
+        public int RetryWaitMilliSec { get; set; }
         /// <summary>
         /// ファイル比較方法
         /// </summary>
-        [DataMember]
-        public ComparisonMethod comparisonMethod;
-        /// <summary>
-        /// 除外パターン
-        /// </summary>
-        [DataMember]
-        private string ignorePattern;
+        public ComparisonMethod ComparisonMethod { get; set; }
         /// <summary>
         /// 圧縮レベル
         /// </summary>
-        [DataMember]
-        public CompressionLevel compressionLevel;
+        public CompressionLevel CompressionLevel { get; set; }
         /// <summary>
         /// 圧縮アルゴリズム
         /// </summary>
-        [DataMember]
-        public CompressAlgorithm compressAlgorithm;
+        public CompressAlgorithm CompressAlgorithm { get; set; }
         /// <summary>
         /// <see cref="Properties.Settings.AppDataPath"/> から見たローカル設定の相対パス。グローバル設定の場合は null
         /// </summary>
-        [IgnoreDataMember]
         private string localFileName;
 
-        [IgnoreDataMember]
         private HashSet<Regex> regices;
 
         /// <summary>
         /// <see cref="IgnorePattern"/> を元に生成した除外用の正規表現セット
         /// </summary>
-        [IgnoreDataMember]
+        [JsonIgnore]
         public HashSet<Regex> Regices { get => regices ?? (string.IsNullOrEmpty(IgnorePattern) ? null : Regices = Pattern2Regices(IgnorePattern)); private set => regices = value; }
         /// <summary>
         /// バックアップ設定のファイル名
         /// </summary>
-        [IgnoreDataMember]
-        public static readonly string FileName = nameof(BackupSettings) + ".xml";
+        public static readonly string FileName = nameof(BackupSettings) + ".json";
         /// <summary>
         /// グローバル設定なら true
         /// </summary>
+        [JsonIgnore]
         public bool IsGlobal => string.IsNullOrEmpty(localFileName);
         /// <summary>
         /// グローバル設定であれば <see cref="FileName"/> 、そうでなければ <see cref="localFileName"/> 
         /// </summary>
+        [JsonIgnore]
         public string SaveFileName => IsGlobal ? FileName : localFileName;
         /// <summary>
         /// 除外パターン
         /// </summary>
         public string IgnorePattern { get => ignorePattern; set { ignorePattern = value; Regices = Pattern2Regices(IgnorePattern); } }
+        private string ignorePattern;
         /// <summary>
         /// 暗号化されたパスワード。代入した場合自動的に暗号化される。(予め暗号化する必要はない)
         /// </summary>
-        public string ProtectedPassword { get => protectedPassword; set { protectedPassword = string.IsNullOrEmpty(value) ? null : PasswordManager.Encrypt(value, passwordProtectionScope); } }
+        [JsonIgnore]
+        public string ProtectedPassword { get => SavedProtectedPassword; set { SavedProtectedPassword = string.IsNullOrEmpty(value) ? null : PasswordManager.Encrypt(value, PasswordProtectionScope); } }
 
         public BackupSettings()
         {
-            isUseDatabase = true;
-            isCopyAttributes = true;
-            isOverwriteReadonly = false;
-            isEnableDeletion = false;
-            versioning = VersioningMethod.PermanentDeletion;
-            revisionsDirPath = null;
-            isRecordPassword = true;
-            passwordProtectionScope = DataProtectionScope.LocalMachine;
-            protectedPassword = null;
-            retryCount = 10;
-            retryWaitMilliSec = 10000;
-            comparisonMethod = ComparisonMethod.WriteTime | ComparisonMethod.Size;
+            IsUseDatabase = true;
+            IsCopyAttributes = true;
+            IsOverwriteReadonly = false;
+            IsEnableDeletion = false;
+            Versioning = VersioningMethod.PermanentDeletion;
+            RevisionsDirPath = null;
+            IsRecordPassword = true;
+            PasswordProtectionScope = DataProtectionScope.LocalMachine;
+            SavedProtectedPassword = null;
+            RetryCount = 10;
+            RetryWaitMilliSec = 10000;
+            ComparisonMethod = ComparisonMethod.WriteTime | ComparisonMethod.Size;
             ignorePattern = string.Empty;
-            compressionLevel = CompressionLevel.NoCompression;
-            compressAlgorithm = CompressAlgorithm.Deflate;
+            CompressionLevel = CompressionLevel.NoCompression;
+            CompressAlgorithm = CompressAlgorithm.Deflate;
         }
         /// <summary>
         /// ローカル設定用のコンストラクタ
         /// </summary>
         public BackupSettings(string originBaseDirPath, string destBaseDirPath) : this()
         {
-            localFileName = Path.Combine(DataContractWriter.GetDatabaseDirectoryName(originBaseDirPath, destBaseDirPath), FileName);
+            localFileName = Path.Combine(DataFileWriter.GetDatabaseDirectoryName(originBaseDirPath, destBaseDirPath), FileName);
         }
         /// <summary>
         /// ローカル設定用のコンストラクタ(直接 <see cref="localFileName"/> を指定する)
@@ -168,20 +143,20 @@ namespace SkyziBackup
         public override string ToString()
         {
             var sb = new StringBuilder();
-            sb.AppendFormat("設定ファイルのパス---------------: {0}\n", DataContractWriter.GetPath(this));
+            sb.AppendFormat("設定ファイルのパス---------------: {0}\n", DataFileWriter.GetPath(this));
             sb.AppendFormat("グローバル設定である-------------: {0}\n", IsGlobal);
-            sb.AppendFormat("データベースを利用する-----------: {0}\n", isUseDatabase);
-            sb.AppendFormat("属性をコピーする-----------------: {0}\n", isCopyAttributes);
-            sb.AppendFormat("読み取り専用ファイルを上書きする-: {0}\n", isOverwriteReadonly);
-            sb.AppendFormat("ミラーリングする-----------------: {0}\n", isEnableDeletion);
-            sb.AppendFormat("削除・上書き時のバージョン管理法-: {0}\n", versioning);
-            sb.AppendFormat("パスワードを記録する-------------: {0}\n", isRecordPassword);
-            sb.AppendFormat("記録したパスワードのスコープ-----: {0}\n", passwordProtectionScope);
-            sb.AppendFormat("リトライ回数---------------------: {0}\n", retryCount);
-            sb.AppendFormat("リトライ待機時間(ミリ秒)---------: {0}\n", retryWaitMilliSec);
-            sb.AppendFormat("ファイル比較方法-----------------: {0}\n", comparisonMethod);
-            sb.AppendFormat("圧縮レベル-----------------------: {0}\n", compressionLevel);
-            sb.AppendFormat("圧縮アルゴリズム-----------------: {0}\n", compressAlgorithm);
+            sb.AppendFormat("データベースを利用する-----------: {0}\n", IsUseDatabase);
+            sb.AppendFormat("属性をコピーする-----------------: {0}\n", IsCopyAttributes);
+            sb.AppendFormat("読み取り専用ファイルを上書きする-: {0}\n", IsOverwriteReadonly);
+            sb.AppendFormat("ミラーリングする-----------------: {0}\n", IsEnableDeletion);
+            sb.AppendFormat("削除・上書き時のバージョン管理法-: {0}\n", Versioning);
+            sb.AppendFormat("パスワードを記録する-------------: {0}\n", IsRecordPassword);
+            sb.AppendFormat("記録したパスワードのスコープ-----: {0}\n", PasswordProtectionScope);
+            sb.AppendFormat("リトライ回数---------------------: {0}\n", RetryCount);
+            sb.AppendFormat("リトライ待機時間(ミリ秒)---------: {0}\n", RetryWaitMilliSec);
+            sb.AppendFormat("ファイル比較方法-----------------: {0}\n", ComparisonMethod);
+            sb.AppendFormat("圧縮レベル-----------------------: {0}\n", CompressionLevel);
+            sb.AppendFormat("圧縮アルゴリズム-----------------: {0}\n", CompressAlgorithm);
             sb.AppendFormat("除外パターン---------------------: \n{0}\n", IgnorePattern);
             return sb.ToString();
         }
@@ -193,11 +168,11 @@ namespace SkyziBackup
 
         public static bool TryLoadGlobalSettings(out BackupSettings globalSettings)
         {
-            if (File.Exists(DataContractWriter.GetPath(FileName)))
+            if (File.Exists(DataFileWriter.GetPath(FileName)))
             {
                 try
                 {
-                    globalSettings = DataContractWriter.Read<BackupSettings>(FileName);
+                    globalSettings = DataFileWriter.Read<BackupSettings>(FileName);
                     return true;
                 }
                 catch (Exception) { } // 握りつぶす
@@ -211,9 +186,9 @@ namespace SkyziBackup
             string lfName;
             try
             {
-                if (File.Exists(DataContractWriter.GetPath(lfName = Path.Combine(DataContractWriter.GetDatabaseDirectoryName(originBaseDirPath, destBaseDirPath), FileName))))
+                if (File.Exists(DataFileWriter.GetPath(lfName = Path.Combine(DataFileWriter.GetDatabaseDirectoryName(originBaseDirPath, destBaseDirPath), FileName))))
                 {
-                    localSettings = DataContractWriter.Read<BackupSettings>(lfName);
+                    localSettings = DataFileWriter.Read<BackupSettings>(lfName);
                     localSettings.localFileName = lfName;
                     return true;
                 }
@@ -225,7 +200,7 @@ namespace SkyziBackup
         public static BackupSettings LoadLocalSettingsOrNull(string originBaseDirPath, string destBaseDirPath) => TryLoadLocalSettings(originBaseDirPath, destBaseDirPath, out BackupSettings localSettings) ? localSettings : null;
         public BackupSettings ConvertToLocalSettings(string originBaseDirPath, string destBaseDirPath)
         {
-            localFileName = Path.Combine(DataContractWriter.GetDatabaseDirectoryName(originBaseDirPath, destBaseDirPath), FileName);
+            localFileName = Path.Combine(DataFileWriter.GetDatabaseDirectoryName(originBaseDirPath, destBaseDirPath), FileName);
             return this;
         }
         public static HashSet<Regex> Pattern2Regices(string pattern)
@@ -235,8 +210,8 @@ namespace SkyziBackup
         }
         internal string GetRawPassword()
         {
-            if (!isRecordPassword || string.IsNullOrEmpty(protectedPassword)) return string.Empty;
-            return PasswordManager.Decrypt(protectedPassword, passwordProtectionScope);
+            if (!IsRecordPassword || string.IsNullOrEmpty(SavedProtectedPassword)) return string.Empty;
+            return PasswordManager.Decrypt(SavedProtectedPassword, PasswordProtectionScope);
         }
         public bool IsDifferentPassword(string newPassword)
         {

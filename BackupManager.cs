@@ -34,7 +34,7 @@ namespace SkyziBackup
                 }
                 runningBackups.Add((backup.originBaseDirPath, backup.destBaseDirPath), backup);
                 App.NotifyIcon.Text = IsRunning ? $"{App.AssemblyName.Name} - バックアップ中" : App.AssemblyName.Name;
-                result = await Task.Run(() => backup.StartBackup());
+                result = await Task.Run(() => backup.StartBackupAsync());
                 if (!result.isSuccess)
                     App.NotifyIcon.ShowBalloonTip(10000, $"{App.AssemblyName.Name} - エラー", "バックアップに失敗しました。", System.Windows.Forms.ToolTipIcon.Error);
             }

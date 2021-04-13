@@ -61,7 +61,7 @@ namespace SkyziBackup
                 var running = BackupManager.GetRunningBackups()[0];
                 originPath.Text = running.originBaseDirPath;
                 destPath.Text = running.destBaseDirPath;
-                string m = message.Text = $"\n'{originPath.Text.Trim()}' => '{destPath.Text.Trim()}'\nバックアップ実行中";
+                string m = message.Text = $"\n'{originPath.Text.Trim()}' => '{destPath.Text.Trim()}'\nバックアップ実行中\n";
                 running.Results.MessageChanged += (_s, _e) => { _mainContext.Post((d) => { message.Text = m + running.Results.Message + "\n"; }, null); };
                 running.Results.Finished += (s, e) => { _mainContext.Post((d) =>
                 {
@@ -87,7 +87,7 @@ namespace SkyziBackup
             }
             ButtonsIsEnabled = false;
             var settings = LoadCurrentSettings;
-            if (settings.isRecordPassword && settings.IsDifferentPassword(password.Password))
+            if (settings.IsRecordPassword && settings.IsDifferentPassword(password.Password))
             {
                 var changePassword = MessageBox.Show("前回のパスワードと異なります。\nパスワードを変更しますか？\n\n※パスワードを変更する場合、既存のバックアップやデータベースを削除し、\n　再度初めからバックアップし直すことをおすすめします。\n　異なるパスワードでバックアップされたファイルが共存する場合、\n　復元が難しくなります。", $"{App.AssemblyName.Name} - パスワード変更の確認", MessageBoxButton.YesNoCancel);
                 switch (changePassword)
@@ -131,13 +131,13 @@ namespace SkyziBackup
         private bool DeleteDatabase()
         {
             string databasePath;
-            if (GlobalBackupSettings.isUseDatabase && File.Exists(databasePath = DataContractWriter.GetDatabasePath(Path.TrimEndingDirectorySeparator(originPath.Text.Trim()), Path.TrimEndingDirectorySeparator(destPath.Text.Trim()))))
+            if (GlobalBackupSettings.IsUseDatabase && File.Exists(databasePath = DataFileWriter.GetDatabasePath(Path.TrimEndingDirectorySeparator(originPath.Text.Trim()), Path.TrimEndingDirectorySeparator(destPath.Text.Trim()))))
             {
                 var deleteDatabase = MessageBox.Show($"{databasePath}\n上記データベースを削除しますか？\nなお、データベースを削除すると全てのファイルを初めからバックアップすることになります。", $"{App.AssemblyName.Name} - 確認", MessageBoxButton.YesNo);
                 switch (deleteDatabase)
                 {
                     case MessageBoxResult.Yes:
-                        DataContractWriter.DeleteDatabase(Path.TrimEndingDirectorySeparator(originPath.Text.Trim()), Path.TrimEndingDirectorySeparator(destPath.Text.Trim()));
+                        DataFileWriter.DeleteDatabase(Path.TrimEndingDirectorySeparator(originPath.Text.Trim()), Path.TrimEndingDirectorySeparator(destPath.Text.Trim()));
                         MessageBox.Show("データベースを削除しました。");
                         return true;
                     case MessageBoxResult.No:
@@ -190,7 +190,7 @@ namespace SkyziBackup
             else
             {
                 if (MessageBox.Show("現在のバックアップペアに対応するローカル設定を削除します。", $"{App.AssemblyName.Name} - 確認", MessageBoxButton.OKCancel, MessageBoxImage.Warning) == MessageBoxResult.Cancel) return;
-                DataContractWriter.Delete(currentSettings);
+                DataFileWriter.Delete(currentSettings);
                 password.Password = PasswordManager.LoadPasswordOrNull(LoadCurrentSettings) ?? string.Empty;
             }
         }
