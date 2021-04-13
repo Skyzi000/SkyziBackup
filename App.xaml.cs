@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -33,6 +34,7 @@ namespace SkyziBackup
             var icon = GetResourceStream(new Uri("SkyziBackup.ico", UriKind.Relative)).Stream;
             var menu = new ContextMenuStrip();
             menu.Items.Add("メイン画面を表示する", null, MainShow_Click);
+            menu.Items.Add("最新のログファイルを開く", null, OpenLog_Click);
             menu.Items.Add("終了する", null, Exit_Click);
             NotifyIcon = new NotifyIcon
             {
@@ -69,8 +71,23 @@ namespace SkyziBackup
                 }
             }
         }
-        
-        private void ShowMainWindowIfClosed()
+
+        public bool OpenLatestLog(bool showDialog = true)
+        {
+            var logsDirectory = new DirectoryInfo(Path.Combine(SkyziBackup.Properties.Settings.Default.AppDataPath, "Logs"));
+            if (logsDirectory.Exists && logsDirectory.EnumerateFiles("*.log").Any())
+            {
+                Process.Start("explorer.exe", logsDirectory.EnumerateFiles("*.log").OrderByDescending((x) => x.LastWriteTime).First().FullName);
+                return true;
+            }
+            if (showDialog)
+                MessageBox.Show("ログファイルが存在しません。", $"{AssemblyName.Name} - 情報", MessageBoxButton.OK, MessageBoxImage.Information);
+            return false;
+        }
+
+        private void OpenLog_Click(object sender, EventArgs e) => OpenLatestLog();
+
+        public void ShowMainWindowIfClosed()
         {
             if (MainWindow == null)
             {
@@ -83,10 +100,9 @@ namespace SkyziBackup
             }
             MainWindow.Activate();
         }
-        private void MainShow_Click(object sender, EventArgs e)
-        {
-            ShowMainWindowIfClosed();
-        }
+
+        private void MainShow_Click(object sender, EventArgs e) => ShowMainWindowIfClosed();
+
         private void NotifyIcon_Click(object sender, MouseEventArgs e)
         {
             if (e.Button == MouseButtons.Left)
@@ -94,7 +110,14 @@ namespace SkyziBackup
                 ShowMainWindowIfClosed();
             }
         }
-        private void Exit_Click(object sender, EventArgs e)
+
+        public void Quit()
+        {
+            if (AcceptExit())
+                Shutdown();
+        }
+
+        public bool AcceptExit()
         {
             if (BackupManager.IsRunning)
             {
@@ -103,26 +126,23 @@ namespace SkyziBackup
                                                             MessageBoxButton.YesNo,
                                                             MessageBoxImage.Warning))
                 {
-                    return;
+                    return false;
                 }
             }
-            Shutdown();
+            return true;
         }
+
+        private void Exit_Click(object sender, EventArgs e) => Quit();
+
         protected override void OnSessionEnding(SessionEndingCancelEventArgs e)
         {
             base.OnSessionEnding(e);
-            if (BackupManager.IsRunning)
+            if (!AcceptExit())
             {
-                if (MessageBoxResult.Yes != MessageBox.Show("バックアップ実行中です。アプリケーションを終了しますか？\n※バックアップ中に中断するとバックアップ先ファイルが壊れる可能性があります。",
-                                                            $"{AssemblyName.Name} - 確認",
-                                                            MessageBoxButton.YesNo,
-                                                            MessageBoxImage.Warning))
-                {
-                    e.Cancel = true;
-                    return;
-                }
+                e.Cancel = true;
             }
         }
+
         protected override void OnExit(ExitEventArgs e)
         {
             base.OnExit(e);

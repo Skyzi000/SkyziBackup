@@ -28,6 +28,7 @@ namespace SkyziBackup
             ContentRendered += (s, e) =>
             {
                 NoComparisonLBI.Selected += (s, e) => ComparisonMethodListBox.SelectedIndex = 0;
+                VersioningPanel.IsEnabled = (int)settings.versioning >= (int)VersioningMethod.Replace;
             };
         }
         public SettingsWindow(ref BackupSettings settings) : this()
@@ -60,6 +61,16 @@ namespace SkyziBackup
             isOverwriteReadonlyCheckBox.IsChecked = settings.isOverwriteReadonly;
             //isEnableTempFileCheckBox = 
             isEnableDeletionCheckBox.IsChecked = settings.isEnableDeletion;
+            if (settings.versioning == VersioningMethod.RecycleBin)
+                RecycleButton.IsChecked = true;
+            else if (settings.versioning == VersioningMethod.PermanentDeletion)
+                PermanentButton.IsChecked = true;
+            else
+            {
+                VersioningButton.IsChecked = true;
+                RevisionDirectory.Text = settings.revisionsDirPath;
+                VersioningMethodBox.SelectedValue = ((int)settings.versioning).ToString();
+            }
             isCopyAttributesCheckBox.IsChecked = settings.isCopyAttributes;
             RetryCountTextBox.Text = settings.retryCount.ToString();
             RetryWaitTimeTextBox.Text = settings.retryWaitMilliSec.ToString();
@@ -89,12 +100,54 @@ namespace SkyziBackup
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
+            BackupSettings newSettings = GetNewSettings();
+            if (!File.Exists(DataContractWriter.GetPath(newSettings)) || settings.ToString() != newSettings.ToString()) // TODO: できればもうちょっとましな比較方法にしたい
+            {
+                var r = MessageBox.Show("設定を保存しますか？", "設定変更の確認", MessageBoxButton.YesNoCancel);
+                if (r == MessageBoxResult.Yes)
+                {
+                    if ((int)newSettings.versioning >= (int)VersioningMethod.Replace && !Directory.Exists(newSettings.revisionsDirPath))
+                    {
+                        MessageBox.Show("バージョン管理の移動先ディレクトリが存在しません。\n正しいパスを入力してください。", $"{App.AssemblyName.Name} - 警告", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        e.Cancel = true;
+                        return;
+                    }
+                    if (Properties.Settings.Default.AppDataPath != dataPath.Text && System.IO.Directory.Exists(dataPath.Text))
+                    {
+                        Properties.Settings.Default.AppDataPath = dataPath.Text;
+                        Properties.Settings.Default.Save();
+                        dataPath.Text = Properties.Settings.Default.AppDataPath;
+                        NLog.GlobalDiagnosticsContext.Set("AppDataPath", dataPath.Text);
+                    }
+                    settings = newSettings;
+                    DataContractWriter.Write(settings);
+                }
+                else if (r == MessageBoxResult.Cancel)
+                {
+                    e.Cancel = true;
+                }
+            }
+        }
+
+        private BackupSettings GetNewSettings()
+        {
             BackupSettings newSettings = settings.IsGlobal ? new BackupSettings() : new BackupSettings(settings.SaveFileName);
             newSettings.IgnorePattern = ignorePatternBox.Text;
             newSettings.isUseDatabase = isUseDatabaseCheckBox.IsChecked ?? settings.isUseDatabase;
             newSettings.isRecordPassword = isRecordPasswordCheckBox.IsChecked ?? settings.isRecordPassword;
             newSettings.isOverwriteReadonly = isOverwriteReadonlyCheckBox.IsChecked ?? settings.isOverwriteReadonly;
             newSettings.isEnableDeletion = isEnableDeletionCheckBox.IsChecked ?? settings.isEnableDeletion;
+            if (RecycleButton.IsChecked ?? false)
+                newSettings.versioning = VersioningMethod.RecycleBin;
+            else if (PermanentButton.IsChecked ?? false)
+                newSettings.versioning = VersioningMethod.PermanentDeletion;
+            else if (VersioningButton.IsChecked ?? false)
+            {
+                newSettings.versioning = (VersioningMethod)int.Parse(VersioningMethodBox.SelectedValue.ToString());
+            }
+            else 
+                newSettings.versioning = settings.versioning;
+            newSettings.revisionsDirPath = RevisionDirectory.Text;
             newSettings.isCopyAttributes = isCopyAttributesCheckBox.IsChecked ?? settings.isCopyAttributes;
             newSettings.retryCount = int.TryParse(RetryCountTextBox.Text, out int rcount) ? rcount : settings.retryCount;
             newSettings.retryWaitMilliSec = int.TryParse(RetryWaitTimeTextBox.Text, out int wait) ? wait : settings.retryWaitMilliSec;
@@ -116,26 +169,8 @@ namespace SkyziBackup
                 }
                 newSettings.comparisonMethod |= (ComparisonMethod)(1 << (i - 1));
             }
-            if (!File.Exists(DataContractWriter.GetPath(newSettings)) || settings.ToString() != newSettings.ToString()) // TODO: できればもうちょっとましな比較方法にしたい
-            {
-                var r = MessageBox.Show("設定を保存しますか？", "設定変更の確認", MessageBoxButton.YesNoCancel);
-                if (r == MessageBoxResult.Yes)
-                {
-                    if (Properties.Settings.Default.AppDataPath != dataPath.Text && System.IO.Directory.Exists(dataPath.Text))
-                    {
-                        Properties.Settings.Default.AppDataPath = dataPath.Text;
-                        Properties.Settings.Default.Save();
-                        dataPath.Text = Properties.Settings.Default.AppDataPath;
-                        NLog.GlobalDiagnosticsContext.Set("AppDataPath", dataPath.Text);
-                    }
-                    settings = newSettings;
-                    DataContractWriter.Write(settings);
-                }
-                else if (r == MessageBoxResult.Cancel)
-                {
-                    e.Cancel = true;
-                }
-            }
+
+            return newSettings;
         }
 
         private void ResetSettingsButton_Click(object sender, RoutedEventArgs e)
@@ -146,6 +181,48 @@ namespace SkyziBackup
                 DataContractWriter.Write(settings);
                 DisplaySettings();
             }
+        }
+
+        private void VersioningButton_Checked(object sender, RoutedEventArgs e)
+        {
+            if (VersioningPanel != null)
+                VersioningPanel.IsEnabled = true;
+        }
+
+        private void PermanentOrRecycleBinButton_Checked(object sender, RoutedEventArgs e)
+        {
+            if (VersioningPanel != null)
+                VersioningPanel.IsEnabled = false;
+        }
+
+        private void OkButton_Click(object sender, RoutedEventArgs e)
+        {
+            BackupSettings newSettings = GetNewSettings();
+            if (!File.Exists(DataContractWriter.GetPath(newSettings)) || settings.ToString() != newSettings.ToString()) // TODO: できればもうちょっとましな比較方法にしたい
+            {
+                if ((int)newSettings.versioning >= (int)VersioningMethod.Replace && !Directory.Exists(newSettings.revisionsDirPath))
+                {
+                    MessageBox.Show("バージョン管理の移動先ディレクトリが存在しません。\n正しいパスを入力してください。", $"{App.AssemblyName.Name} - 警告", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+                if (Properties.Settings.Default.AppDataPath != dataPath.Text && System.IO.Directory.Exists(dataPath.Text))
+                {
+                    Properties.Settings.Default.AppDataPath = dataPath.Text;
+                    Properties.Settings.Default.Save();
+                    dataPath.Text = Properties.Settings.Default.AppDataPath;
+                    NLog.GlobalDiagnosticsContext.Set("AppDataPath", dataPath.Text);
+                }
+                settings = newSettings;
+                DataContractWriter.Write(settings);
+            }
+            DisplaySettings();
+            Close();
+        }
+
+        private void CancelButton_Click(object sender, RoutedEventArgs e)
+        {
+            DisplaySettings();
+            Close();
         }
     }
 }

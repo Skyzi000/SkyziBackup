@@ -7,98 +7,149 @@
         xmlns:Primitives="clr-namespace:System.Windows.Controls.Ribbon.Primitives;assembly=System.Windows.Controls.Ribbon" x:Class="SkyziBackup.SettingsWindow"
         mc:Ignorable="d"
         Closing="Window_Closing"
-        Title="SkyziBackup - 設定" Height="800" Width="500">
+        ResizeMode="NoResize"
+        Title="SkyziBackup - 設定" Height="400" Width="800">
     <Grid>
-        <!--  <TabControl>
-               <TabItem Header="一般" ToolTip=""> -->
-        <ScrollViewer VerticalScrollBarVisibility="Auto">
-            <StackPanel Margin="5">
-                <GroupBox Header="一般">
-                    <StackPanel>
-                        <Label x:Name="DataPathLabel" Content="設定等保存先" HorizontalAlignment="Left" VerticalAlignment="Top"/>
-                        <TextBox x:Name="dataPath" HorizontalAlignment="Stretch" Text="" TextWrapping="NoWrap" VerticalAlignment="Top"/>
-                        <Label Content="設定ファイルのパス"/>
-                        <Button x:Name="ResetSettingsButton" Content="設定をリセット" Click="ResetSettingsButton_Click" HorizontalAlignment="Right" Margin="0,-26,0,0"/>
-                        <TextBox x:Name="settingsPath" HorizontalAlignment="Stretch" TextWrapping="NoWrap" BorderThickness="0" IsReadOnly="True" Background="Transparent"/>
-                    </StackPanel>
-                </GroupBox>
-                <GroupBox Header="データベース">
-                    <StackPanel>
-                        <CheckBox x:Name="isUseDatabaseCheckBox" Content="データベースを利用する" ToolTip="バックアップしたファイルの情報を保存することで、2回目以降のバックアップを高速にします。" IsChecked="True" Margin="5"/>
-                    </StackPanel>
-                </GroupBox>
-                <GroupBox Header="バックアップの動作">
-                    <StackPanel>
-                        <CheckBox x:Name="isCopyAttributesCheckBox" Content="作成日時・更新日時・ファイル属性等をコピーする" Margin="5" IsChecked="True"/>
-                        <CheckBox x:Name="isOverwriteReadonlyCheckBox" Content="読み取り専用ファイルを強制的に上書きする" Margin="5" IsChecked="False"/>
-                        <CheckBox x:Name="isEnableTempFileCheckBox" Content="一時ファイルを作る(未実装)" Margin="5" IsEnabled="False"/>
-                        <CheckBox x:Name="isEnableDeletionCheckBox" Content="ミラーリング(バックアップ先ファイルの削除を有効化)する(未実装)" Margin="5" IsEnabled="False" ToolTip="バックアップ元から削除されたファイルをバックアップ先からも削除します。"/>
-                        <StackPanel Orientation="Horizontal">
-                            <Label Content="リトライ回数" ToolTip="バックアップに失敗した際、自動的にリトライする回数を設定します。"/>
-                            <TextBox x:Name="RetryCountTextBox" Text="10" PreviewTextInput="TextBox_PreviewTextInput" CommandManager.PreviewExecuted="TextBox_PreviewExecuted" Width="40"/>
-                            <Label Content="リトライ待機時間(ミリ秒)" ToolTip="バックアップに失敗した際、自動的にリトライする回数を設定します。"/>
-                            <TextBox x:Name="RetryWaitTimeTextBox" Text="1000" PreviewTextInput="TextBox_PreviewTextInput" CommandManager.PreviewExecuted="TextBox_PreviewExecuted" Width="80"/>
+        <Grid.Background>
+            <LinearGradientBrush EndPoint="0.5,1" StartPoint="0.5,0">
+                <LinearGradientBrush.RelativeTransform>
+                    <TransformGroup>
+                        <ScaleTransform CenterY="0.5" CenterX="0.5"/>
+                        <SkewTransform CenterY="0.5" CenterX="0.5"/>
+                        <RotateTransform Angle="-59" CenterY="0.5" CenterX="0.5"/>
+                        <TranslateTransform/>
+                    </TransformGroup>
+                </LinearGradientBrush.RelativeTransform>
+                <GradientStop Color="#FFA0E9FD" Offset="1"/>
+                <GradientStop Color="#FFFFC0D9"/>
+            </LinearGradientBrush>
+        </Grid.Background>
+        <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="5,5,5,50">
+            <TabControl>
+                <TabItem Header="一般">
+                    <Grid>
+                        <StackPanel>
+                            <Label x:Name="DataPathLabel" Content="設定等保存先" HorizontalAlignment="Left" VerticalAlignment="Top"/>
+                            <TextBox x:Name="dataPath" HorizontalAlignment="Stretch" Text="" TextWrapping="NoWrap" VerticalAlignment="Top"/>
+                            <Label Content="設定ファイルのパス"/>
+                            <Button x:Name="ResetSettingsButton" Content="設定をリセット" Click="ResetSettingsButton_Click" HorizontalAlignment="Right" Margin="0,-26,0,0"/>
+                            <TextBox x:Name="settingsPath" HorizontalAlignment="Stretch" TextWrapping="NoWrap" BorderThickness="0" IsReadOnly="True" Background="Transparent"/>
                         </StackPanel>
-                        <GroupBox Header="除外パターン" ToolTip="バックアップから除外するディレクトリ(末尾が\)やファイルを設定します。'*'と'?'がワイルドカードとして利用できます。改行や'|'で区切ります。">
-                            <TextBox x:Name="ignorePatternBox" AcceptsReturn="True" MinLines="4" MaxLines="4"/>
+                    </Grid>
+                </TabItem>
+                <TabItem Header="バックアップ">
+                    <Grid>
+                        <StackPanel>
+                            <CheckBox x:Name="isUseDatabaseCheckBox" Content="データベースを利用する" ToolTip="バックアップしたファイルの情報を保存することで、2回目以降のバックアップを高速にします。" IsChecked="True" Margin="5"/>
+                            <CheckBox x:Name="isCopyAttributesCheckBox" Content="作成日時・更新日時・ファイル属性等をコピーする" Margin="5" IsChecked="True"/>
+                            <CheckBox x:Name="isOverwriteReadonlyCheckBox" Content="読み取り専用ファイルを強制的に上書きする" Margin="5" IsChecked="False"/>
+                            <CheckBox x:Name="isEnableTempFileCheckBox" Content="一時ファイルを作る(未実装)" Margin="5" IsEnabled="False" ToolTip="対象を上書きする前に一時ファイルを作成することで、エラーが発生した場合にバックアップ先ファイルが壊れることを防ぎます。"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Label Content="リトライ回数" ToolTip="バックアップに失敗した際、自動的にリトライする回数を設定します。"/>
+                                <TextBox x:Name="RetryCountTextBox" Text="10" PreviewTextInput="TextBox_PreviewTextInput" CommandManager.PreviewExecuted="TextBox_PreviewExecuted" Width="40"/>
+                                <Label Content="リトライ待機時間(ミリ秒)" ToolTip="バックアップに失敗した際、自動的にリトライする回数を設定します。"/>
+                                <TextBox x:Name="RetryWaitTimeTextBox" Text="1000" PreviewTextInput="TextBox_PreviewTextInput" CommandManager.PreviewExecuted="TextBox_PreviewExecuted" Width="80"/>
+                            </StackPanel>
+                            <CheckBox x:Name="isEnableDeletionCheckBox" Content="ミラーリング(バックアップ先ファイルの削除を有効化)する" Margin="5" ToolTip="バックアップ元に存在しないファイルやディレクトリを、バックアップ先からも削除します。"/>
+                            <GroupBox Header="削除または上書きされたファイル">
+                                <StackPanel Orientation="Horizontal">
+                                    <StackPanel HorizontalAlignment="Left" Margin="0,0,50,0">
+                                        <RadioButton x:Name="RecycleButton" Content="ゴミ箱" Margin="5" Checked="PermanentOrRecycleBinButton_Checked" ToolTip="ゴミ箱が使える場合、削除または上書きされたファイルをゴミ箱に移動します。"/>
+                                        <RadioButton x:Name="PermanentButton" Content="完全削除" IsChecked="True" Margin="5" Checked="PermanentOrRecycleBinButton_Checked" ToolTip="完全に削除または上書きします。"/>
+                                        <RadioButton x:Name="VersioningButton" Content="バージョン管理" Margin="5" Checked="VersioningButton_Checked" ToolTip="削除または上書きされたファイルを指定されたディレクトリに移動します。"/>
+                                    </StackPanel>
+                                    <StackPanel x:Name="VersioningPanel" IsEnabled="False">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Label Content="移動先ディレクトリ"/>
+                                            <TextBox x:Name="RevisionDirectory" MinWidth="500" HorizontalAlignment="Stretch" Text="" TextWrapping="NoWrap" VerticalAlignment="Top" Margin="5"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Label Content="命名規則"/>
+                                            <ComboBox x:Name="VersioningMethodBox" SelectedValuePath="Tag" Width="150">
+                                                <ComboBoxItem Content="置換" Tag="2" IsSelected="True" ToolTip="指定されたディレクトリにそのまま移動し、既存のファイルを置き換える"/>
+                                                <ComboBoxItem Content="タイムスタンプ(ディレクトリ)" Tag="3" ToolTip="新規作成されたタイムスタンプ付きのディレクトリ以下に移動する(\YYYY-MM-DD_hhmmss\Directory\hoge.txt)"/>
+                                                <ComboBoxItem Content="タイムスタンプ(ファイル)" Tag="4" ToolTip="タイムスタンプを追加したファイル名で、指定されたディレクトリに移動する(\Directory\File.txt_YYYY-MM-DD_hhmmss.txt)"/>
+                                            </ComboBox>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </StackPanel>
+                            </GroupBox>
+                        </StackPanel>
+                    </Grid>
+                </TabItem>
+                <TabItem Header="除外フィルタ">
+                    <Grid>
+                        <StackPanel>
+                            <GroupBox Header="除外パターン" ToolTip="バックアップから除外するディレクトリ(末尾が\)やファイルを設定します。'*'と'?'がワイルドカードとして利用できます。改行や'|'で区切ります。">
+                                <TextBox x:Name="ignorePatternBox" AcceptsReturn="True" MinLines="8" MaxLines="17"/>
+                            </GroupBox>
+                        </StackPanel>
+                    </Grid>
+                </TabItem>
+                <TabItem Header="比較">
+                    <Grid>
+                        <StackPanel>
+                            <GroupBox Header="ファイル比較方法(複数選択)" ToolTip="ファイルの更新を判定する方法を選択します。選択されたすべての比較方法において一致したファイルは、前回のバックアップ時から更新されていないものとみなしてバックアップから除外します。">
+                                <ListBox x:Name="ComparisonMethodListBox" SelectionMode="Multiple">
+                                    <ListBoxItem x:Name="NoComparisonLBI" Content="比較しない(毎回フルバックアップ)" ToolTip="比較しません。これを選択した場合、他の選択は無効になります。"/>
+                                    <ListBoxItem x:Name="ArchiveAttributeLBI" Content="アーカイブ属性" ToolTip="バックアップ済みのバックアップ元ファイルからアーカイブ属性を取り除き、アーカイブ属性の付いたファイルだけをバックアップします。バックアップ元ファイルのアーカイブ属性を取り除く点に注意してください。"/>
+                                    <ListBoxItem x:Name="WriteTimeLBI" Content="更新日時" IsSelected="True" ToolTip="更新日時によって比較します。" />
+                                    <ListBoxItem x:Name="SizeLBI" Content="サイズ" IsSelected="True" ToolTip="ファイルサイズで比較します。暗号化や圧縮が有効な場合、データベースを利用する必要があります。" />
+                                    <ListBoxItem x:Name="SHA1LBI" Content="ファイル内容(SHA1)" IsSelected="False" ToolTip="ファイル内容からSHA1を計算して比較します。この比較方法を使う場合はデータベースを利用し、ファイルサイズでの比較を併用することをおすすめします。暗号化や圧縮が有効な場合、データベースを利用する必要があります。" />
+                                    <ListBoxItem x:Name="BynaryLBI" Content="ファイル内容(Bynary)" IsSelected="False" ToolTip="1バイトずつ内容を比較します。ファイルサイズでの比較を併用することをおすすめします。この比較方法ではデータベースを利用できません。また、暗号化や圧縮が有効な場合は比較できません。" />
+                                </ListBox>
+                            </GroupBox>
+                        </StackPanel>
+                    </Grid>
+                </TabItem>
+                <TabItem Header="暗号化">
+                    <Grid>
+                        <StackPanel>
+                            <GroupBox Header="暗号化">
+                                <StackPanel>
+                                    <CheckBox x:Name="isRecordPasswordCheckBox" Content="パスワードを保存する" Margin="5" IsChecked="True" ToolTip="ファイルの暗号化に利用するパスワードをDPAPIで暗号化して設定ファイルに保存します。"/>
+                                    <Label Content="パスワードの保護スコープ" ToolTip="保存したパスワードを復号できる範囲を選択します。暗号化したファイルとは関係ありません。"/>
+                                    <ComboBox x:Name="PasswordScopeComboBox" MaxWidth="200" HorizontalAlignment="Stretch" Margin="0,-26,0,0">
+                                        <ComboBoxItem DataContext="CurrentUser" Content="現在のユーザー" ToolTip="現在のユーザーだけがパスワードを復号できます。" />
+                                        <ComboBoxItem DataContext="LocalMachine" Content="コンピュータ" ToolTip="このコンピュータ上の全てのユーザーがパスワードを復号できます。" />
+                                    </ComboBox>
+                                </StackPanel>
+                            </GroupBox>
+                        </StackPanel>
+                    </Grid>
+                </TabItem>
+                <TabItem Header="圧縮">
+                    <Grid>
+                        <GroupBox Header="圧縮">
+                            <StackPanel HorizontalAlignment="Stretch" VerticalAlignment="Top">
+                                <TextBlock Text="非圧縮                速度優先            圧縮率優先" HorizontalAlignment="Center" Margin="10,0,0,0"/>
+                                <Label Content="圧縮レベル" Width="100" HorizontalAlignment="Left"/>
+                                <Slider x:Name="CompressionLevelSlider" Maximum="2" SmallChange="1" IsSnapToTickEnabled="True" IsMoveToPointEnabled="True" Margin="5,-26,5,5" TickPlacement="TopLeft" RenderTransformOrigin="0.5,0.5" Value="2" HorizontalAlignment="Center" MinWidth="200" VerticalAlignment="Stretch">
+                                    <Slider.RenderTransform>
+                                        <TransformGroup>
+                                            <ScaleTransform ScaleX="-1"/>
+                                            <SkewTransform/>
+                                            <RotateTransform/>
+                                            <TranslateTransform/>
+                                        </TransformGroup>
+                                    </Slider.RenderTransform>
+                                </Slider>
+                                <Label Content="圧縮アルゴリズム" ToolTip="ファイル圧縮に用いるアルゴリズムを選択します。リストア時に同じものを選択する必要があります。" Width="100" HorizontalAlignment="Left"/>
+                                <ComboBox x:Name="CompressAlgorithmComboBox" MaxWidth="200" Margin="0,-26,0,0" ToolTip="ファイル圧縮に用いるアルゴリズムを選択します。リストア時に同じものを選択する必要があります。">
+                                    <ComboBoxItem DataContext="Deflate" Content="Deflate" IsSelected="True" ToolTip="DeflateStreamを使って圧縮/展開します。" />
+                                    <ComboBoxItem DataContext="GZip" Content="GZip" ToolTip="GZipStreamを使って圧縮/展開します。" />
+                                </ComboBox>
+                                <GroupBox Header="圧縮除外パターン(未実装)" IsEnabled="False" ToolTip="既に圧縮されている動画や音楽などのファイルや、.zipなどのアーカイブファイル等を圧縮対象から除外することができます。リストア時に同じ設定にする必要があります。">
+                                    <TextBox x:Name="ignoreCompExBox" AcceptsReturn="True" MinLines="4" MaxLines="4"/>
+                                </GroupBox>
+                            </StackPanel>
                         </GroupBox>
-                        <GroupBox Header="ファイル比較方法(複数選択)" ToolTip="ファイルの更新を判定する方法を選択します。選択されたすべての比較方法において一致したファイルは、前回のバックアップ時から更新されていないものとみなしてバックアップから除外します。">
-                            <ListBox x:Name="ComparisonMethodListBox" SelectionMode="Multiple">
-                                <ListBoxItem x:Name="NoComparisonLBI" Content="比較しない(毎回フルバックアップ)" ToolTip="比較しません。これを選択した場合、他の選択は無効になります。"/>
-                                <ListBoxItem x:Name="ArchiveAttributeLBI" Content="アーカイブ属性" ToolTip="バックアップ済みのバックアップ元ファイルからアーカイブ属性を取り除き、アーカイブ属性の付いたファイルだけをバックアップします。バックアップ元ファイルのアーカイブ属性を取り除く点に注意してください。"/>
-                                <ListBoxItem x:Name="WriteTimeLBI" Content="更新日時" IsSelected="True" ToolTip="更新日時によって比較します。" />
-                                <ListBoxItem x:Name="SizeLBI" Content="サイズ" IsSelected="True" ToolTip="ファイルサイズで比較します。暗号化や圧縮が有効な場合、データベースを利用する必要があります。" />
-                                <ListBoxItem x:Name="SHA1LBI" Content="ファイル内容(SHA1)" IsSelected="False" ToolTip="ファイル内容からSHA1を計算して比較します。この比較方法を使う場合はデータベースを利用し、ファイルサイズでの比較を併用することをおすすめします。暗号化や圧縮が有効な場合、データベースを利用する必要があります。" />
-                                <ListBoxItem x:Name="BynaryLBI" Content="ファイル内容(Bynary)" IsSelected="False" ToolTip="1バイトずつ内容を比較します。ファイルサイズでの比較を併用することをおすすめします。この比較方法ではデータベースを利用できません。また、暗号化や圧縮が有効な場合は比較できません。" />
-                            </ListBox>
-                        </GroupBox>
-                    </StackPanel>
-                </GroupBox>
-                <GroupBox Header="暗号化">
-                    <StackPanel>
-                        <CheckBox x:Name="isRecordPasswordCheckBox" Content="パスワードを保存する" Margin="5" IsChecked="True" ToolTip="ファイルの暗号化に利用するパスワードをDPAPIで暗号化して設定ファイルに保存します。"/>
-                        <Label Content="パスワードの保護スコープ" ToolTip="保存したパスワードを復号できる範囲を選択します。暗号化したファイルとは関係ありません。"/>
-                        <ComboBox x:Name="PasswordScopeComboBox" MaxWidth="200" HorizontalAlignment="Stretch" Margin="0,-26,0,0">
-                            <ComboBoxItem DataContext="CurrentUser" Content="現在のユーザー" ToolTip="現在のユーザーだけがパスワードを復号できます。" />
-                            <ComboBoxItem DataContext="LocalMachine" Content="コンピュータ" ToolTip="このコンピュータ上の全てのユーザーがパスワードを復号できます。" />
-                        </ComboBox>
-                    </StackPanel>
-                </GroupBox>
-                <GroupBox Header="圧縮">
-                    <StackPanel HorizontalAlignment="Stretch">
-                        <TextBlock Text="非圧縮                速度優先            圧縮率優先" HorizontalAlignment="Center" Margin="10,0,0,0"/>
-                        <Label Content="圧縮レベル" Width="100" HorizontalAlignment="Left"/>
-                        <Slider x:Name="CompressionLevelSlider" Maximum="2" SmallChange="1" IsSnapToTickEnabled="True" IsMoveToPointEnabled="True" Margin="5,-26,5,5" TickPlacement="TopLeft" RenderTransformOrigin="0.5,0.5" Value="2" HorizontalAlignment="Center" MinWidth="200" VerticalAlignment="Stretch">
-                            <Slider.RenderTransform>
-                                <TransformGroup>
-                                    <ScaleTransform ScaleX="-1"/>
-                                    <SkewTransform/>
-                                    <RotateTransform/>
-                                    <TranslateTransform/>
-                                </TransformGroup>
-                            </Slider.RenderTransform>
-                        </Slider>
-
-                        <Label Content="圧縮アルゴリズム" ToolTip="ファイル圧縮に用いるアルゴリズムを選択します。リストア時に同じものを選択する必要があります。" Width="100" HorizontalAlignment="Left"/>
-                        <ComboBox x:Name="CompressAlgorithmComboBox" MaxWidth="200" Margin="0,-26,0,0" ToolTip="ファイル圧縮に用いるアルゴリズムを選択します。リストア時に同じものを選択する必要があります。">
-                            <ComboBoxItem DataContext="Deflate" Content="Deflate" IsSelected="True" ToolTip="DeflateStreamを使って圧縮/展開します。" />
-                            <ComboBoxItem DataContext="GZip" Content="GZip" ToolTip="GZipStreamを使って圧縮/展開します。" />
-                        </ComboBox>
-                        <GroupBox Header="圧縮除外パターン(未実装)" IsEnabled="False" ToolTip="既に圧縮されている動画や音楽などのファイルや、.zipなどのアーカイブファイル等を圧縮対象から除外することができます。リストア時に同じ設定にする必要があります。">
-                            <TextBox x:Name="ignoreCompExBox" AcceptsReturn="True" MinLines="4" MaxLines="4"/>
-                        </GroupBox>
-                    </StackPanel>
-                </GroupBox>
-            </StackPanel>
+                    </Grid>
+                </TabItem>
+            </TabControl>
         </ScrollViewer>
-        <!--    </TabItem>
+        <Button Content="OK" Click="OkButton_Click" HorizontalAlignment="Right" VerticalAlignment="Bottom" Width="80" Height="30" Margin="0,0,100,10"/>
+        <Button x:Name="CancelButton" Click="CancelButton_Click" Content="キャンセル" HorizontalAlignment="Right" VerticalAlignment="Bottom" Width="80" Height="30" Margin="0,0,5,10"/>
 
-            <TabItem Header="データベース" >
-                <StackPanel Margin="5">
-                    
-                </StackPanel>
-            </TabItem>
-
-        </TabControl> -->
     </Grid>
 </Window>
