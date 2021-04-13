@@ -194,6 +194,10 @@ namespace SkyziBackup
                 password.Password = PasswordManager.LoadPasswordOrNull(LoadCurrentSettings) ?? string.Empty;
             }
         }
+
+        private void OpenLog_Click(object sender, RoutedEventArgs e) => ((App)Application.Current).OpenLatestLog();
+
+        private void Exit_Click(object sender, RoutedEventArgs e) => ((App)Application.Current).Quit();
     }
 }
 
