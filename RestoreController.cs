@@ -9,7 +9,7 @@ using System.Linq;
 
 namespace SkyziBackup
 {
-    public class RestoreDirectory
+    public class RestoreController
     {
         public BackupResults Results { get; private set; } = new BackupResults(false);
         public OpensslCompatibleAesCrypter AesCrypter { get; set; }
@@ -21,7 +21,7 @@ namespace SkyziBackup
         private readonly bool isRestoreAttributesFromDatabase = false;
         private readonly bool isCopyOnlyFileAttributes = false;
         private readonly bool isEnableWriteDatabase = false;
-        public RestoreDirectory(string sourceDirPath,
+        public RestoreController(string sourceDirPath,
                                 string destDirPath,
                                 string password = null,
                                 BackupSettings settings = null,
