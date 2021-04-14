@@ -534,6 +534,11 @@ namespace SkyziBackup
                 if (backedUpDirectoriesDict != null && !isRestoreAttributesFromDatabase)
                     backedUpDirectoriesDict[originDirPath] = new BackedUpDirectoryData(originDirInfo?.CreationTime, originDirInfo?.LastWriteTime, originDirInfo?.Attributes);
             }
+            catch (UnauthorizedAccessException)
+            {
+                Logger.Error(results.Message = $"アクセスが拒否されました '{originDirPath}' => '{originDirPath.Replace(sourceBaseDirPath, destBaseDirPath)}'\n");
+                results.failedDirectories.Add(originDirPath);
+            }
             catch (Exception ex)
             {
                 Logger.Error(ex, results.Message = $"予期しない例外が発生しました '{originDirPath}' => '{originDirPath.Replace(sourceBaseDirPath, destBaseDirPath)}'\n");
@@ -853,9 +858,9 @@ namespace SkyziBackup
                     CopyFileAttributesAndUpdateDatabase(originFilePath, destFilePath);
                 }
             }
-            catch (UnauthorizedAccessException ex)
+            catch (UnauthorizedAccessException)
             {
-                Logger.Error(ex, Results.Message = $"アクセスが拒否されました '{originFilePath}' => '{destFilePath}'\n");
+                Logger.Error(Results.Message = $"アクセスが拒否されました '{originFilePath}' => '{destFilePath}'\n");
                 Results.failedFiles.Add(originFilePath);
             }
             catch (Exception ex)

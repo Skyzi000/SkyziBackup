@@ -164,9 +164,9 @@ namespace SkyziBackup
                     Results.failedFiles.Remove(originFilePath);
                 }
             }
-            catch (UnauthorizedAccessException ex)
+            catch (UnauthorizedAccessException)
             {
-                Logger.Error(ex, Results.Message = $"アクセスが拒否されました '{originFilePath}' => '{destFilePath}'\n");
+                Logger.Error(Results.Message = $"アクセスが拒否されました '{originFilePath}' => '{destFilePath}'\n");
                 Results.failedFiles.Add(originFilePath);
             }
             catch (Exception ex)
