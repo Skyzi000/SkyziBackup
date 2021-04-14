@@ -32,12 +32,14 @@ namespace SkyziBackup
         [JsonPropertyName("dd")]
         public Dictionary<string, BackedUpDirectoryData> BackedUpDirectoriesDict { get; set; } = new Dictionary<string, BackedUpDirectoryData>();
 
-
         /// <summary>
         /// ファイル名は(OriginBaseDirPath + DestBaseDirPath)のSHA1
         /// </summary>
         [JsonIgnore]
         public string SaveFileName => DataFileWriter.GetDatabaseFileName(OriginBaseDirPath, DestBaseDirPath);
+
+
+        public BackupDatabase() { }
 
         public BackupDatabase(string originBaseDirPath, string destBaseDirPath)
         {
@@ -58,13 +60,13 @@ namespace SkyziBackup
         [JsonPropertyName("o")]
         public long OriginSize { get; set; } = DefaultSize;
         [JsonPropertyName("a")]
-        private int? FileAttributesInt { get; set; } = null;
+        public FileAttributes? FileAttributes { get; set; } = null;
         [JsonPropertyName("s")]
         public string Sha1 { get; set; } = null;
-        [JsonIgnore]
-        public FileAttributes? FileAttributes { get => (FileAttributes?)FileAttributesInt; set => FileAttributesInt = (int?)value; }
-
+        
         public const long DefaultSize = -1;
+
+        public BackedUpFileData() { }
 
         public BackedUpFileData(DateTime? creationTime = null, DateTime? lastWriteTime = null, long originSize = DefaultSize, FileAttributes? fileAttributes = null, string sha1 = null)
         {
@@ -85,9 +87,9 @@ namespace SkyziBackup
         [JsonPropertyName("w")]
         public DateTime? LastWriteTime { get; set; } = null;
         [JsonPropertyName("a")]
-        private int? FileAttributesInt { get; set; } = null;
-        [JsonIgnore]
-        public FileAttributes? FileAttributes { get => (FileAttributes?)FileAttributesInt; set => FileAttributesInt = (int?)value; }
+        public FileAttributes? FileAttributes { get; set; } = null;
+
+        public BackedUpDirectoryData() { }
 
         public BackedUpDirectoryData(DateTime? creationTime = null, DateTime? lastWriteTime = null, FileAttributes? fileAttributes = null)
         {
