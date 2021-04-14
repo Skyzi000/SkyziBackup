@@ -29,8 +29,8 @@ namespace SkyziBackup
                                 bool isCopyOnlyFileAttributes = false,
                                 bool isEnableWriteDatabase = false)
         {
-            this.sourceBaseDirPath = Path.TrimEndingDirectorySeparator(sourceDirPath);
-            this.destBaseDirPath = Path.TrimEndingDirectorySeparator(destDirPath);
+            this.sourceBaseDirPath = BackupController.GetQualifiedDirectoryPath(sourceDirPath);
+            this.destBaseDirPath = BackupController.GetQualifiedDirectoryPath(destDirPath);
             Settings = settings ?? BackupSettings.LoadLocalSettingsOrNull(destBaseDirPath, sourceBaseDirPath) ?? BackupSettings.GetGlobalSettings();
             //if (Settings.isUseDatabase && Settings.comparisonMethod.HasFlag(ComparisonMethod.FileContentsSHA1))
             // TODO: データベースに記録されたSHA1と比較できるようにする
@@ -106,7 +106,7 @@ namespace SkyziBackup
                                                         backedUpDirectoriesDict: Database?.BackedUpDirectoriesDict,
                                                         isRestoreAttributesFromDatabase: isRestoreAttributesFromDatabase);
 
-            foreach (string originFilePath in Directory.EnumerateFiles(sourceBaseDirPath, "*", SearchOption.AllDirectories))
+            foreach (string originFilePath in BackupController.EnumerateAllFiles(sourceBaseDirPath, "*"))
             {
                 string destFilePath = originFilePath.Replace(sourceBaseDirPath, destBaseDirPath);
                 RestoreFile(originFilePath, destFilePath);
@@ -316,7 +316,7 @@ namespace SkyziBackup
             }
             else
             {
-                foreach (string originDirPath in Directory.EnumerateDirectories(sourceBaseDirPath, "*", SearchOption.AllDirectories))
+                foreach (string originDirPath in BackupController.EnumerateAllDirectories(sourceBaseDirPath, "*"))
                 {
                     string destDirPath = originDirPath.Replace(sourceBaseDirPath, destBaseDirPath);
                     if (!Directory.Exists(destDirPath))
@@ -360,7 +360,7 @@ namespace SkyziBackup
                         Results.failedFiles.Add(originDirPath);
                     }
                 }
-                foreach (string originFilePath in Directory.EnumerateFiles(sourceBaseDirPath, "*", SearchOption.AllDirectories))
+                foreach (string originFilePath in BackupController.EnumerateAllFiles(sourceBaseDirPath, "*"))
                 {
                     string destFilePath = originFilePath.Replace(sourceBaseDirPath, destBaseDirPath);
                     if (!File.Exists(destFilePath))
