@@ -382,7 +382,7 @@ namespace SkyziBackup
                 throw new ArgumentNullException(nameof(backedUpDirectoriesDict));
             }
 
-            foreach (string originDirPath in Directory.EnumerateDirectories(sourceBaseDirPath, "*", SearchOption.AllDirectories))
+            foreach (string originDirPath in EnumerateAllDirectories(sourceBaseDirPath, "*"))
             {
                 if (regices != null)
                 {
@@ -402,6 +402,27 @@ namespace SkyziBackup
                 backedUpDirectoriesDict = CopyDirectory(originDirPath, sourceBaseDirPath, destBaseDirPath, results, isCopyAttributes, backedUpDirectoriesDict, isForceCreateDirectoryAndReturnDictionary, isRestoreAttributesFromDatabase);
             }
             return backedUpDirectoriesDict;
+        }
+
+        private static IEnumerable<string> EnumerateAllDirectories(string path, string searchPattern)
+        {
+            return Directory.EnumerateDirectories(path, searchPattern).Union(Directory.EnumerateDirectories(path, searchPattern).SelectMany(s =>
+            {
+                try
+                {
+                    return EnumerateAllDirectories(s, searchPattern);
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    Logger.Error("アクセスが拒否されました: '{0}'", s);
+                    return Enumerable.Empty<string>();
+                }
+                catch (Exception e)
+                {
+                    Logger.Error(e, "予期しないエラーが発生しました: '{0}'", s);
+                    return Enumerable.Empty<string>();
+                }
+            }));
         }
 
         private static Dictionary<string, BackedUpDirectoryData> CopyDirectory(string originDirPath,
