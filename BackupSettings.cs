@@ -223,7 +223,7 @@ namespace SkyziBackup
             if (!strPattern.StartsWith(Path.DirectorySeparatorChar) && !strPattern.StartsWith('*')) sb.Append(Path.DirectorySeparatorChar, 2);
             sb.Append(Regex.Escape(strPattern).Replace(@"\*", ".*").Replace(@"\?", ".?"));
             sb.Append(Path.EndsInDirectorySeparator(strPattern) ? @".*$" : @"$");
-            return new Regex(sb.ToString(), RegexOptions.Compiled);
+            return new Regex(sb.ToString(), RegexOptions.Compiled | RegexOptions.IgnoreCase);
         }
     }
 }
