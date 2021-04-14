@@ -9,6 +9,7 @@ using System.Linq;
 using System.Text;
 using Skyzi000;
 using System.Threading.Tasks;
+using System.Text.RegularExpressions;
 
 namespace SkyziBackup
 {
@@ -150,11 +151,11 @@ namespace SkyziBackup
                 _ = CopyDirectoryStructure(originBaseDirPath, destBaseDirPath, Results, Settings.IsCopyAttributes, Settings.Regices);
 
             // ファイルの処理
-            foreach (string originFilePath in Directory.EnumerateFiles(originBaseDirPath, "*", SearchOption.AllDirectories))
+            foreach (string originFilePath in EnumerateAllFiles(originBaseDirPath, "*", Settings.Regices))
             {
                 string destFilePath = originFilePath.Replace(originBaseDirPath, destBaseDirPath);
                 // 除外パターンと一致せず、バックアップ済みファイルと一致しないファイルをバックアップする
-                if (!IsIgnoredFile(originFilePath, destFilePath) && !(Settings.IsUseDatabase ? IsUnchangedFileOnDatabase(originFilePath, destFilePath) : IsUnchangedFileWithoutDatabase(originFilePath, destFilePath)))
+                if (!IsIgnoredFile(originFilePath) && !(Settings.IsUseDatabase ? IsUnchangedFileOnDatabase(originFilePath, destFilePath) : IsUnchangedFileWithoutDatabase(originFilePath, destFilePath)))
                 {
                     Directory.CreateDirectory(Path.GetDirectoryName(destFilePath));
                     BackupFile(originFilePath, destFilePath);
@@ -183,6 +184,7 @@ namespace SkyziBackup
             }
             return Results;
         }
+
         private void DeleteDirectories()
         {
             if (Settings.IsUseDatabase)
@@ -294,7 +296,7 @@ namespace SkyziBackup
             }
             else // データベースを使わない
             {
-                foreach (string destFilePath in Directory.EnumerateFiles(destBaseDirPath, "*", SearchOption.AllDirectories))
+                foreach (string destFilePath in EnumerateAllFiles(destBaseDirPath, "*", Settings.Regices))
                 {
                     string originFilePath = destFilePath.Replace(destBaseDirPath, originBaseDirPath);
                     if (Results.successfulFiles.Contains(originFilePath) || Results.failedFiles.Contains(originFilePath) || (Results.unchangedFiles?.Contains(originFilePath) ?? false))
@@ -358,11 +360,85 @@ namespace SkyziBackup
                 File.SetAttributes(revisionFilePath, fileAttributes.Value);
         }
 
+        public static IEnumerable<string> EnumerateAllFiles(string path, string searchPattern = "*", IEnumerable<Regex> ignoreDirectoryRegices = null, int matchingStartIndex = -1)
+        {
+            return Directory.EnumerateFiles(path, searchPattern).Union(Directory.EnumerateDirectories(path, searchPattern).SelectMany(s =>
+            {
+                if (ignoreDirectoryRegices != null)
+                {
+                    if (matchingStartIndex == -1)
+                        matchingStartIndex = path.Length - 1;
+                    bool isIgnore = false;
+                    foreach (var reg in ignoreDirectoryRegices)
+                    {
+                        if (reg.IsMatch((path + Path.DirectorySeparatorChar).Substring(matchingStartIndex)))
+                        {
+                            isIgnore = true;
+                            break;
+                        }
+                    }
+                    if (isIgnore)
+                        return Enumerable.Empty<string>();
+                }
+                try
+                {
+                    return EnumerateAllFiles(s, searchPattern, ignoreDirectoryRegices, matchingStartIndex);
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    Logger.Error("アクセスが拒否されました: '{0}'", s);
+                    return Enumerable.Empty<string>();
+                }
+                catch (Exception e)
+                {
+                    Logger.Error(e, "予期しないエラーが発生しました: '{0}'", s);
+                    return Enumerable.Empty<string>();
+                }
+            }));
+        }
+
+        public static IEnumerable<string> EnumerateAllDirectories(string path, string searchPattern = "*", IEnumerable<Regex> ignoreDirectoryRegices = null, int matchingStartIndex = -1)
+        {
+            return Directory.EnumerateDirectories(path, searchPattern).Union(Directory.EnumerateDirectories(path, searchPattern).SelectMany(s =>
+            {
+                if (ignoreDirectoryRegices != null)
+                {
+                    if (matchingStartIndex == -1)
+                        matchingStartIndex = path.Length - 1;
+                    bool isIgnore = false;
+                    foreach (var reg in ignoreDirectoryRegices)
+                    {
+                        if (reg.IsMatch((path + Path.DirectorySeparatorChar).Substring(matchingStartIndex)))
+                        {
+                            isIgnore = true;
+                            break;
+                        }
+                    }
+                    if (isIgnore)
+                        return Enumerable.Empty<string>();
+                }
+                try
+                {
+                    return EnumerateAllDirectories(s, searchPattern, ignoreDirectoryRegices, matchingStartIndex);
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    Logger.Error("アクセスが拒否されました: '{0}'", s);
+                    return Enumerable.Empty<string>();
+                }
+                catch (Exception e)
+                {
+                    Logger.Error(e, "予期しないエラーが発生しました: '{0}'", s);
+                    return Enumerable.Empty<string>();
+                }
+            }));
+        }
+
         public static Dictionary<string, BackedUpDirectoryData> CopyDirectoryStructure(string sourceBaseDirPath,
                                                                                        string destBaseDirPath,
                                                                                        BackupResults results,
                                                                                        bool isCopyAttributes = true,
-                                                                                       HashSet<System.Text.RegularExpressions.Regex> regices = null,
+                                                                                       IEnumerable<Regex> regices = null,
                                                                                        Dictionary<string, BackedUpDirectoryData> backedUpDirectoriesDict = null,
                                                                                        bool isForceCreateDirectoryAndReturnDictionary = false,
                                                                                        bool isRestoreAttributesFromDatabase = false)
@@ -382,14 +458,14 @@ namespace SkyziBackup
                 throw new ArgumentNullException(nameof(backedUpDirectoriesDict));
             }
 
-            foreach (string originDirPath in EnumerateAllDirectories(sourceBaseDirPath, "*"))
+            foreach (string originDirPath in EnumerateAllDirectories(sourceBaseDirPath, "*", regices))
             {
                 if (regices != null)
                 {
                     bool isIgnore = false;
                     foreach (var reg in regices)
                     {
-                        if (reg.IsMatch((originDirPath + Path.DirectorySeparatorChar).Substring(sourceBaseDirPath.Length)))
+                        if (reg.IsMatch((originDirPath + Path.DirectorySeparatorChar).Substring(sourceBaseDirPath.Length - 1)))
                         {
                             Logger.Info("ディレクトリをスキップ(除外パターン '{0}' に一致) : '{1}'", reg, originDirPath);
                             results.ignoredDirectories.Add(originDirPath);
@@ -402,27 +478,6 @@ namespace SkyziBackup
                 backedUpDirectoriesDict = CopyDirectory(originDirPath, sourceBaseDirPath, destBaseDirPath, results, isCopyAttributes, backedUpDirectoriesDict, isForceCreateDirectoryAndReturnDictionary, isRestoreAttributesFromDatabase);
             }
             return backedUpDirectoriesDict;
-        }
-
-        private static IEnumerable<string> EnumerateAllDirectories(string path, string searchPattern)
-        {
-            return Directory.EnumerateDirectories(path, searchPattern).Union(Directory.EnumerateDirectories(path, searchPattern).SelectMany(s =>
-            {
-                try
-                {
-                    return EnumerateAllDirectories(s, searchPattern);
-                }
-                catch (UnauthorizedAccessException)
-                {
-                    Logger.Error("アクセスが拒否されました: '{0}'", s);
-                    return Enumerable.Empty<string>();
-                }
-                catch (Exception e)
-                {
-                    Logger.Error(e, "予期しないエラーが発生しました: '{0}'", s);
-                    return Enumerable.Empty<string>();
-                }
-            }));
         }
 
         private static Dictionary<string, BackedUpDirectoryData> CopyDirectory(string originDirPath,
@@ -526,14 +581,14 @@ namespace SkyziBackup
             }
         }
 
-        private bool IsIgnoredFile(string originFilePath, string destFilePath)
+        private bool IsIgnoredFile(string originFilePath)
         {
             // 除外パターンとマッチング
             if (Settings.Regices != null)
             {
                 foreach (var reg in Settings.Regices)
                 {
-                    if (reg.IsMatch(originFilePath.Substring(originBaseDirPath.Length)))
+                    if (reg.IsMatch(originFilePath.Substring(originBaseDirPath.Length - 1)))
                     {
                         Logger.Info("ファイルをスキップ(除外パターンに一致 '{0}') : '{1}'", reg, originFilePath);
                         Results.ignoredFiles.Add(originFilePath);
