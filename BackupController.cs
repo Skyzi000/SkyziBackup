@@ -82,10 +82,10 @@ namespace SkyziBackup
         private int currentRetryCount = 0;
         private Task<BackupDatabase> loadBackupDatabaseTask = null;
 
-        public BackupController(string originPath, string destPath, string password = null, BackupSettings settings = null)
+        public BackupController(string originDirectoryPath, string destDirectoryPath, string password = null, BackupSettings settings = null)
         {
-            originBaseDirPath = Path.TrimEndingDirectorySeparator(originPath);
-            destBaseDirPath = Path.TrimEndingDirectorySeparator(destPath);
+            originBaseDirPath = GetQualifiedDirectoryPath(originDirectoryPath);
+            destBaseDirPath = GetQualifiedDirectoryPath(destDirectoryPath);
             Settings = settings ?? BackupSettings.LoadLocalSettingsOrNull(originBaseDirPath, destBaseDirPath) ?? BackupSettings.GetGlobalSettings();
             if (Settings.IsUseDatabase)
             {
@@ -96,6 +96,11 @@ namespace SkyziBackup
                 AesCrypter = new OpensslCompatibleAesCrypter(password, compressionLevel: Settings.CompressionLevel, compressAlgorithm: Settings.CompressAlgorithm);
             }
             Results.Finished += Results_Finished;
+        }
+
+        public static string GetQualifiedDirectoryPath(string directoryPath)
+        {
+            return Path.GetFullPath(directoryPath.EndsWith(Path.DirectorySeparatorChar) ? directoryPath : directoryPath + Path.DirectorySeparatorChar);
         }
 
         private async Task<BackupDatabase> LoadOrCreateDatabaseAsync()
