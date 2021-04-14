@@ -50,10 +50,9 @@ namespace SkyziBackup
         {
             InitializeComponent();
             _mainContext = SynchronizationContext.Current;
-            ContentRendered += (s, e) =>
-            {
-                password.Password = PasswordManager.LoadPasswordOrNull(LoadCurrentSettings) ?? string.Empty;
-            };
+            originPath.Text = Properties.Settings.Default.OriginPath;
+            destPath.Text = Properties.Settings.Default.DestPath;
+            password.Password = PasswordManager.LoadPasswordOrNull(LoadCurrentSettings) ?? string.Empty;
             if (BackupManager.IsRunning)
             {
                 ButtonsIsEnabled = false;
@@ -75,6 +74,8 @@ namespace SkyziBackup
 
         private async void StartBackupButton_ClickAsync(object sender, RoutedEventArgs e)
         {
+            Properties.Settings.Default.OriginPath = originPath.Text;
+            Properties.Settings.Default.DestPath = destPath.Text;
             if (BackupManager.GetBackupIfRunning(originPath.Text.Trim(), destPath.Text.Trim()) != null)
             {
                 MessageBox.Show("バックアップは既に実行中です。", $"{App.AssemblyName.Name} - 警告", MessageBoxButton.OK, MessageBoxImage.Warning);

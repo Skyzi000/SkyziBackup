@@ -34,5 +34,29 @@ namespace SkyziBackup.Properties {
                 this["AppDataPath"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string OriginPath {
+            get {
+                return ((string)(this["OriginPath"]));
+            }
+            set {
+                this["OriginPath"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string DestPath {
+            get {
+                return ((string)(this["DestPath"]));
+            }
+            set {
+                this["DestPath"] = value;
+            }
+        }
     }
 }
