@@ -156,10 +156,7 @@ namespace SkyziBackup
                 string destFilePath = originFilePath.Replace(originBaseDirPath, destBaseDirPath);
                 // 除外パターンと一致せず、バックアップ済みファイルと一致しないファイルをバックアップする
                 if (!IsIgnoredFile(originFilePath) && !(Settings.IsUseDatabase ? IsUnchangedFileOnDatabase(originFilePath, destFilePath) : IsUnchangedFileWithoutDatabase(originFilePath, destFilePath)))
-                {
-                    Directory.CreateDirectory(Path.GetDirectoryName(destFilePath));
                     BackupFile(originFilePath, destFilePath);
-                }
             }
 
             // ミラーリング処理(バックアップ先ファイルの削除)
@@ -207,9 +204,9 @@ namespace SkyziBackup
                         Results.deletedDirectories.Add(originDirPath);
                         Database.BackedUpDirectoriesDict.Remove(originDirPath);
                     }
-                    catch (Exception ex)
+                    catch (Exception e)
                     {
-                        Logger.Error(ex, Results.Message = $"ディレクトリの削除に失敗しました: '{destDirPath}'\n");
+                        Logger.Error(Results.Message = $"'{destDirPath}'の削除に失敗: メソッド{e.TargetSite.Name}で{e.GetType().Name}が発生しました: {e.Message}");
                     }
                 }
             }
@@ -228,9 +225,9 @@ namespace SkyziBackup
                         Results.deletedDirectories.Add(originDirPath);
                         Database.BackedUpDirectoriesDict.Remove(originDirPath);
                     }
-                    catch (Exception ex)
+                    catch (Exception e)
                     {
-                        Logger.Error(ex, Results.Message = $"ディレクトリの削除に失敗しました: '{destDirPath}'\n");
+                        Logger.Error(Results.Message = $"'{destDirPath}'の削除に失敗: メソッド{e.TargetSite.Name}で{e.GetType().Name}が発生しました: {e.Message}");
                     }
                 }
             }
@@ -321,9 +318,9 @@ namespace SkyziBackup
                 Results.deletedFiles.Add(originFilePath);
                 Database.BackedUpFilesDict.Remove(originFilePath);
             }
-            catch (Exception ex)
+            catch (Exception e)
             {
-                Logger.Error(ex, Results.Message = $"ファイルの削除に失敗しました: '{destFilePath}'\n");
+                Logger.Error(Results.Message = $"'{destFilePath}'の削除に失敗: メソッド{e.TargetSite.Name}で{e.GetType().Name}が発生しました: {e.Message}");
             }
         }
 
@@ -384,14 +381,9 @@ namespace SkyziBackup
                 {
                     return EnumerateAllFiles(s, searchPattern, ignoreDirectoryRegices, matchingStartIndex);
                 }
-                catch (UnauthorizedAccessException)
-                {
-                    Logger.Error("アクセスが拒否されました: '{0}'", s);
-                    return Enumerable.Empty<string>();
-                }
                 catch (Exception e)
                 {
-                    Logger.Error(e, "予期しないエラーが発生しました: '{0}'", s);
+                    Logger.Error("'{0}'の列挙に失敗: メソッド{1} で {2}が発生しました: {3}", s, e.TargetSite.Name, e.GetType().Name, e.Message);
                     return Enumerable.Empty<string>();
                 }
             }));
@@ -421,14 +413,9 @@ namespace SkyziBackup
                 {
                     return EnumerateAllDirectories(s, searchPattern, ignoreDirectoryRegices, matchingStartIndex);
                 }
-                catch (UnauthorizedAccessException)
-                {
-                    Logger.Error("アクセスが拒否されました: '{0}'", s);
-                    return Enumerable.Empty<string>();
-                }
                 catch (Exception e)
                 {
-                    Logger.Error(e, "予期しないエラーが発生しました: '{0}'", s);
+                    Logger.Error("'{0}'の列挙に失敗: メソッド{1} で {2}が発生しました: {3}", s, e.TargetSite.Name, e.GetType().Name, e.Message);
                     return Enumerable.Empty<string>();
                 }
             }));
@@ -534,17 +521,11 @@ namespace SkyziBackup
                 if (backedUpDirectoriesDict != null && !isRestoreAttributesFromDatabase)
                     backedUpDirectoriesDict[originDirPath] = new BackedUpDirectoryData(originDirInfo?.CreationTime, originDirInfo?.LastWriteTime, originDirInfo?.Attributes);
             }
-            catch (UnauthorizedAccessException)
+            catch (Exception e)
             {
-                Logger.Error(results.Message = $"アクセスが拒否されました '{originDirPath}' => '{originDirPath.Replace(sourceBaseDirPath, destBaseDirPath)}'\n");
+                Logger.Error(results.Message = $"'{originDirPath}' => '{originDirPath.Replace(sourceBaseDirPath, destBaseDirPath)}'のコピーに失敗: メソッド{e.TargetSite.Name} で {e.GetType().Name}が発生しました: {e.Message}");
                 results.failedDirectories.Add(originDirPath);
             }
-            catch (Exception ex)
-            {
-                Logger.Error(ex, results.Message = $"予期しない例外が発生しました '{originDirPath}' => '{originDirPath.Replace(sourceBaseDirPath, destBaseDirPath)}'\n");
-                results.failedDirectories.Add(originDirPath);
-            }
-
             return backedUpDirectoriesDict;
         }
 
@@ -559,8 +540,8 @@ namespace SkyziBackup
                     Database = await LoadOrCreateDatabaseAsync();
                     if (Database.DestBaseDirPath != destBaseDirPath)
                     {
-                        Logger.Error(Results.Message = $"データベースの読み込み失敗: データベース'{DataFileWriter.GetPath(Database)}'を利用できません。");
-                        throw new FormatException($"The database value 'destBaseDirPath' is invalid.({Database.DestBaseDirPath})");
+                        Logger.Error(Results.Message = $"データベースの読み込み失敗: 既存のデータベース'{DataFileWriter.GetPath(Database)}'を利用できません。");
+                        Database = new BackupDatabase(originBaseDirPath, destBaseDirPath);
                     }
                 }
             }
@@ -823,6 +804,7 @@ namespace SkyziBackup
             Logger.Info(Results.Message = $"ファイルをバックアップ: '{originFilePath}' => '{destFilePath}'");
             try
             {
+                Directory.CreateDirectory(Path.GetDirectoryName(destFilePath));
                 if (Settings.Versioning != VersioningMethod.PermanentDeletion && (Database?.BackedUpFilesDict.ContainsKey(originFilePath) ?? File.Exists(destFilePath)))
                 {
                     DeleteFile(destFilePath);
@@ -833,17 +815,8 @@ namespace SkyziBackup
                 }
                 if (AesCrypter != null)
                 {
-
-                    if (AesCrypter.EncryptFile(originFilePath, destFilePath))
-                    {
-                        // 暗号化成功時処理
-                        CopyFileAttributesAndUpdateDatabase(originFilePath, destFilePath);
-                    }
-                    else
-                    {
-                        Logger.Error(AesCrypter.Error, Results.Message = $"暗号化に失敗しました '{originFilePath}' => '{destFilePath}'\n");
-                        Results.failedFiles.Add(originFilePath);
-                    }
+                    AesCrypter.EncryptFile(originFilePath, destFilePath);
+                    CopyFileAttributesAndUpdateDatabase(originFilePath, destFilePath);
                 }
                 else
                 {
@@ -858,14 +831,9 @@ namespace SkyziBackup
                     CopyFileAttributesAndUpdateDatabase(originFilePath, destFilePath);
                 }
             }
-            catch (UnauthorizedAccessException)
+            catch (Exception e)
             {
-                Logger.Error(Results.Message = $"アクセスが拒否されました '{originFilePath}' => '{destFilePath}'\n");
-                Results.failedFiles.Add(originFilePath);
-            }
-            catch (Exception ex)
-            {
-                Logger.Error(ex, Results.Message = $"予期しない例外が発生しました '{originFilePath}' => '{destFilePath}'\n");
+                Logger.Error(Results.Message = $"'{originFilePath}' => '{destFilePath}'のバックアップに失敗: メソッド{e.TargetSite.Name}で{e.GetType().Name}が発生しました: {e.Message}");
                 Results.failedFiles.Add(originFilePath);
             }
         }

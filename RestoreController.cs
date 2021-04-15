@@ -123,25 +123,17 @@ namespace SkyziBackup
             {
                 if (AesCrypter != null)
                 {
-
-                    if (AesCrypter.DecryptFile(originFilePath, destFilePath))
+                    AesCrypter.DecryptFile(originFilePath, destFilePath);
+                    // 復号成功時処理
+                    if (Settings.IsCopyAttributes)
                     {
-                        // 復号成功時処理
-                        if (Settings.IsCopyAttributes)
-                        {
-                            if(isEnableWriteDatabase)
-                                Database.BackedUpFilesDict[originFilePath] = CopyFileAttributes(originFilePath, destFilePath);
-                            else
-                                CopyFileAttributes(originFilePath, destFilePath);
-                        }
-                        Results.successfulFiles.Add(originFilePath);
-                        Results.failedFiles.Remove(originFilePath);
+                        if (isEnableWriteDatabase)
+                            Database.BackedUpFilesDict[originFilePath] = CopyFileAttributes(originFilePath, destFilePath);
+                        else
+                            CopyFileAttributes(originFilePath, destFilePath);
                     }
-                    else
-                    {
-                        Logger.Error(AesCrypter.Error, Results.Message = $"復号に失敗しました '{originFilePath}' => '{destFilePath}'\n");
-                        Results.failedFiles.Add(originFilePath);
-                    }
+                    Results.successfulFiles.Add(originFilePath);
+                    Results.failedFiles.Remove(originFilePath);
                 }
                 else
                 {

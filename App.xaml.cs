@@ -10,6 +10,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Forms;
+using System.Windows.Threading;
 using MessageBox = System.Windows.MessageBox;
 
 namespace SkyziBackup
@@ -25,6 +26,8 @@ namespace SkyziBackup
         protected override async void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
+            DispatcherUnhandledException += App_DispatcherUnhandledException;
+            TaskScheduler.UnobservedTaskException += TaskScheduler_UnobservedTaskException;
             if (string.IsNullOrEmpty(SkyziBackup.Properties.Settings.Default.AppDataPath))
             {
                 SkyziBackup.Properties.Settings.Default.AppDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "Skyzi000", "SkyziBackup");
@@ -70,6 +73,24 @@ namespace SkyziBackup
                     NotifyIcon.ShowBalloonTip(10000, $"{AssemblyName.Name} - エラー", "バックアップに失敗しました。", ToolTipIcon.Error);
                 }
             }
+        }
+
+        private void TaskScheduler_UnobservedTaskException(object sender, UnobservedTaskExceptionEventArgs e)
+        {
+            Logger.Error(e.Exception, "予期しない例外: バックグラウンドタスクのメソッド{1} で {2}が発生しました: {3}", e.Exception.InnerException.TargetSite.Name, e.Exception.InnerException.GetType().Name, e.Exception.InnerException.Message);
+            if (MessageBoxResult.Yes == MessageBox.Show($"バックグラウンドタスクで予期しない例外({e.Exception.InnerException.GetType().Name})が発生しました。プログラムを継続しますか？\nエラーメッセージ: {e.Exception.InnerException.Message}\nスタックトレース: {e.Exception.InnerException.StackTrace}", $"{AssemblyName.Name} - エラー", MessageBoxButton.YesNo, MessageBoxImage.Error))
+                e.SetObserved();
+            else
+                Quit();
+        }
+
+        private void App_DispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
+        {
+            Logger.Error(e.Exception, "予期しない例外: メソッド{1} で {2}が発生しました: {3}", e.Exception.TargetSite.Name, e.Exception.GetType().Name, e.Exception.Message);
+            if (MessageBoxResult.Yes == MessageBox.Show($"予期しない例外({e.Exception.GetType().Name})が発生しました。プログラムを継続しますか？\nエラーメッセージ: {e.Exception.Message}\nスタックトレース: {e.Exception.StackTrace}", $"{AssemblyName.Name} - エラー", MessageBoxButton.YesNo, MessageBoxImage.Error))
+                e.Handled = true;
+            else
+                Quit();
         }
 
         public bool OpenLatestLog(bool showDialog = true)
