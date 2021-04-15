@@ -207,6 +207,12 @@ namespace SkyziBackup
         private void OpenLog_Click(object sender, RoutedEventArgs e) => ((App)Application.Current).OpenLatestLog();
 
         private void Exit_Click(object sender, RoutedEventArgs e) => ((App)Application.Current).Quit();
+
+        private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            Properties.Settings.Default.OriginPath = originPath.Text;
+            Properties.Settings.Default.DestPath = destPath.Text;
+        }
     }
 }
 
