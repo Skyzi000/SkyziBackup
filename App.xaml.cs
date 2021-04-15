@@ -170,6 +170,7 @@ namespace SkyziBackup
             NotifyIcon.Visible = false;
             if (BackupManager.IsRunning)
             {
+                BackupManager.GetRunningBackups().ToList().ForEach(b => b.SaveDatabase()); //Select(b => b.SaveDatabase());
                 Logger.Warn("バックアップ実行中にアプリケーションを強制終了しました。(終了コード:{0})\n=============================\n\n", e.ApplicationExitCode);
             }
         }

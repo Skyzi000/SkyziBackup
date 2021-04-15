@@ -116,13 +116,18 @@ namespace SkyziBackup
 
         private void Results_Finished(object sender, EventArgs e)
         {
+            SaveDatabase();
+            Results.Message = (Results.isSuccess ? "バックアップ完了: " : Results.Message + "\nバックアップ失敗: ") + DateTime.Now;
+            Logger.Info("{0}\n=============================\n\n", Results.isSuccess ? "バックアップ完了" : "バックアップ失敗");
+        }
+
+        public void SaveDatabase()
+        {
             if (Settings.IsUseDatabase)
             {
                 Logger.Info("データベースを保存: '{0}'", DataFileWriter.GetPath(Database));
-                _ = DataFileWriter.WriteAsync(Database);
+                DataFileWriter.Write(Database);
             }
-            Results.Message = (Results.isSuccess ? "バックアップ完了: " : Results.Message + "\nバックアップ失敗: ") + DateTime.Now;
-            Logger.Info("{0}\n=============================\n\n", Results.isSuccess ? "バックアップ完了" : "バックアップ失敗");
         }
 
         public async Task<BackupResults> StartBackupAsync()

@@ -55,9 +55,17 @@ namespace SkyziBackup
             password.Password = PasswordManager.LoadPasswordOrNull(LoadCurrentSettings) ?? string.Empty;
             if (BackupManager.IsRunning)
             {
+                BackupController running;
+                try
+                {
+                    running = BackupManager.GetRunningBackups().First();
+                }
+                catch (Exception)
+                {
+                    return;
+                }
                 ButtonsIsEnabled = false;
                 progressBar.Visibility = Visibility.Visible;
-                var running = BackupManager.GetRunningBackups()[0];
                 originPath.Text = running.originBaseDirPath;
                 destPath.Text = running.destBaseDirPath;
                 string m = message.Text = $"\n'{originPath.Text.Trim()}' => '{destPath.Text.Trim()}'\nバックアップ実行中\n";
