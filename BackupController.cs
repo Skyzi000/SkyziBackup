@@ -856,7 +856,7 @@ namespace SkyziBackup
                     // 暗号化しないでバックアップ
                     using (FileStream origin = new FileStream(originFilePath, FileMode.Open, FileAccess.Read))
                     {
-                        using (FileStream dest = new FileStream(destFilePath, FileMode.OpenOrCreate, FileAccess.ReadWrite))
+                        using (FileStream dest = new FileStream(destFilePath, FileMode.Create, FileAccess.ReadWrite))
                         {
                             origin.CopyWithCompressionTo(dest, Settings.CompressionLevel, CompressionMode.Compress, Settings.CompressAlgorithm);
                         }

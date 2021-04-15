@@ -66,14 +66,14 @@ namespace Skyzi000.Cryptography
         public void EncryptFile(string inputPath, string outputPath)
         {
             using FileStream infs = new FileStream(inputPath, FileMode.Open, FileAccess.Read);
-            using FileStream outfs = new FileStream(outputPath, FileMode.OpenOrCreate, FileAccess.ReadWrite);
+            using FileStream outfs = new FileStream(outputPath, FileMode.Create, FileAccess.ReadWrite);
             EncryptStream(infs, outfs);
         }
 
         public void DecryptFile(string inputPath, string outputPath)
         {
             using FileStream infs = new FileStream(inputPath, FileMode.Open, FileAccess.Read);
-            using FileStream outfs = new FileStream(outputPath, FileMode.OpenOrCreate, FileAccess.ReadWrite);
+            using FileStream outfs = new FileStream(outputPath, FileMode.Create, FileAccess.ReadWrite);
             DecryptStream(infs, outfs);
         }
 
