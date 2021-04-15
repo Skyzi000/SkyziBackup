@@ -271,7 +271,14 @@ namespace SkyziBackup
             if (Settings.IsCopyAttributes)
             {
                 Logger.Debug("ディレクトリ属性をコピー");
-                destDirInfo.CreationTime = originDirInfo.CreationTime;
+                try
+                {
+                    destDirInfo.CreationTime = originDirInfo.CreationTime;
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    Logger.Warn($"'{destDirPath}'のCreationTimeを変更できません");
+                }
                 destDirInfo.LastWriteTime = originDirInfo.LastWriteTime;
                 destDirInfo.Attributes = originDirInfo.Attributes;
             }
@@ -493,7 +500,14 @@ namespace SkyziBackup
                     if (isCopyAttributes)
                     {
                         Logger.Debug("ディレクトリ属性をコピー");
-                        destDirInfo.CreationTime = originDirInfo.CreationTime;
+                        try
+                        {
+                            destDirInfo.CreationTime = originDirInfo.CreationTime;
+                        }
+                        catch (UnauthorizedAccessException)
+                        {
+                            Logger.Warn($"'{destDirPath}'のCreationTimeを変更できません");
+                        }
                         destDirInfo.LastWriteTime = originDirInfo.LastWriteTime;
                         destDirInfo.Attributes = originDirInfo.Attributes;
                     }
@@ -504,7 +518,14 @@ namespace SkyziBackup
                     Logger.Debug($"存在しなければ作成: '{destDirPath}'");
                     destDirInfo = Directory.CreateDirectory(destDirPath);
                     Logger.Info("データベースからディレクトリ属性をリストア: '{0}'", destDirPath);
-                    destDirInfo.CreationTime = data.CreationTime ?? originDirInfo.CreationTime;
+                    try
+                    {
+                        destDirInfo.CreationTime = data.CreationTime ?? originDirInfo.CreationTime;
+                    }
+                    catch (UnauthorizedAccessException)
+                    {
+                        Logger.Warn($"'{destDirPath}'のCreationTimeを変更できません");
+                    }
                     destDirInfo.LastWriteTime = data.LastWriteTime ?? originDirInfo.LastWriteTime;
                     destDirInfo.Attributes = data.FileAttributes ?? originDirInfo.Attributes;
                 }
@@ -512,8 +533,15 @@ namespace SkyziBackup
                 else if (isCopyAttributes)
                 {
                     string destDirPath = originDirPath.Replace(sourceBaseDirPath, destBaseDirPath);
-                    if (originDirInfo.CreationTime != backedUpDirectoriesDict[originDirPath].CreationTime)
-                        (destDirInfo = Directory.CreateDirectory(destDirPath)).CreationTime = originDirInfo.CreationTime;
+                    try
+                    {
+                        if (originDirInfo.CreationTime != backedUpDirectoriesDict[originDirPath].CreationTime)
+                            (destDirInfo = Directory.CreateDirectory(destDirPath)).CreationTime = originDirInfo.CreationTime;
+                    }
+                    catch (UnauthorizedAccessException)
+                    {
+                        Logger.Warn($"'{destDirPath}'のCreationTimeを変更できません");
+                    }
                     if (originDirInfo.LastWriteTime != backedUpDirectoriesDict[originDirPath].LastWriteTime)
                         (destDirInfo ??= Directory.CreateDirectory(destDirPath)).LastWriteTime = originDirInfo.LastWriteTime;
                     if (originDirInfo.Attributes != backedUpDirectoriesDict[originDirPath].FileAttributes)
@@ -875,18 +903,30 @@ namespace SkyziBackup
                 if (!Settings.IsUseDatabase || !Database.BackedUpFilesDict.TryGetValue(originFilePath, out var data))
                 {
                     Logger.Debug($"属性をコピー");
-                    destInfo = new FileInfo(destFilePath)
+                    destInfo = new FileInfo(destFilePath);
+                    try
                     {
-                        CreationTime = (originInfo = new FileInfo(originFilePath)).CreationTime,
-                        LastWriteTime = originInfo.LastWriteTime,
-                        Attributes = originInfo.Attributes
-                    };
+                        destInfo.CreationTime = (originInfo = new FileInfo(originFilePath)).CreationTime;
+                    }
+                    catch (UnauthorizedAccessException)
+                    {
+                        Logger.Warn($"'{destFilePath}'のCreationTimeを変更できません");
+                    }
+                    destInfo.LastWriteTime = originInfo.LastWriteTime;
+                    destInfo.Attributes = originInfo.Attributes;
                 }
                 // 以前のバックアップデータがある場合、変更されたプロパティのみ更新する(変更なしなら何もしない)
                 else
                 {
-                    if (!data.CreationTime.HasValue || (originInfo = new FileInfo(originFilePath)).CreationTime != data.CreationTime)
-                        (destInfo = new FileInfo(destFilePath)).CreationTime = originInfo.CreationTime;
+                    try
+                    {
+                        if (!data.CreationTime.HasValue || (originInfo = new FileInfo(originFilePath)).CreationTime != data.CreationTime)
+                            (destInfo = new FileInfo(destFilePath)).CreationTime = originInfo.CreationTime;
+                    }
+                    catch (UnauthorizedAccessException)
+                    {
+                        Logger.Warn($"'{destFilePath}'のCreationTimeを変更できません");
+                    }
                     if (!data.LastWriteTime.HasValue || originInfo.LastWriteTime != data.LastWriteTime)
                         (destInfo ??= new FileInfo(destFilePath)).LastWriteTime = originInfo.LastWriteTime;
                     if (!data.FileAttributes.HasValue || originInfo.Attributes != data.FileAttributes)
