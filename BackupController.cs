@@ -274,12 +274,12 @@ namespace SkyziBackup
                 try
                 {
                     destDirInfo.CreationTime = originDirInfo.CreationTime;
+                    destDirInfo.LastWriteTime = originDirInfo.LastWriteTime;
                 }
                 catch (UnauthorizedAccessException)
                 {
-                    Logger.Warn($"'{destDirPath}'のCreationTimeを変更できません");
+                    Logger.Warn($"'{destDirPath}'のCreationTime/LastWriteTimeを変更できません");
                 }
-                destDirInfo.LastWriteTime = originDirInfo.LastWriteTime;
                 destDirInfo.Attributes = originDirInfo.Attributes;
             }
         }
@@ -503,12 +503,12 @@ namespace SkyziBackup
                         try
                         {
                             destDirInfo.CreationTime = originDirInfo.CreationTime;
+                            destDirInfo.LastWriteTime = originDirInfo.LastWriteTime;
                         }
                         catch (UnauthorizedAccessException)
                         {
-                            Logger.Warn($"'{destDirPath}'のCreationTimeを変更できません");
+                            Logger.Warn($"'{destDirPath}'のCreationTime/LastWriteTimeを変更できません");
                         }
-                        destDirInfo.LastWriteTime = originDirInfo.LastWriteTime;
                         destDirInfo.Attributes = originDirInfo.Attributes;
                     }
                 }
@@ -521,12 +521,12 @@ namespace SkyziBackup
                     try
                     {
                         destDirInfo.CreationTime = data.CreationTime ?? originDirInfo.CreationTime;
+                        destDirInfo.LastWriteTime = data.LastWriteTime ?? originDirInfo.LastWriteTime;
                     }
                     catch (UnauthorizedAccessException)
                     {
-                        Logger.Warn($"'{destDirPath}'のCreationTimeを変更できません");
+                        Logger.Warn($"'{destDirPath}'のCreationTime/LastWriteTimeを変更できません");
                     }
-                    destDirInfo.LastWriteTime = data.LastWriteTime ?? originDirInfo.LastWriteTime;
                     destDirInfo.Attributes = data.FileAttributes ?? originDirInfo.Attributes;
                 }
                 // 以前のバックアップデータがある場合、変更されたプロパティのみ更新する(変更なしなら何もしない)
@@ -537,13 +537,13 @@ namespace SkyziBackup
                     {
                         if (originDirInfo.CreationTime != backedUpDirectoriesDict[originDirPath].CreationTime)
                             (destDirInfo = Directory.CreateDirectory(destDirPath)).CreationTime = originDirInfo.CreationTime;
+                        if (originDirInfo.LastWriteTime != backedUpDirectoriesDict[originDirPath].LastWriteTime)
+                            (destDirInfo ??= Directory.CreateDirectory(destDirPath)).LastWriteTime = originDirInfo.LastWriteTime;
                     }
                     catch (UnauthorizedAccessException)
                     {
-                        Logger.Warn($"'{destDirPath}'のCreationTimeを変更できません");
+                        Logger.Warn($"'{destDirPath}'のCreationTime/LastWriteTimeを変更できません");
                     }
-                    if (originDirInfo.LastWriteTime != backedUpDirectoriesDict[originDirPath].LastWriteTime)
-                        (destDirInfo ??= Directory.CreateDirectory(destDirPath)).LastWriteTime = originDirInfo.LastWriteTime;
                     if (originDirInfo.Attributes != backedUpDirectoriesDict[originDirPath].FileAttributes)
                         (destDirInfo ?? Directory.CreateDirectory(destDirPath)).Attributes = originDirInfo.Attributes;
                 }
@@ -907,12 +907,12 @@ namespace SkyziBackup
                     try
                     {
                         destInfo.CreationTime = (originInfo = new FileInfo(originFilePath)).CreationTime;
+                        destInfo.LastWriteTime = originInfo.LastWriteTime;
                     }
                     catch (UnauthorizedAccessException)
                     {
-                        Logger.Warn($"'{destFilePath}'のCreationTimeを変更できません");
+                        Logger.Warn($"'{destFilePath}'のCreationTime/LastWriteTimeを変更できません");
                     }
-                    destInfo.LastWriteTime = originInfo.LastWriteTime;
                     destInfo.Attributes = originInfo.Attributes;
                 }
                 // 以前のバックアップデータがある場合、変更されたプロパティのみ更新する(変更なしなら何もしない)
@@ -922,13 +922,13 @@ namespace SkyziBackup
                     {
                         if (!data.CreationTime.HasValue || (originInfo = new FileInfo(originFilePath)).CreationTime != data.CreationTime)
                             (destInfo = new FileInfo(destFilePath)).CreationTime = originInfo.CreationTime;
+                        if (!data.LastWriteTime.HasValue || originInfo.LastWriteTime != data.LastWriteTime)
+                            (destInfo ??= new FileInfo(destFilePath)).LastWriteTime = originInfo.LastWriteTime;
                     }
                     catch (UnauthorizedAccessException)
                     {
-                        Logger.Warn($"'{destFilePath}'のCreationTimeを変更できません");
+                        Logger.Warn($"'{destFilePath}'のCreationTime/LastWriteTimeを変更できません");
                     }
-                    if (!data.LastWriteTime.HasValue || originInfo.LastWriteTime != data.LastWriteTime)
-                        (destInfo ??= new FileInfo(destFilePath)).LastWriteTime = originInfo.LastWriteTime;
                     if (!data.FileAttributes.HasValue || originInfo.Attributes != data.FileAttributes)
                         (destInfo ?? new FileInfo(destFilePath)).Attributes = originInfo.Attributes;
                     // バックアップ先ファイルから取り除いた読み取り専用属性を戻す
