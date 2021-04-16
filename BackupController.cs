@@ -211,7 +211,7 @@ namespace SkyziBackup
                     }
                     catch (Exception e)
                     {
-                        Logger.Error(e, Results.Message = $"'{destDirPath}'の削除に失敗: メソッド{e.TargetSite.Name}で{e.GetType().Name}が発生しました: {e.Message}");
+                        Logger.Error(e, Results.Message = $"'{destDirPath}'の削除に失敗");
                     }
                 }
             }
@@ -232,7 +232,7 @@ namespace SkyziBackup
                     }
                     catch (Exception e)
                     {
-                        Logger.Error(e, Results.Message = $"'{destDirPath}'の削除に失敗: メソッド{e.TargetSite.Name}で{e.GetType().Name}が発生しました: {e.Message}");
+                        Logger.Error(e, Results.Message = $"'{destDirPath}'の削除に失敗");
                     }
                 }
             }
@@ -332,7 +332,7 @@ namespace SkyziBackup
             }
             catch (Exception e)
             {
-                Logger.Error(e, Results.Message = $"'{destFilePath}'の削除に失敗: メソッド{e.TargetSite.Name}で{e.GetType().Name}が発生しました: {e.Message}");
+                Logger.Error(e, Results.Message = $"'{destFilePath}'の削除に失敗");
             }
         }
 
@@ -395,7 +395,7 @@ namespace SkyziBackup
                 }
                 catch (Exception e)
                 {
-                    Logger.Error(e, "'{0}'の列挙に失敗: メソッド{1} で {2}が発生しました: {3}", s, e.TargetSite.Name, e.GetType().Name, e.Message);
+                    Logger.Error(e, "'{0}'の列挙に失敗", s);
                     return Enumerable.Empty<string>();
                 }
             }));
@@ -427,7 +427,7 @@ namespace SkyziBackup
                 }
                 catch (Exception e)
                 {
-                    Logger.Error(e, "'{0}'の列挙に失敗: メソッド{1} で {2}が発生しました: {3}", s, e.TargetSite.Name, e.GetType().Name, e.Message);
+                    Logger.Error(e, "'{0}'の列挙に失敗", s);
                     return Enumerable.Empty<string>();
                 }
             }));
@@ -556,7 +556,7 @@ namespace SkyziBackup
             }
             catch (Exception e)
             {
-                Logger.Error(e, results.Message = $"'{originDirPath}' => '{originDirPath.Replace(sourceBaseDirPath, destBaseDirPath)}'のコピーに失敗: メソッド{e.TargetSite.Name} で {e.GetType().Name}が発生しました: {e.Message}");
+                Logger.Error(e, results.Message = $"'{originDirPath}' => '{originDirPath.Replace(sourceBaseDirPath, destBaseDirPath)}'のコピーに失敗");
                 results.failedDirectories.Add(originDirPath);
             }
             return backedUpDirectoriesDict;
@@ -866,7 +866,7 @@ namespace SkyziBackup
             }
             catch (Exception e)
             {
-                Logger.Error(e, Results.Message = $"'{originFilePath}' => '{destFilePath}'のバックアップに失敗: メソッド{e.TargetSite.Name}で{e.GetType().Name}が発生しました: {e.Message}");
+                Logger.Error(e, Results.Message = $"'{originFilePath}' => '{destFilePath}'のバックアップに失敗");
                 Results.failedFiles.Add(originFilePath);
             }
         }
