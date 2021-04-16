@@ -211,7 +211,7 @@ namespace SkyziBackup
                     }
                     catch (Exception e)
                     {
-                        Logger.Error(Results.Message = $"'{destDirPath}'の削除に失敗: メソッド{e.TargetSite.Name}で{e.GetType().Name}が発生しました: {e.Message}");
+                        Logger.Error(e, Results.Message = $"'{destDirPath}'の削除に失敗: メソッド{e.TargetSite.Name}で{e.GetType().Name}が発生しました: {e.Message}");
                     }
                 }
             }
@@ -232,7 +232,7 @@ namespace SkyziBackup
                     }
                     catch (Exception e)
                     {
-                        Logger.Error(Results.Message = $"'{destDirPath}'の削除に失敗: メソッド{e.TargetSite.Name}で{e.GetType().Name}が発生しました: {e.Message}");
+                        Logger.Error(e, Results.Message = $"'{destDirPath}'の削除に失敗: メソッド{e.TargetSite.Name}で{e.GetType().Name}が発生しました: {e.Message}");
                     }
                 }
             }
@@ -332,7 +332,7 @@ namespace SkyziBackup
             }
             catch (Exception e)
             {
-                Logger.Error(Results.Message = $"'{destFilePath}'の削除に失敗: メソッド{e.TargetSite.Name}で{e.GetType().Name}が発生しました: {e.Message}");
+                Logger.Error(e, Results.Message = $"'{destFilePath}'の削除に失敗: メソッド{e.TargetSite.Name}で{e.GetType().Name}が発生しました: {e.Message}");
             }
         }
 
@@ -395,7 +395,7 @@ namespace SkyziBackup
                 }
                 catch (Exception e)
                 {
-                    Logger.Error("'{0}'の列挙に失敗: メソッド{1} で {2}が発生しました: {3}", s, e.TargetSite.Name, e.GetType().Name, e.Message);
+                    Logger.Error(e, "'{0}'の列挙に失敗: メソッド{1} で {2}が発生しました: {3}", s, e.TargetSite.Name, e.GetType().Name, e.Message);
                     return Enumerable.Empty<string>();
                 }
             }));
@@ -427,7 +427,7 @@ namespace SkyziBackup
                 }
                 catch (Exception e)
                 {
-                    Logger.Error("'{0}'の列挙に失敗: メソッド{1} で {2}が発生しました: {3}", s, e.TargetSite.Name, e.GetType().Name, e.Message);
+                    Logger.Error(e, "'{0}'の列挙に失敗: メソッド{1} で {2}が発生しました: {3}", s, e.TargetSite.Name, e.GetType().Name, e.Message);
                     return Enumerable.Empty<string>();
                 }
             }));
@@ -556,7 +556,7 @@ namespace SkyziBackup
             }
             catch (Exception e)
             {
-                Logger.Error(results.Message = $"'{originDirPath}' => '{originDirPath.Replace(sourceBaseDirPath, destBaseDirPath)}'のコピーに失敗: メソッド{e.TargetSite.Name} で {e.GetType().Name}が発生しました: {e.Message}");
+                Logger.Error(e, results.Message = $"'{originDirPath}' => '{originDirPath.Replace(sourceBaseDirPath, destBaseDirPath)}'のコピーに失敗: メソッド{e.TargetSite.Name} で {e.GetType().Name}が発生しました: {e.Message}");
                 results.failedDirectories.Add(originDirPath);
             }
             return backedUpDirectoriesDict;
@@ -644,7 +644,7 @@ namespace SkyziBackup
                 {
                     if (!File.Exists(destFilePath))
                     {
-                        Logger.Error("データベースに更新日時が記録されていません。バックアップ先にファイルが存在しません。: '{0}'", destFilePath);
+                        Logger.Warn("データベースに更新日時が記録されていません。バックアップ先にファイルが存在しません。: '{0}'", destFilePath);
                         return false;
                     }
                     Logger.Warn("データベースに更新日時が記録されていません。バックアップ先の更新日時を記録します。: '{0}'", destFileData.LastWriteTime = File.GetLastWriteTime(destFilePath));
@@ -689,17 +689,17 @@ namespace SkyziBackup
             {
                 if (AesCrypter != null)
                 {
-                    Logger.Error("生データの比較ができません: 暗号化有効時に生データを比較することはできません。");
+                    Logger.Warn("生データの比較ができません: 暗号化有効時に生データを比較することはできません。");
                     return false;
                 }
                 else if (Settings.CompressionLevel != CompressionLevel.NoCompression)
                 {
-                    Logger.Error("生データの比較ができません: 圧縮有効時に生データを比較することはできません。");
+                    Logger.Warn("生データの比較ができません: 圧縮有効時に生データを比較することはできません。");
                     return false;
                 }
                 if (!File.Exists(destFilePath))
                 {
-                    Logger.Error("バックアップ先にファイルが存在しません。: '{0}'", destFilePath);
+                    Logger.Warn("バックアップ先にファイルが存在しません。: '{0}'", destFilePath);
                     return false;
                 }
                 Logger.Warn(Results.Message = $"生データの比較にはデータベースを利用できません。直接比較します。'{originFilePath}' = '{destFilePath}'");
@@ -731,7 +731,7 @@ namespace SkyziBackup
         {
             if (!File.Exists(destFilePath)) return false;
             if (Settings.ComparisonMethod == ComparisonMethod.NoComparison) return false;
-            if (!Settings.IsCopyAttributes) Logger.Error("ファイルを正しく比較出来ません: ファイル属性のコピーが無効になっています。ファイルを比較するにはデータベースを利用するか、ファイル属性のコピーを有効にしてください。");
+            if (!Settings.IsCopyAttributes) Logger.Warn("ファイルを正しく比較出来ません: ファイル属性のコピーが無効になっています。ファイルを比較するにはデータベースを利用するか、ファイル属性のコピーを有効にしてください。");
             FileInfo destFileInfo = null;
             FileInfo originFileInfo = null;
 
@@ -758,12 +758,12 @@ namespace SkyziBackup
             {
                 if (AesCrypter != null)
                 {
-                    Logger.Error("ファイルサイズの比較ができません: 暗号化有効時にデータベースを利用せずサイズを比較することはできません。データベースを利用してください。");
+                    Logger.Warn("ファイルサイズの比較ができません: 暗号化有効時にデータベースを利用せずサイズを比較することはできません。データベースを利用してください。");
                     return false;
                 }
                 else if (Settings.CompressionLevel != CompressionLevel.NoCompression)
                 {
-                    Logger.Error("ファイルサイズの比較ができません: 圧縮有効時にデータベースを利用せずサイズを比較することはできません。データベースを利用してください。");
+                    Logger.Warn("ファイルサイズの比較ができません: 圧縮有効時にデータベースを利用せずサイズを比較することはできません。データベースを利用してください。");
                     return false;
                 }
                 if ((originFileInfo?.Length ?? (originFileInfo = new FileInfo(originFilePath)).Length) != (destFileInfo?.Length ?? (destFileInfo = new FileInfo(destFilePath)).Length))
@@ -777,12 +777,12 @@ namespace SkyziBackup
             {
                 if (AesCrypter != null)
                 {
-                    Logger.Error("ハッシュの比較ができません: 暗号化有効時にデータベースを利用せずハッシュを比較することはできません。データベースを利用してください。");
+                    Logger.Warn("ハッシュの比較ができません: 暗号化有効時にデータベースを利用せずハッシュを比較することはできません。データベースを利用してください。");
                     return false;
                 }
                 else if (Settings.CompressionLevel != CompressionLevel.NoCompression)
                 {
-                    Logger.Error("ハッシュの比較ができません: 圧縮有効時にデータベースを利用せずハッシュを比較することはできません。データベースを利用してください。");
+                    Logger.Warn("ハッシュの比較ができません: 圧縮有効時にデータベースを利用せずハッシュを比較することはできません。データベースを利用してください。");
                     return false;
                 }
                 Logger.Warn("データベースを利用しない場合、ハッシュでの比較は非効率的です。データベースを利用するか、生データでの比較を検討してください。");
@@ -798,12 +798,12 @@ namespace SkyziBackup
             {
                 if (AesCrypter != null)
                 {
-                    Logger.Error("生データの比較ができません: 暗号化有効時に生データを比較することはできません。");
+                    Logger.Warn("生データの比較ができません: 暗号化有効時に生データを比較することはできません。");
                     return false;
                 }
                 else if (Settings.CompressionLevel != CompressionLevel.NoCompression)
                 {
-                    Logger.Error("生データの比較ができません: 圧縮有効時に生データを比較することはできません。");
+                    Logger.Warn("生データの比較ができません: 圧縮有効時に生データを比較することはできません。");
                     return false;
                 }
                 Logger.Debug(Results.Message = $"生データの比較: '{originFilePath}' = '{destFilePath}'");
@@ -866,7 +866,7 @@ namespace SkyziBackup
             }
             catch (Exception e)
             {
-                Logger.Error(Results.Message = $"'{originFilePath}' => '{destFilePath}'のバックアップに失敗: メソッド{e.TargetSite.Name}で{e.GetType().Name}が発生しました: {e.Message}");
+                Logger.Error(e, Results.Message = $"'{originFilePath}' => '{destFilePath}'のバックアップに失敗: メソッド{e.TargetSite.Name}で{e.GetType().Name}が発生しました: {e.Message}");
                 Results.failedFiles.Add(originFilePath);
             }
         }
