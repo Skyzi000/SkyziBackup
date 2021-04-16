@@ -178,7 +178,7 @@ namespace SkyziBackup
             if ((Results.failedDirectories.Any() || Results.failedFiles.Any()) && Settings.RetryCount > 0)
             {
                 Logger.Info($"{Settings.RetryWaitMilliSec} ミリ秒毎に {Settings.RetryCount} 回リトライ");
-                RetryStart();
+                await RetryStartAsync();
             }
             else
             {
@@ -955,7 +955,7 @@ namespace SkyziBackup
             Results.failedFiles.Remove(originFilePath);
         }
 
-        private void RetryStart()
+        private async Task RetryStartAsync()
         {
             if (currentRetryCount >= Settings.RetryCount)
             {
@@ -964,7 +964,7 @@ namespace SkyziBackup
             }
             Logger.Debug(Results.Message = $"リトライ待機中...({currentRetryCount + 1}/{Settings.RetryCount}回目)");
 
-            System.Threading.Thread.Sleep(Settings.RetryWaitMilliSec);
+            await Task.Delay(Settings.RetryWaitMilliSec);
 
             currentRetryCount++;
             Logger.Info(Results.Message = $"リトライ {currentRetryCount}/{Settings.RetryCount} 回目");
@@ -996,7 +996,7 @@ namespace SkyziBackup
             }
             else
             {
-                RetryStart();
+                await RetryStartAsync();
             }
         }
 
