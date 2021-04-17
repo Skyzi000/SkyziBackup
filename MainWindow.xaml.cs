@@ -212,6 +212,7 @@ namespace SkyziBackup
         {
             Properties.Settings.Default.OriginPath = originPath.Text;
             Properties.Settings.Default.DestPath = destPath.Text;
+            Properties.Settings.Default.Save();
         }
     }
 }
