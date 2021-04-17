@@ -62,31 +62,28 @@ namespace SkyziBackup
                     ContextMenuStrip = menu
                 };
             NotifyIcon.MouseClick += new MouseEventHandler(NotifyIcon_Click);
+
+            // アプリケーションの実行
             if (!e.Args.Any())
             {
                 ShowMainWindowIfClosed();
             }
+            // 引数2個の場合、バックアップを実行して終了する
             else if (e.Args.Length == 2)
             {
-                var originPath = Path.TrimEndingDirectorySeparator(e.Args[0].Trim());
-                var destPath = Path.TrimEndingDirectorySeparator(e.Args[1].Trim());
-                if (!Directory.Exists(originPath))
+                var originPath = BackupController.GetQualifiedDirectoryPath(e.Args[0].Trim());
+                var destPath = BackupController.GetQualifiedDirectoryPath(e.Args[1].Trim());
+                if (Directory.Exists(originPath))
                 {
-                    Logger.Error($"'{originPath}'は存在しません。");
-                    MessageBox.Show($"{originPath}は存在しません。\n正しいディレクトリパスを入力してください。", $"{AssemblyName.Name} - 警告", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    Shutdown();
-                    return;
-                }
-                var settings = BackupSettings.LoadLocalSettingsOrNull(originPath, destPath) ?? BackupSettings.GetGlobalSettings();
-                var results = await BackupManager.StartBackupAsync(originPath, destPath, settings.IsRecordPassword ? settings.GetRawPassword() : null, settings);
-                if (results?.isSuccess ?? true)
-                {
-                    Shutdown();
+                    var settings = BackupSettings.LoadLocalSettingsOrNull(originPath, destPath) ?? BackupSettings.GetGlobalSettings();
+                    var results = await BackupManager.StartBackupAsync(originPath, destPath, settings.IsRecordPassword ? settings.GetRawPassword() : null, settings);
                 }
                 else
                 {
-                    NotifyIcon.ShowBalloonTip(10000, $"{AssemblyName.Name} - エラー", "バックアップに失敗しました。", ToolTipIcon.Error);
+                    Logger.Warn($"'{originPath}'は存在しません。");
+                    MessageBox.Show($"{originPath}は存在しません。\n正しいディレクトリパスを入力してください。", $"{AssemblyName.Name} - 警告", MessageBoxButton.OK, MessageBoxImage.Warning);
                 }
+                Quit();
             }
         }
 
@@ -123,15 +120,15 @@ namespace SkyziBackup
 
         private void OpenLog_Click(object sender, EventArgs e) => OpenLatestLog();
 
+        /// <summary>
+        /// MainWindowが閉じられている場合は新規作成して開き、既に存在する場合はアクティベートする
+        /// </summary>
         public void ShowMainWindowIfClosed()
         {
             if (MainWindow == null)
             {
                 MainWindow = new MainWindow();
-                MainWindow.Closed += (s, e) =>
-                {
-                    MainWindow = null;
-                };
+                MainWindow.Closed += (s, e) => MainWindow = null;
                 MainWindow.Show();
             }
             MainWindow.Activate();
@@ -157,7 +154,7 @@ namespace SkyziBackup
         {
             if (BackupManager.IsRunning)
             {
-                if (MessageBoxResult.Yes != MessageBox.Show("バックアップ実行中です。アプリケーションを終了しますか？\n※バックアップ中に中断するとバックアップ先ファイルが壊れる可能性があります。",
+                if (MessageBoxResult.Yes != MessageBox.Show("バックアップ実行中です。アプリケーションを終了しますか？",
                                                             $"{AssemblyName.Name} - 確認",
                                                             MessageBoxButton.YesNo,
                                                             MessageBoxImage.Warning))
