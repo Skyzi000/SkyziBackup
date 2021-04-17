@@ -11,8 +11,14 @@ using System.Text.Json.Serialization;
 
 namespace SkyziBackup
 {
-    public class BackupSettings : ISaveableData
+    public class BackupSettings : SaveableData
     {
+        private static BackupSettings _default = null;
+        /// <summary>
+        /// グローバル設定を返す
+        /// </summary>
+        [JsonIgnore]
+        public static BackupSettings Default => _default ??= LoadGlobalSettingsOrNull() ?? new BackupSettings();
         /// <summary>
         /// データベースを利用する
         /// </summary>
@@ -95,7 +101,7 @@ namespace SkyziBackup
         /// グローバル設定であれば <see cref="FileName"/> 、そうでなければ <see cref="localFileName"/> 
         /// </summary>
         [JsonIgnore]
-        public string SaveFileName => IsGlobal ? FileName : localFileName;
+        public override string SaveFileName => IsGlobal ? FileName : localFileName;
         /// <summary>
         /// 除外パターン
         /// </summary>
