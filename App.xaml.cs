@@ -34,18 +34,27 @@ namespace SkyziBackup
                 SkyziBackup.Properties.Settings.Default.Save();
                 Directory.CreateDirectory(SkyziBackup.Properties.Settings.Default.AppDataPath);
             }
-            var icon = GetResourceStream(new Uri("SkyziBackup.ico", UriKind.Relative)).Stream;
+
+            // NLog.configの読み取り
+            using (var nlogConfigStream = GetResourceStream(new Uri("NLog.config", UriKind.Relative)).Stream)
+            {
+                using var xmlReader = System.Xml.XmlReader.Create(nlogConfigStream);
+                LogManager.Configuration = new NLog.Config.XmlLoggingConfiguration(xmlReader);
+            }
+
+            // NotifyIconの作成
             var menu = new ContextMenuStrip();
             menu.Items.Add("メイン画面を表示する", null, MainShow_Click);
             menu.Items.Add("最新のログファイルを開く", null, OpenLog_Click);
             menu.Items.Add("終了する", null, Exit_Click);
-            NotifyIcon = new NotifyIcon
-            {
-                Visible = true,
-                Icon = new System.Drawing.Icon(icon),
-                Text = AssemblyName.Name,
-                ContextMenuStrip = menu
-            };
+            using (var icon = GetResourceStream(new Uri("SkyziBackup.ico", UriKind.Relative)).Stream)
+                NotifyIcon = new NotifyIcon
+                {
+                    Visible = true,
+                    Icon = new System.Drawing.Icon(icon),
+                    Text = AssemblyName.Name,
+                    ContextMenuStrip = menu
+                };
             NotifyIcon.MouseClick += new MouseEventHandler(NotifyIcon_Click);
             if (!e.Args.Any())
             {
