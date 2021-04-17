@@ -10,6 +10,7 @@ using System.Text;
 using Skyzi000;
 using System.Threading.Tasks;
 using System.Text.RegularExpressions;
+using System.Threading;
 
 namespace SkyziBackup
 {
@@ -68,12 +69,13 @@ namespace SkyziBackup
         FileTimeStamp           = 4,
     }
 
-    public class BackupController
+    public class BackupController : IDisposable
     {
         public BackupResults Results { get; private set; } = new BackupResults(false);
         public OpensslCompatibleAesCrypter AesCrypter { get; set; }
         public BackupSettings Settings { get; set; }
         public BackupDatabase Database { get; private set; } = null;
+        public CancellationTokenSource CTS { get; private set; } = null;
         public readonly string originBaseDirPath;
         public readonly string destBaseDirPath;
         public DateTime StartTime { get; private set; }
@@ -82,15 +84,20 @@ namespace SkyziBackup
         private static readonly HashAlgorithm SHA1Provider = new SHA1CryptoServiceProvider();
         private int currentRetryCount = 0;
         private Task<BackupDatabase> loadBackupDatabaseTask = null;
+        private bool disposedValue;
 
         public BackupController(string originDirectoryPath, string destDirectoryPath, string password = null, BackupSettings settings = null)
         {
             originBaseDirPath = GetQualifiedDirectoryPath(originDirectoryPath);
             destBaseDirPath = GetQualifiedDirectoryPath(destDirectoryPath);
-            Settings = settings ?? BackupSettings.LoadLocalSettingsOrNull(originBaseDirPath, destBaseDirPath) ?? BackupSettings.GetGlobalSettings();
+            Settings = settings ?? BackupSettings.LoadLocalSettingsOrNull(originBaseDirPath, destBaseDirPath) ?? BackupSettings.Default;
             if (Settings.IsUseDatabase)
             {
                 loadBackupDatabaseTask = LoadOrCreateDatabaseAsync();
+            }
+            if (Settings.IsCancelable)
+            {
+                CTS = new CancellationTokenSource();
             }
             if (!string.IsNullOrEmpty(password))
             {
@@ -116,26 +123,42 @@ namespace SkyziBackup
 
         private void Results_Finished(object sender, EventArgs e)
         {
-            SaveDatabase();
             Results.Message = (Results.isSuccess ? "バックアップ完了: " : Results.Message + "\nバックアップ失敗: ") + DateTime.Now;
             Logger.Info("{0}\n=============================\n\n", Results.isSuccess ? "バックアップ完了" : "バックアップ失敗");
         }
 
-        public void SaveDatabase()
+        public async Task SaveDatabaseAsync()
         {
             if (Settings.IsUseDatabase)
             {
-                Logger.Info("データベースを保存: '{0}'", DataFileWriter.GetPath(Database));
-                DataFileWriter.Write(Database);
+                Database.SaveTimer.Stop();
+                Logger.Info("データベースを保存開始: '{0}'", DataFileWriter.GetPath(Database));
+                await Database.SaveAsync();
+                Logger.Debug("データベース保存完了: '{0}'", DataFileWriter.GetPath(Database));
             }
         }
 
-        public async Task<BackupResults> StartBackupAsync()
+        /// <summary>
+        /// データベースを利用している場合は非同期で現在のデータを保存してからキャンセルする。
+        /// </summary>
+        public async Task CancelAsync()
+        {
+            await SaveDatabaseAsync().ConfigureAwait(false);
+            CTS.Cancel();
+        }
+
+        public async Task<BackupResults> StartBackupAsync(CancellationToken cancellationToken = default)
         {
             if (Results.IsFinished)
+                throw new InvalidOperationException("Backup already finished.");
+            if (disposedValue)
+                throw new ObjectDisposedException(GetType().FullName);
+            if (cancellationToken != default)
             {
-                throw new NotImplementedException("現在、このクラスのインスタンスは再利用されることを想定していません。");
+                CTS?.Dispose();
+                CTS = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             }
+            var cToken = CTS?.Token ?? default;
 
             Logger.Info("バックアップ設定:\n{0}", Settings);
             Logger.Info("バックアップを開始'{0}' => '{1}'", originBaseDirPath, destBaseDirPath);
@@ -150,40 +173,50 @@ namespace SkyziBackup
                 return Results;
             }
 
-            if (Settings.IsUseDatabase)
-                Database.BackedUpDirectoriesDict = CopyDirectoryStructure(originBaseDirPath, destBaseDirPath, Results, Settings.IsCopyAttributes, Settings.Regices, Database.BackedUpDirectoriesDict);
-            else
-                _ = CopyDirectoryStructure(originBaseDirPath, destBaseDirPath, Results, Settings.IsCopyAttributes, Settings.Regices);
-
-            // ファイルの処理
-            foreach (string originFilePath in EnumerateAllFiles(originBaseDirPath, "*", Settings.Regices))
+            try
             {
-                string destFilePath = originFilePath.Replace(originBaseDirPath, destBaseDirPath);
-                // 除外パターンと一致せず、バックアップ済みファイルと一致しないファイルをバックアップする
-                if (!IsIgnoredFile(originFilePath) && !(Settings.IsUseDatabase ? IsUnchangedFileOnDatabase(originFilePath, destFilePath) : IsUnchangedFileWithoutDatabase(originFilePath, destFilePath)))
-                    BackupFile(originFilePath, destFilePath);
+                if (Settings.IsUseDatabase)
+                    Database.BackedUpDirectoriesDict = await Task.Run(() => CopyDirectoryStructure(originBaseDirPath, destBaseDirPath, Results, Settings.IsCopyAttributes, Settings.Regices, Database.BackedUpDirectoriesDict), cToken);
+                else
+                    _ = await Task.Run(() => CopyDirectoryStructure(originBaseDirPath, destBaseDirPath, Results, Settings.IsCopyAttributes, Settings.Regices), cToken);
+
+                // ファイルの処理
+                foreach (string originFilePath in EnumerateAllFiles(originBaseDirPath, "*", Settings.Regices))
+                {
+                    string destFilePath = originFilePath.Replace(originBaseDirPath, destBaseDirPath);
+                    // 除外パターンと一致せず、バックアップ済みファイルと一致しないファイルをバックアップする
+                    if (!IsIgnoredFile(originFilePath) && !(Settings.IsUseDatabase ? IsUnchangedFileOnDatabase(originFilePath, destFilePath) : IsUnchangedFileWithoutDatabase(originFilePath, destFilePath)))
+                        await Task.Run(() => BackupFile(originFilePath, destFilePath), cToken);
+                }
+
+                // ミラーリング処理(バックアップ先ファイルの削除)
+                if (Settings.IsEnableDeletion)
+                {
+                    await Task.Run(() => DeleteFiles(), cToken);
+                    await Task.Run(() => DeleteDirectories(), cToken);
+                }
+
+                // 成功判定
+                Results.isSuccess = !Results.failedDirectories.Any() && !Results.failedFiles.Any();
+
+                // リトライ処理
+                if ((Results.failedDirectories.Any() || Results.failedFiles.Any()) && Settings.RetryCount > 0)
+                {
+                    Logger.Info($"{Settings.RetryWaitMilliSec} ミリ秒毎に {Settings.RetryCount} 回リトライ");
+                    await RetryStartAsync(cToken);
+                }
+                else
+                {
+                    Results.IsFinished = true;
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                Logger.Info("バックアップはキャンセルされました。");
+                throw;
             }
 
-            // ミラーリング処理(バックアップ先ファイルの削除)
-            if (Settings.IsEnableDeletion)
-            {
-                DeleteFiles();
-                DeleteDirectories();
-            }
-
-            // 成功判定
-            Results.isSuccess = !Results.failedDirectories.Any() && !Results.failedFiles.Any();
-
-            // リトライ処理
-            if ((Results.failedDirectories.Any() || Results.failedFiles.Any()) && Settings.RetryCount > 0)
-            {
-                Logger.Info($"{Settings.RetryWaitMilliSec} ミリ秒毎に {Settings.RetryCount} 回リトライ");
-                await RetryStartAsync();
-            }
-            else
-            {
-                Results.IsFinished = true;
-            }
+            await SaveDatabaseAsync();
             return Results;
         }
 
@@ -456,7 +489,7 @@ namespace SkyziBackup
             {
                 throw new ArgumentNullException(nameof(backedUpDirectoriesDict));
             }
-
+            Logger.Info(results.Message = $"ディレクトリ構造をコピー");
             foreach (string originDirPath in EnumerateAllDirectories(sourceBaseDirPath, "*", regices))
             {
                 if (regices != null)
@@ -577,6 +610,8 @@ namespace SkyziBackup
                         Database = new BackupDatabase(originBaseDirPath, destBaseDirPath);
                     }
                 }
+                Database.StartAutoSave(60000);
+                Database.SaveTimer.Elapsed += (s, e) => { Logger.Info("現時点のデータベースを保存: '{0}'", DataFileWriter.GetPath(Database)); };
             }
             else
             {
@@ -955,8 +990,9 @@ namespace SkyziBackup
             Results.failedFiles.Remove(originFilePath);
         }
 
-        private async Task RetryStartAsync()
+        private async Task RetryStartAsync(CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (currentRetryCount >= Settings.RetryCount)
             {
                 Results.IsFinished = true;
@@ -964,7 +1000,7 @@ namespace SkyziBackup
             }
             Logger.Debug(Results.Message = $"リトライ待機中...({currentRetryCount + 1}/{Settings.RetryCount}回目)");
 
-            await Task.Delay(Settings.RetryWaitMilliSec);
+            await Task.Delay(Settings.RetryWaitMilliSec, cancellationToken);
 
             currentRetryCount++;
             Logger.Info(Results.Message = $"リトライ {currentRetryCount}/{Settings.RetryCount} 回目");
@@ -973,9 +1009,9 @@ namespace SkyziBackup
                 foreach(string originDirPath in Results.failedDirectories.ToArray())
                 {
                     if (Settings.IsUseDatabase)
-                        Database.BackedUpDirectoriesDict = CopyDirectory(originDirPath, originBaseDirPath, destBaseDirPath, Results, Settings.IsCopyAttributes, Database.BackedUpDirectoriesDict);
+                        Database.BackedUpDirectoriesDict = await Task.Run(() => CopyDirectory(originDirPath, originBaseDirPath, destBaseDirPath, Results, Settings.IsCopyAttributes, Database.BackedUpDirectoriesDict), cancellationToken);
                     else
-                        _ = CopyDirectory(originDirPath, originBaseDirPath, destBaseDirPath, Results, Settings.IsCopyAttributes);
+                        _ = await Task.Run(() => CopyDirectory(originDirPath, originBaseDirPath, destBaseDirPath, Results, Settings.IsCopyAttributes), cancellationToken);
                 }
             }
             if (Results.failedFiles.Any())
@@ -983,7 +1019,7 @@ namespace SkyziBackup
                 foreach (string originFilePath in Results.failedFiles.ToArray())
                 {
                     string destFilePath = originFilePath.Replace(originBaseDirPath, destBaseDirPath);
-                    BackupFile(originFilePath, destFilePath);
+                    await Task.Run(() => BackupFile(originFilePath, destFilePath), cancellationToken);
                 }
             }
             
@@ -996,7 +1032,7 @@ namespace SkyziBackup
             }
             else
             {
-                await RetryStartAsync();
+                await RetryStartAsync(cancellationToken);
             }
         }
 
@@ -1017,5 +1053,30 @@ namespace SkyziBackup
             return BitConverter.ToString(bs).ToLower().Replace("-", "");
         }
         public static string ComputeStringSHA1(string value) => ComputeStreamSHA1(new MemoryStream(Encoding.UTF8.GetBytes(value)));
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposedValue)
+            {
+                if (disposing)
+                {
+                    CTS?.Cancel();
+                    CTS?.Dispose();
+                    AesCrypter?.Dispose();
+                    Settings?.Dispose();
+                    Database?.Dispose();
+                    SHA1Provider?.Dispose();
+                    loadBackupDatabaseTask?.Dispose();
+                }
+                disposedValue = true;
+            }
+        }
+
+        public void Dispose()
+        {
+            // このコードを変更しないでください。クリーンアップ コードを 'Dispose(bool disposing)' メソッドに記述します
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
+        }
     }
 }
