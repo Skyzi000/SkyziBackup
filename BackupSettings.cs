@@ -77,6 +77,11 @@ namespace SkyziBackup
         /// </summary>
         public CompressAlgorithm CompressAlgorithm { get; set; }
         /// <summary>
+        /// バックアップなどの操作をキャンセル可能にする
+        /// </summary>
+        public bool IsCancelable { get; set; }
+
+        /// <summary>
         /// <see cref="Properties.Settings.AppDataPath"/> から見たローカル設定の相対パス。グローバル設定の場合は null
         /// </summary>
         private string localFileName;
@@ -130,6 +135,7 @@ namespace SkyziBackup
             ignorePattern = string.Empty;
             CompressionLevel = CompressionLevel.NoCompression;
             CompressAlgorithm = CompressAlgorithm.Deflate;
+            IsCancelable = true;
         }
         /// <summary>
         /// ローカル設定用のコンストラクタ
@@ -163,6 +169,7 @@ namespace SkyziBackup
             sb.AppendFormat("ファイル比較方法-----------------: {0}\n", ComparisonMethod);
             sb.AppendFormat("圧縮レベル-----------------------: {0}\n", CompressionLevel);
             sb.AppendFormat("圧縮アルゴリズム-----------------: {0}\n", CompressAlgorithm);
+            sb.AppendFormat("キャンセル可能-------------------: {0}\n", IsCancelable);
             sb.AppendFormat("除外パターン---------------------: \n{0}\n", IgnorePattern);
             return sb.ToString();
         }
@@ -170,6 +177,7 @@ namespace SkyziBackup
         /// <summary>
         /// グローバル設定をファイルから読み込む。読み込めない場合は新規インスタンスを返す。
         /// </summary>
+        [Obsolete]
         public static BackupSettings GetGlobalSettings() => LoadGlobalSettingsOrNull() ?? new BackupSettings();
 
         public static bool TryLoadGlobalSettings(out BackupSettings globalSettings)
