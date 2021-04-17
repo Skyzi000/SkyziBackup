@@ -123,6 +123,7 @@ namespace SkyziBackup
 
         private void Results_Finished(object sender, EventArgs e)
         {
+            Database?.SaveTimer?.Stop();
             Results.Message = (Results.isSuccess ? "バックアップ完了: " : Results.Message + "\nバックアップ失敗: ") + DateTime.Now;
             Logger.Info("{0}\n=============================\n\n", Results.isSuccess ? "バックアップ完了" : "バックアップ失敗");
         }
@@ -144,7 +145,11 @@ namespace SkyziBackup
         public async Task CancelAsync()
         {
             await SaveDatabaseAsync().ConfigureAwait(false);
-            CTS.Cancel();
+            if (CTS is null)
+                Logger.Info("キャンセル失敗: キャンセル機能が無効です");
+            CTS?.Cancel();
+            Results.isSuccess = false;
+            Results.IsFinished = true;
         }
 
         public async Task<BackupResults> StartBackupAsync(CancellationToken cancellationToken = default)

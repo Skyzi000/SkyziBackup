@@ -176,15 +176,17 @@ namespace SkyziBackup
             }
         }
 
-        protected override void OnExit(ExitEventArgs e)
+        protected override async void OnExit(ExitEventArgs e)
         {
             base.OnExit(e);
+            e.ApplicationExitCode = 2;
             NotifyIcon.Visible = false;
             if (BackupManager.IsRunning)
             {
-                BackupManager.GetRunningBackups().ToList().ForEach(b => b.SaveDatabase());
-                Logger.Warn("バックアップ実行中にアプリケーションを強制終了しました。(終了コード:{0})\n=============================\n\n", e.ApplicationExitCode);
+                await BackupManager.CancelAllAsync();
+                Logger.Warn("バックアップ実行中にアプリケーションを強制終了しました。\n=============================\n\n");
             }
+            e.ApplicationExitCode = 0;
             LogManager.Shutdown();
         }
     }
