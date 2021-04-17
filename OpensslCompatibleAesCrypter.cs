@@ -27,7 +27,7 @@ namespace Skyzi000.Cryptography
         Deflate,
         GZip,
     }
-    public class OpensslCompatibleAesCrypter
+    public class OpensslCompatibleAesCrypter : IDisposable
     {
         public HashAlgorithmName HashAlgorithm { get; set; } = HashAlgorithmName.SHA256;
         public CustomCipherMode Mode { get; set; }
@@ -320,6 +320,11 @@ namespace Skyzi000.Cryptography
                 objMd5.Clear();
             }
             return blnIsOk;
+        }
+
+        public void Dispose()
+        {
+            ((IDisposable)aes).Dispose();
         }
     }
 }
