@@ -28,6 +28,12 @@ namespace SkyziBackup
             base.OnStartup(e);
             DispatcherUnhandledException += App_DispatcherUnhandledException;
             TaskScheduler.UnobservedTaskException += TaskScheduler_UnobservedTaskException;
+            if (SkyziBackup.Properties.Settings.Default.IsUpgradeRequired)
+            {
+                SkyziBackup.Properties.Settings.Default.Upgrade();
+                SkyziBackup.Properties.Settings.Default.IsUpgradeRequired = false;
+                SkyziBackup.Properties.Settings.Default.Save();
+            }
             if (string.IsNullOrEmpty(SkyziBackup.Properties.Settings.Default.AppDataPath))
             {
                 SkyziBackup.Properties.Settings.Default.AppDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "Skyzi000", "SkyziBackup");
