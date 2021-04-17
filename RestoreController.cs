@@ -12,7 +12,7 @@ namespace SkyziBackup
     public class RestoreController
     {
         public BackupResults Results { get; private set; } = new BackupResults(false);
-        public OpensslCompatibleAesCrypter AesCrypter { get; set; }
+        public OpensslCompatibleAesCryptor AesCryptor { get; set; }
         public BackupSettings Settings { get; set; }
         public BackupDatabase Database { get; private set; } = null;
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
@@ -52,7 +52,7 @@ namespace SkyziBackup
             }
             if (!string.IsNullOrEmpty(password))
             {
-                AesCrypter = new OpensslCompatibleAesCrypter(password, compressionLevel: Settings.CompressionLevel, compressAlgorithm: Settings.CompressAlgorithm);
+                AesCryptor = new OpensslCompatibleAesCryptor(password, compressionLevel: Settings.CompressionLevel, compressAlgorithm: Settings.CompressAlgorithm);
             }
             Results.Finished += Results_Finished;
             this.isCopyOnlyFileAttributes = isCopyOnlyFileAttributes;
@@ -121,9 +121,9 @@ namespace SkyziBackup
             Logger.Info(Results.Message = $"ファイルをリストア: '{originFilePath}' => '{destFilePath}'");
             try
             {
-                if (AesCrypter != null)
+                if (AesCryptor != null)
                 {
-                    AesCrypter.DecryptFile(originFilePath, destFilePath);
+                    AesCryptor.DecryptFile(originFilePath, destFilePath);
                     // 復号成功時処理
                     if (Settings.IsCopyAttributes)
                     {

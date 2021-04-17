@@ -72,7 +72,7 @@ namespace SkyziBackup
     public class BackupController : IDisposable
     {
         public BackupResults Results { get; private set; } = new BackupResults(false);
-        public OpensslCompatibleAesCrypter AesCrypter { get; set; }
+        public OpensslCompatibleAesCryptor AesCryptor { get; set; }
         public BackupSettings Settings { get; set; }
         public BackupDatabase Database { get; private set; } = null;
         public CancellationTokenSource CTS { get; private set; } = null;
@@ -101,7 +101,7 @@ namespace SkyziBackup
             }
             if (!string.IsNullOrEmpty(password))
             {
-                AesCrypter = new OpensslCompatibleAesCrypter(password, compressionLevel: Settings.CompressionLevel, compressAlgorithm: Settings.CompressAlgorithm);
+                AesCryptor = new OpensslCompatibleAesCryptor(password, compressionLevel: Settings.CompressionLevel, compressAlgorithm: Settings.CompressAlgorithm);
             }
             Results.Finished += Results_Finished;
         }
@@ -727,7 +727,7 @@ namespace SkyziBackup
             // 生データ(データベースを用いず比較)
             if (Settings.ComparisonMethod.HasFlag(ComparisonMethod.FileContentsBynary))
             {
-                if (AesCrypter != null)
+                if (AesCryptor != null)
                 {
                     Logger.Warn("生データの比較ができません: 暗号化有効時に生データを比較することはできません。");
                     return false;
@@ -796,7 +796,7 @@ namespace SkyziBackup
             // サイズ
             if (Settings.ComparisonMethod.HasFlag(ComparisonMethod.Size))
             {
-                if (AesCrypter != null)
+                if (AesCryptor != null)
                 {
                     Logger.Warn("ファイルサイズの比較ができません: 暗号化有効時にデータベースを利用せずサイズを比較することはできません。データベースを利用してください。");
                     return false;
@@ -815,7 +815,7 @@ namespace SkyziBackup
             // SHA1
             if (Settings.ComparisonMethod.HasFlag(ComparisonMethod.FileContentsSHA1))
             {
-                if (AesCrypter != null)
+                if (AesCryptor != null)
                 {
                     Logger.Warn("ハッシュの比較ができません: 暗号化有効時にデータベースを利用せずハッシュを比較することはできません。データベースを利用してください。");
                     return false;
@@ -836,7 +836,7 @@ namespace SkyziBackup
             // 生データ
             if (Settings.ComparisonMethod.HasFlag(ComparisonMethod.FileContentsBynary))
             {
-                if (AesCrypter != null)
+                if (AesCryptor != null)
                 {
                     Logger.Warn("生データの比較ができません: 暗号化有効時に生データを比較することはできません。");
                     return false;
@@ -886,9 +886,9 @@ namespace SkyziBackup
                 {
                     RemoveReadonlyAttribute(originFilePath, destFilePath);
                 }
-                if (AesCrypter != null)
+                if (AesCryptor != null)
                 {
-                    AesCrypter.EncryptFile(originFilePath, destFilePath);
+                    AesCryptor.EncryptFile(originFilePath, destFilePath);
                     CopyFileAttributesAndUpdateDatabase(originFilePath, destFilePath);
                 }
                 else
@@ -1067,7 +1067,7 @@ namespace SkyziBackup
                 {
                     CTS?.Cancel();
                     CTS?.Dispose();
-                    AesCrypter?.Dispose();
+                    AesCryptor?.Dispose();
                     Settings?.Dispose();
                     Database?.Dispose();
                     SHA1Provider?.Dispose();

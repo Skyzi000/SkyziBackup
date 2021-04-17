@@ -27,7 +27,7 @@ namespace Skyzi000.Cryptography
         Deflate,
         GZip,
     }
-    public class OpensslCompatibleAesCrypter : IDisposable
+    public class OpensslCompatibleAesCryptor : IDisposable
     {
         public HashAlgorithmName HashAlgorithm { get; set; } = HashAlgorithmName.SHA256;
         public CustomCipherMode Mode { get; set; }
@@ -44,7 +44,7 @@ namespace Skyzi000.Cryptography
         private byte[] key;
         private readonly SymmetricAlgorithm aes;
 
-        public OpensslCompatibleAesCrypter(string password,
+        public OpensslCompatibleAesCryptor(string password,
                                            int keySize = 256,
                                            int iterationCount = 10000,
                                            CustomCipherMode cipherMode = CustomCipherMode.CBC,
