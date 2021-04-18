@@ -28,16 +28,16 @@ namespace SkyziBackup
             SaveTimer.Elapsed += (s, e) => 
             {
                 if (Semaphore.CurrentCount != 0)
-                    Save();
+                    TempSave();
             };
             SaveTimer.Start();
         }
-        public virtual void Save()
+        public virtual void TempSave()
         {
             Semaphore.Wait();
             try
             {
-                DataFileWriter.Write(this, true);
+                DataFileWriter.Write(this, makeBackup: true);
             }
             finally
             {
@@ -49,7 +49,7 @@ namespace SkyziBackup
             await Semaphore.WaitAsync();
             try
             {
-                await DataFileWriter.WriteAsync(this, true, cancellationToken).ConfigureAwait(false);
+                await DataFileWriter.WriteAsync(this, makeBackup: true, cancellationToken: cancellationToken).ConfigureAwait(false);
             }
             finally
             {
@@ -115,6 +115,7 @@ namespace SkyziBackup
         [JsonIgnore]
         public override string SaveFileName => DataFileWriter.GetDatabaseFileName(OriginBaseDirPath, DestBaseDirPath);
         
+        private int tempCount = 0;
 
         public BackupDatabase() { }
 
@@ -122,6 +123,27 @@ namespace SkyziBackup
         {
             this.OriginBaseDirPath = originBaseDirPath;
             this.DestBaseDirPath = destBaseDirPath;
+        }
+        public override void TempSave()
+        {
+            Semaphore.Wait();
+            try
+            {
+                var temp = new BackupDatabase(OriginBaseDirPath, DestBaseDirPath)
+                {
+                    BackedUpDirectoriesDict = new Dictionary<string, BackedUpDirectoryData>(this.BackedUpDirectoriesDict),
+                    BackedUpFilesDict = new Dictionary<string, BackedUpFileData>(this.BackedUpFilesDict)
+                };
+                string path = DataFileWriter.GetPath(temp);
+                string tempDirPath = Path.Combine(Path.GetDirectoryName(path), "Temp");
+                string tempPath = Path.Combine(tempDirPath, $"Database{tempCount}{DataFileWriter.TempFileExtension}");
+                DataFileWriter.Write(temp, tempPath);
+                DataFileWriter.Replace(tempPath, path, true);
+            }
+            finally
+            {
+                Semaphore.Release();
+            }
         }
     }
 
@@ -178,8 +200,10 @@ namespace SkyziBackup
 
     public class DataFileWriter
     {
+        public const string JsonExtension = ".json";
+        public static string DefaultExtension = JsonExtension;
         public static string ParentDirectoryName = "Data";
-        public static string DatabaseFileName = "Database.json";
+        public static string DatabaseFileName = "Database" + DefaultExtension;
         public static string TempFileExtension = ".tmp";
         public static string BackupFileExtension = ".bac";
 
@@ -195,28 +219,32 @@ namespace SkyziBackup
         public static string GetDatabaseFileName(string originBaseDirPath, string destBaseDirPath) => Path.Combine(GetDatabaseDirectoryName(originBaseDirPath, destBaseDirPath), DatabaseFileName);
         public static string GetDatabasePath(string originBaseDirPath, string destBaseDirPath) => GetPath(GetDatabaseFileName(originBaseDirPath, destBaseDirPath));
 
-        public static async Task WriteAsync<T>(T obj, bool makeBackup = false, CancellationToken cancellationToken = default) where T : SaveableData
+        public static async Task WriteAsync(SaveableData obj, string filePath = null, bool makeBackup = false, CancellationToken cancellationToken = default)
         {
-            string filePath = GetPath(obj);
+            filePath ??= GetPath(obj);
             string tmpPath = filePath + TempFileExtension;
             Directory.CreateDirectory(Path.GetDirectoryName(filePath));
             using (var fs = new FileStream(tmpPath, FileMode.Create, FileAccess.Write, FileShare.None))
-                await JsonSerializer.SerializeAsync(fs, obj, SerializerOptions, cancellationToken).ConfigureAwait(false);
+                await JsonSerializer.SerializeAsync(fs, obj, obj.GetType(), SerializerOptions, cancellationToken).ConfigureAwait(false);
+            Replace(tmpPath, filePath, makeBackup);
+        }
+
+        public static void Replace(string sourceFileName, string destinationFileName, bool makeBackup = false)
+        {
             try
             {
-                if (makeBackup)
-                    File.Replace(tmpPath, filePath, filePath + BackupFileExtension, true);
+                File.Replace(sourceFileName, destinationFileName, makeBackup ? destinationFileName + BackupFileExtension : null, true);
             }
             catch (Exception)
             {
-                if (makeBackup && File.Exists(filePath))
-                    File.Move(filePath, filePath + BackupFileExtension, true);
-                File.Move(tmpPath, filePath, true);
+                if (makeBackup && File.Exists(destinationFileName))
+                    File.Move(destinationFileName, destinationFileName + BackupFileExtension, true);
+                File.Move(sourceFileName, destinationFileName, true);
             }
         }
-        public static void Write<T>(T obj, bool makeBackup = false) where T : SaveableData
+        public static void Write(SaveableData obj, string filePath = null, bool makeBackup = false)
         {
-            WriteAsync(obj, makeBackup).Wait();
+            WriteAsync(obj, filePath, makeBackup).Wait();
         }
         public static async Task<T> ReadAsync<T>(string fileName, CancellationToken cancellationToken = default) where T : SaveableData
         {
