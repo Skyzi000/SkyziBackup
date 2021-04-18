@@ -108,7 +108,8 @@ namespace SkyziBackup
 
         public static string GetQualifiedDirectoryPath(string directoryPath)
         {
-            return Path.GetFullPath(directoryPath.EndsWith(Path.DirectorySeparatorChar) ? directoryPath : directoryPath + Path.DirectorySeparatorChar);
+            string s = directoryPath.Trim();
+            return Path.GetFullPath(s.EndsWith(Path.DirectorySeparatorChar) ? s : s + Path.DirectorySeparatorChar);
         }
 
         private async Task<BackupDatabase> LoadOrCreateDatabaseAsync()

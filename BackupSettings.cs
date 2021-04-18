@@ -175,11 +175,9 @@ namespace SkyziBackup
         }
 
         /// <summary>
-        /// グローバル設定をファイルから読み込む。読み込めない場合は新規インスタンスを返す。
+        /// デフォルト設定をファイルから読み込み直す。読み込めない場合は何もしない。
         /// </summary>
-        [Obsolete]
-        public static BackupSettings GetGlobalSettings() => LoadGlobalSettingsOrNull() ?? new BackupSettings();
-
+        public static BackupSettings ReloadDefault() => _default = LoadGlobalSettingsOrNull() ?? Default;
         public static bool TryLoadGlobalSettings(out BackupSettings globalSettings)
         {
             if (File.Exists(DataFileWriter.GetPath(FileName)))

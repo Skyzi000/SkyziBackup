@@ -30,8 +30,12 @@ namespace SkyziBackup
                 NoComparisonLBI.Selected += (s, e) => ComparisonMethodListBox.SelectedIndex = 0;
                 VersioningPanel.IsEnabled = (int)settings.Versioning >= (int)VersioningMethod.Replace;
             };
+            settings = BackupSettings.Default;
         }
-        public SettingsWindow(ref BackupSettings settings) : this()
+        /// <summary>
+        /// 受け取った設定をもとに設定画面を開く。設定画面を閉じた後にリロードする必要がある。
+        /// </summary>
+        public SettingsWindow(BackupSettings settings) : this()
         {
             this.settings = settings;
             DisplaySettings();
@@ -41,14 +45,9 @@ namespace SkyziBackup
         /// </summary>
         public SettingsWindow(string originBaseDirPath, string destBaseDirPath) : this()
         {
-            if (BackupSettings.TryLoadLocalSettings(originBaseDirPath, destBaseDirPath, out var settings))
-            {
-                this.settings = settings;
-            }
-            else
-            {
-                this.settings = BackupSettings.GetGlobalSettings().ConvertToLocalSettings(originBaseDirPath, destBaseDirPath);
-            }
+            this.settings = BackupSettings.TryLoadLocalSettings(originBaseDirPath, destBaseDirPath, out var settings)
+                ? settings
+                : BackupSettings.Default.ConvertToLocalSettings(originBaseDirPath, destBaseDirPath);
             DisplaySettings();
         }
 

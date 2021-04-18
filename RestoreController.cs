@@ -31,7 +31,7 @@ namespace SkyziBackup
         {
             this.sourceBaseDirPath = BackupController.GetQualifiedDirectoryPath(sourceDirPath);
             this.destBaseDirPath = BackupController.GetQualifiedDirectoryPath(destDirPath);
-            Settings = settings ?? BackupSettings.LoadLocalSettingsOrNull(destBaseDirPath, sourceBaseDirPath) ?? BackupSettings.GetGlobalSettings();
+            Settings = settings ?? BackupSettings.LoadLocalSettingsOrNull(destBaseDirPath, sourceBaseDirPath) ?? BackupSettings.Default;
             //if (Settings.isUseDatabase && Settings.comparisonMethod.HasFlag(ComparisonMethod.FileContentsSHA1))
             // TODO: データベースに記録されたSHA1と比較できるようにする
             if (isCopyAttributesOnDatabase && File.Exists(DataFileWriter.GetDatabasePath(destBaseDirPath, sourceBaseDirPath)))

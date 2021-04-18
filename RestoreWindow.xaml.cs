@@ -22,7 +22,7 @@ namespace SkyziBackup
     /// </summary>
     public partial class RestoreWindow : Window
     {
-        private BackupSettings LoadCurrentSettings => BackupSettings.LoadLocalSettingsOrNull(destPath.Text.Trim(), originPath.Text.Trim()) ?? BackupSettings.LoadGlobalSettingsOrNull() ?? MainWindow.GlobalBackupSettings;
+        private BackupSettings LoadCurrentSettings => BackupSettings.LoadLocalSettingsOrNull(destPath.Text.Trim(), originPath.Text.Trim()) ?? BackupSettings.Default;
 
         private readonly SynchronizationContext _mainContext;
         public RestoreWindow()
@@ -93,8 +93,8 @@ namespace SkyziBackup
         }
         private void GlobalSettingsMenu_Click(object sender, RoutedEventArgs e)
         {
-            new SettingsWindow(ref MainWindow.GlobalBackupSettings).ShowDialog();
-            MainWindow.GlobalBackupSettings = BackupSettings.LoadGlobalSettingsOrNull() ?? MainWindow.GlobalBackupSettings;
+            new SettingsWindow(BackupSettings.Default).ShowDialog();
+            BackupSettings.ReloadDefault();
             password.Password = PasswordManager.LoadPasswordOrNull(LoadCurrentSettings) ?? string.Empty;
         }
 

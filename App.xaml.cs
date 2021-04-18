@@ -71,17 +71,17 @@ namespace SkyziBackup
             // 引数2個の場合、バックアップを実行して終了する
             else if (e.Args.Length == 2)
             {
-                var originPath = BackupController.GetQualifiedDirectoryPath(e.Args[0].Trim());
-                var destPath = BackupController.GetQualifiedDirectoryPath(e.Args[1].Trim());
+                var originPath = e.Args[0];
+                var destPath = e.Args[1];
                 if (Directory.Exists(originPath))
                 {
-                    var settings = BackupSettings.LoadLocalSettingsOrNull(originPath, destPath) ?? BackupSettings.GetGlobalSettings();
+                    var settings = BackupSettings.LoadLocalSettingsOrNull(originPath, destPath) ?? BackupSettings.Default;
                     var results = await BackupManager.StartBackupAsync(originPath, destPath, settings.IsRecordPassword ? settings.GetRawPassword() : null, settings);
                 }
                 else
                 {
-                    Logger.Warn($"'{originPath}'は存在しません。");
-                    MessageBox.Show($"{originPath}は存在しません。\n正しいディレクトリパスを入力してください。", $"{AssemblyName.Name} - 警告", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    Logger.Warn($"'{BackupController.GetQualifiedDirectoryPath(originPath)}'は存在しません。");
+                    MessageBox.Show($"{BackupController.GetQualifiedDirectoryPath(originPath)}は存在しません。\n正しいディレクトリパスを入力してください。", $"{AssemblyName.Name} - 警告", MessageBoxButton.OK, MessageBoxImage.Warning);
                 }
                 Quit();
             }

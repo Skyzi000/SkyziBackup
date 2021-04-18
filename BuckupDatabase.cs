@@ -28,11 +28,12 @@ namespace SkyziBackup
             SaveTimer.Elapsed += (s, e) => 
             {
                 if (Semaphore.CurrentCount != 0)
-                    TempSave();
+                    AutoSave();
             };
             SaveTimer.Start();
         }
-        public virtual void TempSave()
+        public virtual void AutoSave() => Save();
+        public virtual void Save()
         {
             Semaphore.Wait();
             try
@@ -124,7 +125,7 @@ namespace SkyziBackup
             this.OriginBaseDirPath = originBaseDirPath;
             this.DestBaseDirPath = destBaseDirPath;
         }
-        public override void TempSave()
+        public override void AutoSave()
         {
             Semaphore.Wait();
             try
@@ -215,8 +216,31 @@ namespace SkyziBackup
         };
         public static string GetPath(SaveableData obj) => GetPath(obj.SaveFileName);
         public static string GetPath(string fileName) => Path.Combine(Properties.Settings.Default.AppDataPath, fileName);
-        public static string GetDatabaseDirectoryName(string originBaseDirPath, string destBaseDirPath) => Path.Combine(ParentDirectoryName, BackupController.ComputeStringSHA1(originBaseDirPath + destBaseDirPath));
+        /// <summary>
+        /// <see cref="ParentDirectoryName"/>とSHA1ハッシュ値でAppDataPathからの相対ディレクトリパスを求める。
+        /// </summary>
+        /// <remarks>GetQualifiedもついでに呼んでるので予めTrim()したりする必要はないよ♡</remarks>
+        /// <returns>AppDataPathからの相対パス</returns>
+        public static string GetDatabaseDirectoryName(string originBaseDirPath, string destBaseDirPath)
+        {
+            return Path.Combine(ParentDirectoryName,
+                BackupController.ComputeStringSHA1(
+                    BackupController.GetQualifiedDirectoryPath(originBaseDirPath) +
+                    BackupController.GetQualifiedDirectoryPath(destBaseDirPath)
+                    )
+                );
+        }
+        /// <summary>
+        /// <see cref="DatabaseFileName"/>と<see cref="GetDatabaseDirectoryName(string, string)"/>でAppDataPathからの相対ファイルパスを求める。
+        /// </summary>
+        /// <remarks>引数はもちろん予めTrim()したりする必要はない</remarks>
+        /// <returns>AppDataPathからの相対パス</returns>
         public static string GetDatabaseFileName(string originBaseDirPath, string destBaseDirPath) => Path.Combine(GetDatabaseDirectoryName(originBaseDirPath, destBaseDirPath), DatabaseFileName);
+        /// <summary>
+        /// <see cref="GetDatabaseFileName(string, string)"/>と<see cref="GetPath(string)"/>で絶対パスを得る。
+        /// </summary>
+        /// <remarks>引数は生で良い</remarks>
+        /// <returns>データベースの絶対パス</returns>
         public static string GetDatabasePath(string originBaseDirPath, string destBaseDirPath) => GetPath(GetDatabaseFileName(originBaseDirPath, destBaseDirPath));
 
         public static async Task WriteAsync(SaveableData obj, string filePath = null, bool makeBackup = false, CancellationToken cancellationToken = default)
@@ -285,7 +309,7 @@ namespace SkyziBackup
         }
         public static void DeleteAllDatabase()
         {
-
+            throw new NotImplementedException();
         }
         public static void DeleteDatabase(string originBaseDirPath, string destBaseDirPath) => Delete<BackupDatabase>(GetDatabaseFileName(originBaseDirPath, destBaseDirPath));
     }

@@ -29,11 +29,10 @@ namespace SkyziBackup
     /// </summary>
     public partial class MainWindow : Window
     {
-        public static BackupSettings GlobalBackupSettings = BackupSettings.GetGlobalSettings();
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         private readonly SynchronizationContext _mainContext;
 
-        private BackupSettings LoadCurrentSettings => BackupSettings.LoadLocalSettingsOrNull(BackupController.GetQualifiedDirectoryPath(originPath.Text.Trim()), BackupController.GetQualifiedDirectoryPath(destPath.Text.Trim())) ?? BackupSettings.LoadGlobalSettingsOrNull() ?? GlobalBackupSettings;
+        private BackupSettings LoadCurrentSettings => BackupSettings.LoadLocalSettingsOrNull(originPath.Text, destPath.Text) ?? BackupSettings.Default;
         private bool ButtonsIsEnabled
         {
             get => StartBackupButton.IsEnabled || GlobalSettingsMenu.IsEnabled || LocalSettingsMenu.IsEnabled || DeleteLocalSettings.IsEnabled;
@@ -140,13 +139,13 @@ namespace SkyziBackup
         private bool DeleteDatabase()
         {
             string databasePath;
-            if (GlobalBackupSettings.IsUseDatabase && File.Exists(databasePath = DataFileWriter.GetDatabasePath(BackupController.GetQualifiedDirectoryPath(originPath.Text.Trim()), BackupController.GetQualifiedDirectoryPath(destPath.Text.Trim()))))
+            if (LoadCurrentSettings.IsUseDatabase && File.Exists(databasePath = DataFileWriter.GetDatabasePath(originPath.Text, destPath.Text)))
             {
                 var deleteDatabase = MessageBox.Show($"{databasePath}\n上記データベースを削除しますか？\nなお、データベースを削除すると全てのファイルを初めからバックアップすることになります。", $"{App.AssemblyName.Name} - 確認", MessageBoxButton.YesNo);
                 switch (deleteDatabase)
                 {
                     case MessageBoxResult.Yes:
-                        DataFileWriter.DeleteDatabase(BackupController.GetQualifiedDirectoryPath(originPath.Text.Trim()), BackupController.GetQualifiedDirectoryPath(destPath.Text.Trim()));
+                        DataFileWriter.DeleteDatabase(originPath.Text, destPath.Text);
                         MessageBox.Show("データベースを削除しました。");
                         return true;
                     case MessageBoxResult.No:
@@ -171,8 +170,8 @@ namespace SkyziBackup
 
         private void GlobalSettingsMenu_Click(object sender, RoutedEventArgs e)
         {
-            new SettingsWindow(ref GlobalBackupSettings).ShowDialog();
-            GlobalBackupSettings = BackupSettings.LoadGlobalSettingsOrNull() ?? GlobalBackupSettings;
+            new SettingsWindow(BackupSettings.Default).ShowDialog();
+            BackupSettings.ReloadDefault();
             password.Password = PasswordManager.LoadPasswordOrNull(LoadCurrentSettings) ?? string.Empty;
         }
 
@@ -180,7 +179,7 @@ namespace SkyziBackup
         {
             if (LoadCurrentSettings.IsGlobal)
                 if (MessageBox.Show("現在のバックアップペアに対応するローカル設定を新規作成します。", $"{App.AssemblyName.Name} - 確認", MessageBoxButton.OKCancel) == MessageBoxResult.Cancel) return;
-            new SettingsWindow(BackupController.GetQualifiedDirectoryPath(originPath.Text.Trim()), BackupController.GetQualifiedDirectoryPath(destPath.Text.Trim())).ShowDialog();
+            new SettingsWindow(originPath.Text, destPath.Text).ShowDialog();
             password.Password = PasswordManager.LoadPasswordOrNull(LoadCurrentSettings) ?? string.Empty;
         }
 
