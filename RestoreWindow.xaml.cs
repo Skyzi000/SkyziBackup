@@ -53,7 +53,7 @@ namespace SkyziBackup
             RestoreButton.IsEnabled = false;
             progressBar.Visibility = Visibility.Visible;
             BackupSettings settings = LoadCurrentSettings;
-            if (settings.isRecordPassword && settings.IsDifferentPassword(password.Password))
+            if (settings.IsRecordPassword && settings.IsDifferentPassword(password.Password))
             {
                 var changePassword = MessageBox.Show("入力されたパスワードが保存されているパスワードと異なります。\nこのまま続行しますか？",
                                                      $"{App.AssemblyName.Name} - パスワードの確認",
@@ -73,7 +73,7 @@ namespace SkyziBackup
             }
             Message.Text = $"'{originPath.Text.Trim()}' => '{destPath.Text.Trim()}'";
             Message.Text += $"\nリストア開始: {DateTime.Now}\n";
-            RestoreDirectory restore = new RestoreDirectory(originPath.Text.Trim(),
+            RestoreController restore = new RestoreController(originPath.Text.Trim(),
                                                             destPath.Text.Trim(),
                                                             password.Password,
                                                             settings,

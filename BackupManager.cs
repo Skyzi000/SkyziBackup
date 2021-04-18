@@ -14,9 +14,9 @@ namespace SkyziBackup
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         private static Dictionary<(string, string), BackupController> runningBackups = new Dictionary<(string, string), BackupController>();
 
-        public static async Task<BackupResults> StartBackupAsync(string originPath, string destPath, string password, BackupSettings settings)
+        public static async Task<BackupResults> StartBackupAsync(string originPath, string destPath, string password = null, BackupSettings settings = null)
         {
-            var bc = new BackupController(originPath, destPath, password, settings);
+            using var bc = new BackupController(originPath, destPath, password, settings);
             return await StartBackupAsync(bc);
         }
         public static async Task<BackupResults> StartBackupAsync(BackupController backup)
@@ -34,7 +34,7 @@ namespace SkyziBackup
                 }
                 runningBackups.Add((backup.originBaseDirPath, backup.destBaseDirPath), backup);
                 App.NotifyIcon.Text = IsRunning ? $"{App.AssemblyName.Name} - バックアップ中" : App.AssemblyName.Name;
-                result = await Task.Run(() => backup.StartBackup());
+                result = await backup.StartBackupAsync();
                 if (!result.isSuccess)
                     App.NotifyIcon.ShowBalloonTip(10000, $"{App.AssemblyName.Name} - エラー", "バックアップに失敗しました。", System.Windows.Forms.ToolTipIcon.Error);
             }
@@ -45,10 +45,17 @@ namespace SkyziBackup
             finally
             {
                 semaphore?.Dispose();
+                backup?.Dispose();
                 runningBackups.Remove((backup.originBaseDirPath, backup.destBaseDirPath));
                 App.NotifyIcon.Text = IsRunning ? $"{App.AssemblyName.Name} - バックアップ中" : App.AssemblyName.Name;
             }
             return result;
+        }
+        public static async Task CancelAllAsync()
+        {
+            await Task.WhenAll(runningBackups.Values.Select(b => b.CancelAsync()).ToArray());
+            runningBackups.Values.ToList().ForEach(b => b.Dispose());
+            runningBackups.Clear();
         }
         public static BackupController GetBackupIfRunning(string originPath, string destPath)
         {

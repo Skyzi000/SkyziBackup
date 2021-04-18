@@ -1,146 +1,291 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Runtime.Serialization;
-using System.Xml;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace SkyziBackup
 {
-    public interface IDataContractSerializable
+    public abstract class SaveableData : IDisposable
     {
-        public string SaveFileName { get; }
+        [JsonIgnore]
+        public virtual string SaveFileName { get; }
+        [JsonIgnore]
+        public System.Timers.Timer SaveTimer { get => saveTimer ??= new System.Timers.Timer(); set => saveTimer = value; }
+        private System.Timers.Timer saveTimer;
+        [JsonIgnore]
+        public SemaphoreSlim Semaphore { get => semaphore ??= new SemaphoreSlim(1, 1); set => semaphore = value; }
+        private SemaphoreSlim semaphore;
+        private bool disposedValue;
+        public virtual void StartAutoSave(double intervalMilliSeconds)
+        {
+            saveTimer?.Stop();
+            saveTimer?.Dispose();
+            saveTimer = null;
+            SaveTimer.Interval = intervalMilliSeconds;
+            SaveTimer.Elapsed += (s, e) => 
+            {
+                if (Semaphore.CurrentCount != 0)
+                    TempSave();
+            };
+            SaveTimer.Start();
+        }
+        public virtual void TempSave()
+        {
+            Semaphore.Wait();
+            try
+            {
+                DataFileWriter.Write(this, makeBackup: true);
+            }
+            finally
+            {
+                Semaphore.Release();
+            }
+        }
+        public virtual async Task SaveAsync(CancellationToken cancellationToken = default)
+        {
+            await Semaphore.WaitAsync();
+            try
+            {
+                await DataFileWriter.WriteAsync(this, makeBackup: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                Semaphore.Release();
+            }
+        }
+        public virtual void Delete()
+        {
+            Semaphore.Wait();
+            try
+            {
+                DataFileWriter.Delete(this);
+            }
+            finally
+            {
+                Semaphore.Release();
+            }
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposedValue)
+            {
+                if (disposing)
+                {
+                    semaphore?.Dispose();
+                    saveTimer?.Stop();
+                    saveTimer?.Dispose();
+                }
+                disposedValue = true;
+            }
+        }
+
+        public void Dispose()
+        {
+            // このコードを変更しないでください。クリーンアップ コードを 'Dispose(bool disposing)' メソッドに記述します
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
+        }
     }
-    [DataContract]
-    [KnownType(typeof(BackedUpFileData))]
-    [KnownType(typeof(BackupSettings))]
-    public class BackupDatabase : IDataContractSerializable
+
+    public class BackupDatabase : SaveableData
     {
-        [DataMember]
-        public string originBaseDirPath;
-        [DataMember]
-        public string destBaseDirPath;
+        [JsonPropertyName("ob")]
+        public string OriginBaseDirPath { get; set; }
+        [JsonPropertyName("db")]
+        public string DestBaseDirPath { get; set; }
+        /// <summary>
+        /// originDirPathをキーとするバックアップ済みディレクトリの辞書
+        /// </summary>
+        [JsonPropertyName("dd")]
+        public Dictionary<string, BackedUpDirectoryData> BackedUpDirectoriesDict { get; set; } = new Dictionary<string, BackedUpDirectoryData>();
 
         /// <summary>
         /// originFilePathをキーとするバックアップ済みファイルの辞書
         /// </summary>
-        [DataMember]
-        public Dictionary<string, BackedUpFileData> backedUpFilesDict = new Dictionary<string, BackedUpFileData>();
+        [JsonPropertyName("fd")]
+        public Dictionary<string, BackedUpFileData> BackedUpFilesDict { get; set; } = new Dictionary<string, BackedUpFileData>();
 
         /// <summary>
-        /// バックアップ済みディレクトリの辞書
+        /// ファイル名は(<see cref="OriginBaseDirPath"/> + <see cref="DestBaseDirPath"/>)のSHA1
         /// </summary>
-        [DataMember]
-        public Dictionary<string, BackedUpDirectoryData> backedUpDirectoriesDict = new Dictionary<string, BackedUpDirectoryData>();
+        [JsonIgnore]
+        public override string SaveFileName => DataFileWriter.GetDatabaseFileName(OriginBaseDirPath, DestBaseDirPath);
+        
+        private int tempCount = 0;
 
-
-        /// <summary>
-        /// ファイル名は(originBaseDirPath + destBaseDirPath)のSHA1
-        /// </summary>
-        public string SaveFileName => DataContractWriter.GetDatabaseFileName(originBaseDirPath, destBaseDirPath);
+        public BackupDatabase() { }
 
         public BackupDatabase(string originBaseDirPath, string destBaseDirPath)
         {
-            this.originBaseDirPath = originBaseDirPath;
-            this.destBaseDirPath = destBaseDirPath;
+            this.OriginBaseDirPath = originBaseDirPath;
+            this.DestBaseDirPath = destBaseDirPath;
+        }
+        public override void TempSave()
+        {
+            Semaphore.Wait();
+            try
+            {
+                var temp = new BackupDatabase(OriginBaseDirPath, DestBaseDirPath)
+                {
+                    BackedUpDirectoriesDict = new Dictionary<string, BackedUpDirectoryData>(this.BackedUpDirectoriesDict),
+                    BackedUpFilesDict = new Dictionary<string, BackedUpFileData>(this.BackedUpFilesDict)
+                };
+                string path = DataFileWriter.GetPath(temp);
+                string tempDirPath = Path.Combine(Path.GetDirectoryName(path), "Temp");
+                string tempPath = Path.Combine(tempDirPath, $"Database{tempCount}{DataFileWriter.TempFileExtension}");
+                DataFileWriter.Write(temp, tempPath);
+                DataFileWriter.Replace(tempPath, path, true);
+            }
+            finally
+            {
+                Semaphore.Release();
+            }
         }
     }
 
     /// <summary>
     /// バックアップ済みファイルの詳細データ保管用クラス
     /// </summary>
-    [DataContract]
-    [KnownType(typeof(DateTime?))]
     public class BackedUpFileData
     {
-        [DataMember]
-        public DateTime? creationTime = null;
-        [DataMember]
-        public DateTime? lastWriteTime = null;
-        [DataMember]
-        public long originSize = DefaultSize;
-        [DataMember]
-        private int? fileAttributesInt = null;
-        [DataMember]
-        public string sha1 = null;
-        [IgnoreDataMember]
-        public FileAttributes? FileAttributes { get => (FileAttributes?)fileAttributesInt; set => fileAttributesInt = (int?)value; }
-        [IgnoreDataMember]
+        [JsonPropertyName("c")]
+        public DateTime? CreationTime { get; set; } = null;
+        [JsonPropertyName("w")]
+        public DateTime? LastWriteTime { get; set; } = null;
+        [JsonPropertyName("o")]
+        public long OriginSize { get; set; } = DefaultSize;
+        [JsonPropertyName("a")]
+        public FileAttributes? FileAttributes { get; set; } = null;
+        [JsonPropertyName("s")]
+        public string Sha1 { get; set; } = null;
+        
         public const long DefaultSize = -1;
+
+        public BackedUpFileData() { }
+
         public BackedUpFileData(DateTime? creationTime = null, DateTime? lastWriteTime = null, long originSize = DefaultSize, FileAttributes? fileAttributes = null, string sha1 = null)
         {
-            this.creationTime = creationTime;
-            this.lastWriteTime = lastWriteTime;
-            this.originSize = originSize;
+            this.CreationTime = creationTime;
+            this.LastWriteTime = lastWriteTime;
+            this.OriginSize = originSize;
             this.FileAttributes = fileAttributes;
-            this.sha1 = sha1;
+            this.Sha1 = sha1;
         }
     }
     /// <summary>
     /// バックアップ済みディレクトリの詳細データ保管用クラス
     /// </summary>
-    [DataContract]
-    [KnownType(typeof(DateTime?))]
     public class BackedUpDirectoryData
     {
-        [DataMember]
-        public DateTime? creationTime = null;
-        [DataMember]
-        public DateTime? lastWriteTime = null;
-        [DataMember]
-        private int? fileAttributesInt = null;
-        [IgnoreDataMember]
-        public FileAttributes? FileAttributes { get => (FileAttributes?)fileAttributesInt; set => fileAttributesInt = (int?)value; }
+        [JsonPropertyName("c")]
+        public DateTime? CreationTime { get; set; } = null;
+        [JsonPropertyName("w")]
+        public DateTime? LastWriteTime { get; set; } = null;
+        [JsonPropertyName("a")]
+        public FileAttributes? FileAttributes { get; set; } = null;
+
+        public BackedUpDirectoryData() { }
 
         public BackedUpDirectoryData(DateTime? creationTime = null, DateTime? lastWriteTime = null, FileAttributes? fileAttributes = null)
         {
-            this.creationTime = creationTime;
-            this.lastWriteTime = lastWriteTime;
+            this.CreationTime = creationTime;
+            this.LastWriteTime = lastWriteTime;
             this.FileAttributes = fileAttributes;
         }
     }
 
-    public class DataContractWriter
+    public class DataFileWriter
     {
-        public static readonly string ParentDirectoryName = "Data";
-        public static readonly string DatabaseFileName = "Database.xml";
+        public const string JsonExtension = ".json";
+        public static string DefaultExtension = JsonExtension;
+        public static string ParentDirectoryName = "Data";
+        public static string DatabaseFileName = "Database" + DefaultExtension;
+        public static string TempFileExtension = ".tmp";
+        public static string BackupFileExtension = ".bac";
 
-        private static XmlWriterSettings XmlSettings { get; } = new XmlWriterSettings() { Encoding = new System.Text.UTF8Encoding(false), Indent = true };
-        public static string GetPath(object obj)
+        private static JsonSerializerOptions SerializerOptions { get; } = new JsonSerializerOptions()
         {
-            switch (obj)
-            {
-                case IDataContractSerializable data:
-                    return GetPath(data.SaveFileName);
-                default:
-                    throw new ArgumentException($"'{obj.GetType()}'型に対応するパス設定はありません。");
-            }
-        }
+            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+            WriteIndented = false,
+            IgnoreNullValues = true,
+        };
+        public static string GetPath(SaveableData obj) => GetPath(obj.SaveFileName);
         public static string GetPath(string fileName) => Path.Combine(Properties.Settings.Default.AppDataPath, fileName);
         public static string GetDatabaseDirectoryName(string originBaseDirPath, string destBaseDirPath) => Path.Combine(ParentDirectoryName, BackupController.ComputeStringSHA1(originBaseDirPath + destBaseDirPath));
         public static string GetDatabaseFileName(string originBaseDirPath, string destBaseDirPath) => Path.Combine(GetDatabaseDirectoryName(originBaseDirPath, destBaseDirPath), DatabaseFileName);
         public static string GetDatabasePath(string originBaseDirPath, string destBaseDirPath) => GetPath(GetDatabaseFileName(originBaseDirPath, destBaseDirPath));
-        // TODO: エラー処理を追加する
-        public static void Write<T>(T obj) where T : IDataContractSerializable
+
+        public static async Task WriteAsync(SaveableData obj, string filePath = null, bool makeBackup = false, CancellationToken cancellationToken = default)
         {
-            DataContractSerializer serializer = new DataContractSerializer(typeof(T));
-            string filePath = GetPath(obj);
+            filePath ??= GetPath(obj);
+            string tmpPath = filePath + TempFileExtension;
             Directory.CreateDirectory(Path.GetDirectoryName(filePath));
-            using XmlWriter xmlWriter = XmlWriter.Create(filePath, XmlSettings);
-            serializer.WriteObject(xmlWriter, obj);
+            using (var fs = new FileStream(tmpPath, FileMode.Create, FileAccess.Write, FileShare.None))
+                await JsonSerializer.SerializeAsync(fs, obj, obj.GetType(), SerializerOptions, cancellationToken).ConfigureAwait(false);
+            Replace(tmpPath, filePath, makeBackup);
         }
-        public static T Read<T>(string fileName) where T : IDataContractSerializable
+
+        public static void Replace(string sourceFileName, string destinationFileName, bool makeBackup = false)
         {
-            DataContractSerializer serializer = new DataContractSerializer(typeof(T));
-            using XmlReader xmlReader = XmlReader.Create(GetPath(fileName));
-            return (T)serializer.ReadObject(xmlReader);
+            try
+            {
+                File.Replace(sourceFileName, destinationFileName, makeBackup ? destinationFileName + BackupFileExtension : null, true);
+            }
+            catch (Exception)
+            {
+                if (makeBackup && File.Exists(destinationFileName))
+                    File.Move(destinationFileName, destinationFileName + BackupFileExtension, true);
+                File.Move(sourceFileName, destinationFileName, true);
+            }
         }
-        public static void Delete(object obj)
+        public static void Write(SaveableData obj, string filePath = null, bool makeBackup = false)
+        {
+            WriteAsync(obj, filePath, makeBackup).Wait();
+        }
+        public static async Task<T> ReadAsync<T>(string fileName, CancellationToken cancellationToken = default) where T : SaveableData
+        {
+            string filePath = GetPath(fileName);
+            try
+            {
+                using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                return await JsonSerializer.DeserializeAsync<T>(fs, SerializerOptions, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception)
+            {
+                // デシリアライズに失敗した場合、バックアップがあればそっちを読みに行く
+                string bacFilePath = filePath + BackupFileExtension;
+                if (!File.Exists(bacFilePath))
+                    throw;
+                try
+                {
+                    using var bfs = new FileStream(bacFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                    return await JsonSerializer.DeserializeAsync<T>(bfs, SerializerOptions, cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception)
+                {
+                    throw;
+                }
+            }
+        }
+        public static T Read<T>(string fileName) where T : SaveableData
+        {
+            return ReadAsync<T>(fileName).Result;
+        }
+        public static void Delete(SaveableData obj)
         {
             File.Delete(GetPath(obj));
         }
-        public static void Delete<T>(string fileName) where T : IDataContractSerializable
+        public static void Delete<T>(string fileName) where T : SaveableData
         {
             File.Delete(GetPath(fileName));
+        }
+        public static void DeleteAllDatabase()
+        {
+
         }
         public static void DeleteDatabase(string originBaseDirPath, string destBaseDirPath) => Delete<BackupDatabase>(GetDatabaseFileName(originBaseDirPath, destBaseDirPath));
     }

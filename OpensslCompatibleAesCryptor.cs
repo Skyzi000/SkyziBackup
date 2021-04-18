@@ -27,7 +27,7 @@ namespace Skyzi000.Cryptography
         Deflate,
         GZip,
     }
-    public class OpensslCompatibleAesCrypter
+    public class OpensslCompatibleAesCryptor : IDisposable
     {
         public HashAlgorithmName HashAlgorithm { get; set; } = HashAlgorithmName.SHA256;
         public CustomCipherMode Mode { get; set; }
@@ -36,7 +36,6 @@ namespace Skyzi000.Cryptography
         public int IterationCount { get; set; }
         public byte[] Salt { get; private set; }
         public byte[] Iv { get; private set; }
-        public Exception Error { get; private set; }
 
         public readonly int keySize;
         public readonly string prefix = "Salted__";
@@ -45,7 +44,7 @@ namespace Skyzi000.Cryptography
         private byte[] key;
         private readonly SymmetricAlgorithm aes;
 
-        public OpensslCompatibleAesCrypter(string password,
+        public OpensslCompatibleAesCryptor(string password,
                                            int keySize = 256,
                                            int iterationCount = 10000,
                                            CustomCipherMode cipherMode = CustomCipherMode.CBC,
@@ -64,135 +63,116 @@ namespace Skyzi000.Cryptography
             this.CompressAlgorithm = compressAlgorithm;
         }
 
-        public bool EncryptFile(string inputPath, string outputPath)
+        public void EncryptFile(string inputPath, string outputPath)
         {
             using FileStream infs = new FileStream(inputPath, FileMode.Open, FileAccess.Read);
-            using FileStream outfs = new FileStream(outputPath, FileMode.OpenOrCreate, FileAccess.ReadWrite);
-            return EncryptStream(infs, outfs);
+            using FileStream outfs = new FileStream(outputPath, FileMode.Create, FileAccess.ReadWrite);
+            EncryptStream(infs, outfs);
         }
 
-        public bool DecryptFile(string inputPath, string outputPath)
+        public void DecryptFile(string inputPath, string outputPath)
         {
             using FileStream infs = new FileStream(inputPath, FileMode.Open, FileAccess.Read);
-            using FileStream outfs = new FileStream(outputPath, FileMode.OpenOrCreate, FileAccess.ReadWrite);
-            return DecryptStream(infs, outfs);
+            using FileStream outfs = new FileStream(outputPath, FileMode.Create, FileAccess.ReadWrite);
+            DecryptStream(infs, outfs);
         }
 
-        public bool EncryptStream(Stream input, Stream output)
+        public void EncryptStream(Stream input, Stream output)
         {
-            bool result = true;
-            try
+            if (input is null)
             {
-                if (input is null)
-                {
-                    throw new ArgumentNullException(nameof(input));
-                }
+                throw new ArgumentNullException(nameof(input));
+            }
 
-                if (output is null)
+            if (output is null)
+            {
+                throw new ArgumentNullException(nameof(output));
+            }
+            Salt = GenerateSalt(8);
+            //if (!GetOpenSSLKey(password, salt)) throw new NotSupportedException();
+            SetKeyAndIV(GenerateKIV(Salt, password, HashAlgorithm, 10000, keySize / 8 + blockSize));
+            output.Write(Encoding.UTF8.GetBytes(prefix));
+            output.Write(Salt);
+            if (Mode == CustomCipherMode.CTR)
+                AesCtrTransform(Iv, input, output);
+            else
+            {
+                ICryptoTransform cryptoTransform = aes.CreateEncryptor(key, Iv);
+                using CryptoStream cryptoStream = new CryptoStream(output, cryptoTransform, CryptoStreamMode.Write);
+                if (CompressionLevel != CompressionLevel.NoCompression)
                 {
-                    throw new ArgumentNullException(nameof(output));
+                    switch (CompressAlgorithm)
+                    {
+                        case CompressAlgorithm.Deflate:
+                            {
+                                using DeflateStream deflateStream = new DeflateStream(cryptoStream, CompressionLevel);
+                                input.CopyTo(deflateStream);
+                                break;
+                            }
+
+                        case CompressAlgorithm.GZip:
+                            {
+                                using GZipStream deflateStream = new GZipStream(cryptoStream, CompressionLevel);
+                                input.CopyTo(deflateStream);
+                                break;
+                            }
+                    }
                 }
-                Salt = GenerateSalt(8);
-                //if (!GetOpenSSLKey(password, salt)) return false;
-                SetKeyAndIV(GenerateKIV(Salt, password, HashAlgorithm, 10000, keySize / 8 + blockSize));
-                output.Write(Encoding.UTF8.GetBytes(prefix));
-                output.Write(Salt);
-                if (Mode == CustomCipherMode.CTR)
-                    AesCtrTransform(Iv, input, output);
                 else
                 {
-                    ICryptoTransform cryptoTransform = aes.CreateEncryptor(key, Iv);
+                    input.CopyTo(cryptoStream);
+                }
+            }
+        }
+
+        public void DecryptStream(Stream input, Stream output)
+        {
+            if (input is null)
+            {
+                throw new ArgumentNullException(nameof(input));
+            }
+
+            if (output is null)
+            {
+                throw new ArgumentNullException(nameof(output));
+            }
+            if (!ExtractAndSetSalt(input))
+                throw new NotSupportedException("Cannot read salt from input.");
+            //if (!GetOpenSSLKey(password, salt)) throw new NotSupportedException();
+            SetKeyAndIV(GenerateKIV(Salt, password, HashAlgorithmName.SHA256, 10000, keySize / 8 + blockSize));
+            if (Mode == CustomCipherMode.CTR)
+                AesCtrTransform(Iv, input, output);
+            else
+            {
+                ICryptoTransform cryptoTransform = aes.CreateDecryptor(key, Iv);
+                if (CompressionLevel != CompressionLevel.NoCompression)
+                {
+                    switch (CompressAlgorithm)
+                    {
+                        case CompressAlgorithm.Deflate:
+                            {
+                                using CryptoStream cryptoStream = new CryptoStream(input, cryptoTransform, CryptoStreamMode.Read);
+                                using DeflateStream deflateStream = new DeflateStream(cryptoStream, CompressionMode.Decompress);
+                                deflateStream.CopyTo(output);
+                                break;
+                            }
+
+                        case CompressAlgorithm.GZip:
+                            {
+                                using CryptoStream cryptoStream = new CryptoStream(input, cryptoTransform, CryptoStreamMode.Read);
+                                using GZipStream deflateStream = new GZipStream(cryptoStream, CompressionMode.Decompress);
+                                deflateStream.CopyTo(output);
+                                break;
+                            }
+                    }
+
+                }
+                else
+                {
                     using CryptoStream cryptoStream = new CryptoStream(output, cryptoTransform, CryptoStreamMode.Write);
-                    if (CompressionLevel != CompressionLevel.NoCompression)
-                    {
-                        switch (CompressAlgorithm)
-                        {
-                            case CompressAlgorithm.Deflate:
-                                {
-                                    using DeflateStream deflateStream = new DeflateStream(cryptoStream, CompressionLevel);
-                                    input.CopyTo(deflateStream);
-                                    break;
-                                }
-
-                            case CompressAlgorithm.GZip:
-                                {
-                                    using GZipStream deflateStream = new GZipStream(cryptoStream, CompressionLevel);
-                                    input.CopyTo(deflateStream);
-                                    break;
-                                }
-                        }
-                    }
-                    else
-                    {
-                        input.CopyTo(cryptoStream);
-                    }
+                    input.CopyTo(cryptoStream);
                 }
             }
-            catch (Exception e)
-            {
-                result = false;
-                Error = e;
-            }
-            return result;
-        }
-
-        public bool DecryptStream(Stream input, Stream output)
-        {
-            bool result = true;
-            try
-            {
-                if (input is null)
-                {
-                    throw new ArgumentNullException(nameof(input));
-                }
-
-                if (output is null)
-                {
-                    throw new ArgumentNullException(nameof(output));
-                }
-                if (!ExtractAndSetSalt(input)) return false;
-                //if (!GetOpenSSLKey(password, salt)) return false;
-                SetKeyAndIV(GenerateKIV(Salt, password, HashAlgorithmName.SHA256, 10000, keySize / 8 + blockSize));
-                if (Mode == CustomCipherMode.CTR)
-                    AesCtrTransform(Iv, input, output);
-                else
-                {
-                    ICryptoTransform cryptoTransform = aes.CreateDecryptor(key, Iv);
-                    if (CompressionLevel != CompressionLevel.NoCompression)
-                    {
-                        switch (CompressAlgorithm)
-                        {
-                            case CompressAlgorithm.Deflate:
-                                {
-                                    using CryptoStream cryptoStream = new CryptoStream(input, cryptoTransform, CryptoStreamMode.Read);
-                                    using DeflateStream deflateStream = new DeflateStream(cryptoStream, CompressionMode.Decompress);
-                                    deflateStream.CopyTo(output);
-                                    break;
-                                }
-
-                            case CompressAlgorithm.GZip:
-                                {
-                                    using CryptoStream cryptoStream = new CryptoStream(input, cryptoTransform, CryptoStreamMode.Read);
-                                    using GZipStream deflateStream = new GZipStream(cryptoStream, CompressionMode.Decompress);
-                                    deflateStream.CopyTo(output);
-                                    break;
-                                }
-                        }
-
-                    }
-                    else
-                    {
-                        using CryptoStream cryptoStream = new CryptoStream(output, cryptoTransform, CryptoStreamMode.Write);
-                        input.CopyTo(cryptoStream);
-                    }
-                }
-            }
-            catch (Exception e)
-            {
-                result = false;
-                Error = e;
-            }
-            return result;
         }
 
         private bool ExtractAndSetSalt(Stream encrypted)
@@ -215,7 +195,7 @@ namespace Skyzi000.Cryptography
             Array.Copy(kiv, key.Length, Iv, 0, blockSize);
         }
 
-        // https://qiita.com/c-yan/items/1e8f66f6b1019aad56bd
+        // 参考: https://qiita.com/c-yan/items/1e8f66f6b1019aad56bd
         private byte[] GenerateSalt(int size)
         {
             var result = new byte[size];
@@ -232,7 +212,7 @@ namespace Skyzi000.Cryptography
         }
 
         // 1バイトずつ処理するせいか、CBCモードなどと比べて非常に遅い
-        // https://stackoverflow.com/questions/6374437/can-i-use-aes-in-ctr-mode-in-net
+        // 参考: https://stackoverflow.com/questions/6374437/can-i-use-aes-in-ctr-mode-in-net
         private void AesCtrTransform(
         byte[] salt, Stream inputStream, Stream outputStream)
         {
@@ -281,7 +261,7 @@ namespace Skyzi000.Cryptography
         }
 
         // 恐らく古いバージョンのOpenSSLで使われていたMD5を利用する方法
-        // https://qiita.com/h-ymmr/items/eb21378f5132400b3e80
+        // 参考: https://qiita.com/h-ymmr/items/eb21378f5132400b3e80
         private bool GetOpenSSLKey(byte[] baKey, byte[] baSalt)
         {
             bool blnIsOk = true;
@@ -331,16 +311,20 @@ namespace Skyzi000.Cryptography
                 }
                 Iv = objMd5.ComputeHash(baPreIV);
             }
-            catch (Exception e)
+            catch (Exception)
             {
-                blnIsOk = false;
-                Error = e;
+                return false;
             }
             finally
             {
                 objMd5.Clear();
             }
             return blnIsOk;
+        }
+
+        public void Dispose()
+        {
+            ((IDisposable)aes).Dispose();
         }
     }
 }

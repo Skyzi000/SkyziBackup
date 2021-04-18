@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:SkyziBackup"
         mc:Ignorable="d"
+        Closing="Window_Closing"
         Title="SkyziBackup" Height="450" Width="800">
     <Grid Margin="10,18,10,5">
         <Grid.RowDefinitions>
@@ -17,16 +18,15 @@
             <ColumnDefinition/>
             <ColumnDefinition/>
         </Grid.ColumnDefinitions>
-        <StackPanel Margin="0,0,10,0" Grid.RowSpan="3">
+        <StackPanel Margin="10,0" Grid.RowSpan="2" Grid.ColumnSpan="3">
             <Label x:Name="originPathLabel" Content="バックアップ元" HorizontalAlignment="Left" VerticalAlignment="Top"/>
-            <TextBox x:Name="originPath" HorizontalAlignment="Stretch" Text="G:\Temp\SkyziBackup\Origin" TextWrapping="NoWrap" VerticalAlignment="Top" />
+            <TextBox x:Name="originPath" HorizontalAlignment="Stretch" TextWrapping="NoWrap" VerticalAlignment="Top"/>
             <Label x:Name="destPathLabel" Content="バックアップ先" HorizontalAlignment="Left" VerticalAlignment="Top"/>
-            <TextBox x:Name="destPath" HorizontalAlignment="Stretch" Text="G:\Temp\SkyziBackup\Dest" TextWrapping="NoWrap" VerticalAlignment="Top"/>
+            <TextBox x:Name="destPath" HorizontalAlignment="Stretch" TextWrapping="NoWrap" VerticalAlignment="Top"/>
             <Label x:Name="passwordLabel" Content="パスワード" HorizontalAlignment="Left" VerticalAlignment="Top"/>
-            <PasswordBox x:Name="password" HorizontalAlignment="Stretch" Password="password" VerticalAlignment="Top"/>
-            <Button x:Name="StartBackupButton" Click="StartBackupButton_ClickAsync" Content="バックアップ開始" HorizontalAlignment="Stretch" VerticalAlignment="Top" Grid.ColumnSpan="3" Grid.Row="1" Margin="10"/>
-            <ProgressBar x:Name="progressBar" Height="20" Margin="10,-30,10,10" IsIndeterminate="True" Grid.ColumnSpan="2" Visibility="Collapsed" VerticalAlignment="Top" />
-
+            <PasswordBox x:Name="password" HorizontalAlignment="Stretch" VerticalAlignment="Top" ToolTip="空欄の場合は暗号化しません。オプションからパスワードを保存するかどうか設定できます。"/>
+            <Button x:Name="StartBackupButton" Click="StartBackupButton_ClickAsync" Content="バックアップ開始" Height="30" HorizontalAlignment="Stretch" VerticalAlignment="Top" Grid.ColumnSpan="3" Grid.Row="1" Margin="10" FontSize="20"/>
+            <ProgressBar x:Name="progressBar" Height="30" Margin="10,-40,10,10" IsIndeterminate="True" Grid.ColumnSpan="2" Visibility="Collapsed" VerticalAlignment="Top" />
         </StackPanel>
         <GroupBox Header="メッセージ" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3">
             <ScrollViewer Name="MessageScrollViewer" VerticalScrollBarVisibility="Auto" BorderBrush="Black">
