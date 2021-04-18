@@ -214,6 +214,23 @@ namespace SkyziBackup
             Properties.Settings.Default.DestPath = destPath.Text;
             Properties.Settings.Default.Save();
         }
+
+        private void OpenDirectoryDialogButton_Click(object sender, RoutedEventArgs e)
+        {
+            using var ofd = new System.Windows.Forms.OpenFileDialog() { FileName = "SelectFolder", Filter = "Folder|.", CheckFileExists = false };
+            if (ofd.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            {
+                switch (((Button)sender).Tag)
+                {
+                    case "OriginPath":
+                        originPath.Text = BackupController.GetQualifiedDirectoryPath(Path.GetDirectoryName(ofd.FileName));
+                        break;
+                    case "DestPath":
+                        destPath.Text = BackupController.GetQualifiedDirectoryPath(Path.GetDirectoryName(ofd.FileName));
+                        break;
+                }
+            }
+        }
     }
 }
 
