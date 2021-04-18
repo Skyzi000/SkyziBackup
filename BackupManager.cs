@@ -16,7 +16,7 @@ namespace SkyziBackup
 
         public static async Task<BackupResults> StartBackupAsync(string originPath, string destPath, string password = null, BackupSettings settings = null)
         {
-            var bc = new BackupController(originPath, destPath, password, settings);
+            using var bc = new BackupController(originPath, destPath, password, settings);
             return await StartBackupAsync(bc);
         }
         public static async Task<BackupResults> StartBackupAsync(BackupController backup)
@@ -45,6 +45,7 @@ namespace SkyziBackup
             finally
             {
                 semaphore?.Dispose();
+                backup?.Dispose();
                 runningBackups.Remove((backup.originBaseDirPath, backup.destBaseDirPath));
                 App.NotifyIcon.Text = IsRunning ? $"{App.AssemblyName.Name} - バックアップ中" : App.AssemblyName.Name;
             }
