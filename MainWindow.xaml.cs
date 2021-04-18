@@ -30,7 +30,6 @@ namespace SkyziBackup
     public partial class MainWindow : Window
     {
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
-        private readonly SynchronizationContext _mainContext;
 
         private BackupSettings LoadCurrentSettings => BackupSettings.LoadLocalSettingsOrNull(originPath.Text, destPath.Text) ?? BackupSettings.Default;
         private bool ButtonsIsEnabled
@@ -48,7 +47,6 @@ namespace SkyziBackup
         public MainWindow()
         {
             InitializeComponent();
-            _mainContext = SynchronizationContext.Current;
             originPath.Text = Properties.Settings.Default.OriginPath;
             destPath.Text = Properties.Settings.Default.DestPath;
             password.Password = PasswordManager.LoadPasswordOrNull(LoadCurrentSettings) ?? string.Empty;
@@ -67,13 +65,24 @@ namespace SkyziBackup
                 progressBar.Visibility = Visibility.Visible;
                 originPath.Text = running.originBaseDirPath;
                 destPath.Text = running.destBaseDirPath;
-                string m = message.Text = $"\n'{originPath.Text.Trim()}' => '{destPath.Text.Trim()}'\nバックアップ実行中\n";
-                running.Results.MessageChanged += (_s, _e) => { _mainContext.Post((d) => { message.Text = m + running.Results.Message + "\n"; }, null); };
-                running.Results.Finished += (s, e) => { _mainContext.Post((d) =>
+                string m = message.Text = $"\n'{originPath.Text}' => '{destPath.Text}'\nバックアップ実行中 ({running.StartTime}開始)\n";
+                running.Results.MessageChanged += (_s, _e) =>
                 {
-                    progressBar.Visibility = Visibility.Collapsed;
-                    ButtonsIsEnabled = true;
-                }, null); };
+                    _ = Dispatcher.InvokeAsync(() =>
+                      {
+                          message.Text = m + running.Results.Message + "\n";
+                      },
+                    System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                };
+                running.Results.Finished += (s, e) =>
+                {
+                    Dispatcher.Invoke(() =>
+                    {
+                        progressBar.Visibility = Visibility.Collapsed;
+                        ButtonsIsEnabled = true;
+                    },
+                System.Windows.Threading.DispatcherPriority.Normal);
+                };
             }
         }
 
@@ -122,7 +131,14 @@ namespace SkyziBackup
             progressBar.Visibility = Visibility.Visible;
             var bc = new BackupController(originPath.Text.Trim(), destPath.Text.Trim(), password.Password, settings);
             string m = message.Text;
-            bc.Results.MessageChanged += (_s, _e) => { _mainContext.Post((d) => { message.Text = m + bc.Results.Message + "\n"; }, null); };
+            bc.Results.MessageChanged += (_s, _e) => 
+            {
+                _ = Dispatcher.InvokeAsync(() =>
+                  {
+                      message.Text = m + bc.Results.Message + "\n";
+                  },
+                System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+            };
             var results = await BackupManager.StartBackupAsync(bc);
             if (results != null)
                 message.Text = m + results.Message + "\n";

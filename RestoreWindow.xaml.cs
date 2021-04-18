@@ -24,11 +24,9 @@ namespace SkyziBackup
     {
         private BackupSettings LoadCurrentSettings => BackupSettings.LoadLocalSettingsOrNull(destPath.Text.Trim(), originPath.Text.Trim()) ?? BackupSettings.Default;
 
-        private readonly SynchronizationContext _mainContext;
         public RestoreWindow()
         {
             InitializeComponent();
-            _mainContext = SynchronizationContext.Current;
             ContentRendered += (s, e) =>
             {
                 password.Password = PasswordManager.LoadPasswordOrNull(LoadCurrentSettings) ?? string.Empty;
@@ -81,7 +79,14 @@ namespace SkyziBackup
                                                             copyOnlyAttributesCheck.IsChecked,
                                                             isEnableWriteDatabaseCheck.IsChecked);
             string m = Message.Text;
-            restore.Results.MessageChanged += (_s, _e) => { _mainContext.Post((d) => { Message.Text = m + restore.Results.Message + "\n"; }, null); };
+            restore.Results.MessageChanged += (_s, _e) =>
+            {
+                _ = Dispatcher.InvokeAsync(() =>
+                  {
+                      Message.Text = m + restore.Results.Message + "\n";
+                  },
+                System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+            };
             await Task.Run(() => restore.StartRestore());
             RestoreButton.IsEnabled = true;
             progressBar.Visibility = Visibility.Collapsed;
