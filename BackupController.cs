@@ -170,7 +170,7 @@ namespace SkyziBackup
             Logger.Info("バックアップを開始'{0}' => '{1}'", originBaseDirPath, destBaseDirPath);
 
             StartTime = DateTime.Now;
-            await InitializeAsync();
+            await InitializeAsync().ConfigureAwait(false);
 
             if (!Directory.Exists(originBaseDirPath))
             {
@@ -182,24 +182,27 @@ namespace SkyziBackup
             try
             {
                 if (Settings.IsUseDatabase)
-                    Database.BackedUpDirectoriesDict = await Task.Run(() => CopyDirectoryStructure(originBaseDirPath, destBaseDirPath, Results, Settings.IsCopyAttributes, Settings.Regices, Database.BackedUpDirectoriesDict), cToken);
+                    Database.BackedUpDirectoriesDict = await Task.Run(() => CopyDirectoryStructure(originBaseDirPath, destBaseDirPath, Results, Settings.IsCopyAttributes, Settings.Regices, Database.BackedUpDirectoriesDict), cToken).ConfigureAwait(false);
                 else
-                    _ = await Task.Run(() => CopyDirectoryStructure(originBaseDirPath, destBaseDirPath, Results, Settings.IsCopyAttributes, Settings.Regices), cToken);
+                    _ = await Task.Run(() => CopyDirectoryStructure(originBaseDirPath, destBaseDirPath, Results, Settings.IsCopyAttributes, Settings.Regices), cToken).ConfigureAwait(false);
 
                 // ファイルの処理
-                foreach (string originFilePath in EnumerateAllFiles(originBaseDirPath, "*", Settings.Regices))
+                await Task.Run(async () =>
                 {
-                    string destFilePath = originFilePath.Replace(originBaseDirPath, destBaseDirPath);
-                    // 除外パターンと一致せず、バックアップ済みファイルと一致しないファイルをバックアップする
-                    if (!IsIgnoredFile(originFilePath) && !(Settings.IsUseDatabase ? IsUnchangedFileOnDatabase(originFilePath, destFilePath) : IsUnchangedFileWithoutDatabase(originFilePath, destFilePath)))
-                        await Task.Run(() => BackupFile(originFilePath, destFilePath), cToken);
-                }
+                    foreach (string originFilePath in EnumerateAllFiles(originBaseDirPath, "*", Settings.Regices))
+                    {
+                        string destFilePath = originFilePath.Replace(originBaseDirPath, destBaseDirPath);
+                        // 除外パターンと一致せず、バックアップ済みファイルと一致しないファイルをバックアップする
+                        if (!IsIgnoredFile(originFilePath) && !(Settings.IsUseDatabase ? IsUnchangedFileOnDatabase(originFilePath, destFilePath) : IsUnchangedFileWithoutDatabase(originFilePath, destFilePath)))
+                            await Task.Run(() => BackupFile(originFilePath, destFilePath), cToken).ConfigureAwait(false);
+                    }
+                }, cToken).ConfigureAwait(false);
 
                 // ミラーリング処理(バックアップ先ファイルの削除)
                 if (Settings.IsEnableDeletion)
                 {
-                    await Task.Run(() => DeleteFiles(), cToken);
-                    await Task.Run(() => DeleteDirectories(), cToken);
+                    await Task.Run(() => DeleteFiles(), cToken).ConfigureAwait(false);
+                    await Task.Run(() => DeleteDirectories(), cToken).ConfigureAwait(false);
                 }
 
                 // 成功判定
@@ -209,7 +212,7 @@ namespace SkyziBackup
                 if ((Results.failedDirectories.Any() || Results.failedFiles.Any()) && Settings.RetryCount > 0)
                 {
                     Logger.Info($"{Settings.RetryWaitMilliSec} ミリ秒毎に {Settings.RetryCount} 回リトライ");
-                    await RetryStartAsync(cToken);
+                    await RetryStartAsync(cToken).ConfigureAwait(false);
                 }
                 else
                 {
@@ -222,7 +225,7 @@ namespace SkyziBackup
                 throw;
             }
 
-            await SaveDatabaseAsync();
+            await SaveDatabaseAsync().ConfigureAwait(false);
             return Results;
         }
 
