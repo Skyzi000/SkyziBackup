@@ -11,7 +11,7 @@
     <ApplicationIcon>SkyziBackup.ico</ApplicationIcon>
     <Platforms>AnyCPU;x64;x86</Platforms>
     <RepositoryUrl>https://github.com/skyzi000/SkyziBackup</RepositoryUrl>
-    <Nullable>warnings</Nullable>
+    <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
