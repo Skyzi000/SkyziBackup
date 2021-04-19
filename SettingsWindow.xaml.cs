@@ -157,7 +157,7 @@ namespace SkyziBackup
             newSettings.PasswordProtectionScope = (System.Security.Cryptography.DataProtectionScope)PasswordScopeComboBox.SelectedIndex;
             if (newSettings.IsRecordPassword)
             {
-                newSettings.ProtectedPassword = settings.GetRawPassword();
+                newSettings.ProtectedPassword = settings.ProtectedPassword;
             }
             newSettings.ComparisonMethod = 0;
             foreach (var item in ComparisonMethodListBox.SelectedItems)

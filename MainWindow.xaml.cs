@@ -90,8 +90,7 @@ namespace SkyziBackup
 
         private async void StartBackupButton_ClickAsync(object sender, RoutedEventArgs e)
         {
-            Properties.Settings.Default.OriginPath = originPath.Text;
-            Properties.Settings.Default.DestPath = destPath.Text;
+            SaveStates();
             if (BackupManager.GetBackupIfRunning(originPath.Text.Trim(), destPath.Text.Trim()) != null)
             {
                 MessageBox.Show("バックアップは既に実行中です。", $"{App.AssemblyName.Name} - 警告", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -104,14 +103,14 @@ namespace SkyziBackup
             }
             ButtonsIsEnabled = false;
             var settings = LoadCurrentSettings;
-            if (settings.IsRecordPassword && settings.IsDifferentPassword(password.Password))
+            if (settings.IsRecordPassword && settings.IsDifferentPassword(password.Password) && settings.ProtectedPassword != null)
             {
                 var changePassword = MessageBox.Show("前回のパスワードと異なります。\nパスワードを変更しますか？\n\n※パスワードを変更する場合、既存のバックアップやデータベースを削除し、\n　再度初めからバックアップし直すことをおすすめします。\n　異なるパスワードでバックアップされたファイルが共存する場合、\n　復元が難しくなります。", $"{App.AssemblyName.Name} - パスワード変更の確認", MessageBoxButton.YesNoCancel);
                 switch (changePassword)
                 {
-
                     case MessageBoxResult.Yes:
-                        Logger.Info("パスワードを保存");
+                        // TODO: パスワード確認入力ウィンドウを出す
+                        Logger.Info("パスワードを更新");
                         PasswordManager.SavePassword(settings, password.Password);
                         DeleteDatabase();
                         break;
@@ -125,6 +124,10 @@ namespace SkyziBackup
                         ButtonsIsEnabled = true;
                         return;
                 }
+            }
+            else if (!string.IsNullOrWhiteSpace(password.Password))
+            {
+                // TODO: パスワード確認入力ウィンドウを出す
             }
             message.Text = $"\n'{originPath.Text.Trim()}' => '{destPath.Text.Trim()}'";
             message.Text += $"\nバックアップ開始: {DateTime.Now}\n";
@@ -188,7 +191,6 @@ namespace SkyziBackup
         {
             new SettingsWindow(BackupSettings.Default).ShowDialog();
             BackupSettings.ReloadDefault();
-            password.Password = PasswordManager.LoadPasswordOrNull(LoadCurrentSettings) ?? string.Empty;
         }
 
         private void LocalSettingsMenu_Click(object sender, RoutedEventArgs e)
@@ -196,7 +198,6 @@ namespace SkyziBackup
             if (LoadCurrentSettings.IsDefault)
                 if (MessageBox.Show("現在のバックアップペアに対応するローカル設定を新規作成します。", $"{App.AssemblyName.Name} - 確認", MessageBoxButton.OKCancel) == MessageBoxResult.Cancel) return;
             new SettingsWindow(originPath.Text, destPath.Text).ShowDialog();
-            password.Password = PasswordManager.LoadPasswordOrNull(LoadCurrentSettings) ?? string.Empty;
         }
 
         private void ShowCurrentSettings_Click(object sender, RoutedEventArgs e)
@@ -224,6 +225,10 @@ namespace SkyziBackup
         private void Exit_Click(object sender, RoutedEventArgs e) => ((App)Application.Current).Quit();
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            SaveStates();
+        }
+        private void SaveStates()
         {
             Properties.Settings.Default.OriginPath = originPath.Text;
             Properties.Settings.Default.DestPath = destPath.Text;

@@ -122,7 +122,7 @@ namespace SkyziBackup
         /// 暗号化されたパスワード(保存用のプロパティ)
         /// </summary>
         [JsonPropertyName("ProtectedPassword")]
-        public string SavedProtectedPassword { get; set; }
+        public string ProtectedPassword { get; set; }
         /// <summary>
         /// リトライ回数
         /// </summary>
@@ -178,11 +178,14 @@ namespace SkyziBackup
         /// 除外パターン
         /// </summary>
         public string IgnorePattern { get; set; }
+
         /// <summary>
-        /// 暗号化されたパスワード。代入した場合自動的に暗号化される。(予め暗号化する必要はない)
+        /// パスワードを暗号化して記録する
         /// </summary>
-        [JsonIgnore]
-        public string ProtectedPassword { get => SavedProtectedPassword; set { SavedProtectedPassword = string.IsNullOrEmpty(value) ? null : PasswordManager.Encrypt(value, PasswordProtectionScope); } }
+        public void SetProtectedPassword(string value)
+        {
+            ProtectedPassword = string.IsNullOrEmpty(value) ? null : PasswordManager.Encrypt(value, PasswordProtectionScope);
+        }
 
         public BackupSettings()
         {
@@ -196,7 +199,7 @@ namespace SkyziBackup
             RevisionsDirPath = null;
             IsRecordPassword = true;
             PasswordProtectionScope = DataProtectionScope.LocalMachine;
-            SavedProtectedPassword = null;
+            ProtectedPassword = null;
             RetryCount = 10;
             RetryWaitMilliSec = 10000;
             ComparisonMethod = ComparisonMethod.WriteTime | ComparisonMethod.Size;
@@ -285,8 +288,8 @@ namespace SkyziBackup
         }
         internal string GetRawPassword()
         {
-            if (!IsRecordPassword || string.IsNullOrEmpty(SavedProtectedPassword)) return string.Empty;
-            return PasswordManager.Decrypt(SavedProtectedPassword, PasswordProtectionScope);
+            if (!IsRecordPassword || string.IsNullOrEmpty(ProtectedPassword)) return string.Empty;
+            return PasswordManager.Decrypt(ProtectedPassword, PasswordProtectionScope);
         }
         public bool IsDifferentPassword(string newPassword)
         {
@@ -297,7 +300,6 @@ namespace SkyziBackup
             var sb = new StringBuilder("^");
             if (Path.IsPathFullyQualified(strPattern) && !IsDefault)
                 strPattern = Path.DirectorySeparatorChar + Path.GetRelativePath(OriginBaseDirPath, strPattern);
-            System.Windows.MessageBox.Show(strPattern);
             if (!strPattern.StartsWith(Path.DirectorySeparatorChar) && !strPattern.StartsWith('*')) sb.Append(Path.DirectorySeparatorChar, 2);
             sb.Append(Regex.Escape(strPattern).Replace(@"\*", ".*").Replace(@"\?", ".?"));
             sb.Append(Path.EndsInDirectorySeparator(strPattern) ? @".*$" : @"$");

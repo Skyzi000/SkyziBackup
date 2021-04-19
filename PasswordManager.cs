@@ -22,7 +22,7 @@ namespace Skyzi000.Cryptography
         {
             try
             {
-                settings.ProtectedPassword = password;
+                settings.SetProtectedPassword(password);
                 DataFileWriter.Write(settings);
             }
             catch (Exception ex)
