@@ -106,7 +106,7 @@ namespace SkyziBackup
                                                         backedUpDirectoriesDict: Database?.BackedUpDirectoriesDict,
                                                         isRestoreAttributesFromDatabase: isRestoreAttributesFromDatabase);
 
-            foreach (string originFilePath in BackupController.EnumerateAllFiles(sourceBaseDirPath, "*"))
+            foreach (string originFilePath in BackupController.EnumerateAllFiles(sourceBaseDirPath))
             {
                 string destFilePath = originFilePath.Replace(sourceBaseDirPath, destBaseDirPath);
                 RestoreFile(originFilePath, destFilePath);
@@ -308,7 +308,7 @@ namespace SkyziBackup
             }
             else
             {
-                foreach (string originDirPath in BackupController.EnumerateAllDirectories(sourceBaseDirPath, "*"))
+                foreach (string originDirPath in BackupController.EnumerateAllDirectories(sourceBaseDirPath))
                 {
                     string destDirPath = originDirPath.Replace(sourceBaseDirPath, destBaseDirPath);
                     if (!Directory.Exists(destDirPath))
@@ -352,7 +352,7 @@ namespace SkyziBackup
                         Results.failedFiles.Add(originDirPath);
                     }
                 }
-                foreach (string originFilePath in BackupController.EnumerateAllFiles(sourceBaseDirPath, "*"))
+                foreach (string originFilePath in BackupController.EnumerateAllFiles(sourceBaseDirPath))
                 {
                     string destFilePath = originFilePath.Replace(sourceBaseDirPath, destBaseDirPath);
                     if (!File.Exists(destFilePath))

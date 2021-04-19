@@ -188,7 +188,7 @@ namespace SkyziBackup
                 // ファイルの処理
                 await Task.Run(async () =>
                 {
-                    foreach (string originFilePath in EnumerateAllFiles(originBaseDirPath, "*", Settings.Regices))
+                    foreach (string originFilePath in EnumerateAllFiles(originBaseDirPath, Settings.Regices))
                     {
                         string destFilePath = originFilePath.Replace(originBaseDirPath, destBaseDirPath);
                         // 除外パターンと一致せず、バックアップ済みファイルと一致しないファイルをバックアップする
@@ -258,7 +258,7 @@ namespace SkyziBackup
             }
             else // データベースを使わない
             {
-                foreach (string destDirPath in Directory.EnumerateDirectories(destBaseDirPath, "*", SearchOption.AllDirectories))
+                foreach (string destDirPath in EnumerateAllDirectories(destBaseDirPath))
                 {
                     string originDirPath = destDirPath.Replace(destBaseDirPath, originBaseDirPath);
                     if (Results.successfulDirectories.Contains(originDirPath) || Results.failedDirectories.Contains(originDirPath))
@@ -269,7 +269,6 @@ namespace SkyziBackup
                     {
                         DeleteDirectory(destDirPath);
                         Results.deletedDirectories.Add(originDirPath);
-                        Database.BackedUpDirectoriesDict.Remove(originDirPath);
                     }
                     catch (Exception e)
                     {
@@ -346,7 +345,7 @@ namespace SkyziBackup
             }
             else // データベースを使わない
             {
-                foreach (string destFilePath in EnumerateAllFiles(destBaseDirPath, "*", Settings.Regices))
+                foreach (string destFilePath in EnumerateAllFiles(destBaseDirPath, Settings.Regices))
                 {
                     string originFilePath = destFilePath.Replace(destBaseDirPath, originBaseDirPath);
                     if (Results.successfulFiles.Contains(originFilePath) || Results.failedFiles.Contains(originFilePath) || (Results.unchangedFiles?.Contains(originFilePath) ?? false))
@@ -410,68 +409,80 @@ namespace SkyziBackup
                 File.SetAttributes(revisionFilePath, fileAttributes.Value);
         }
 
-        public static IEnumerable<string> EnumerateAllFiles(string path, string searchPattern = "*", IEnumerable<Regex> ignoreDirectoryRegices = null, int matchingStartIndex = -1)
+        public static IEnumerable<string> EnumerateAllFiles(string path, IEnumerable<Regex> ignoreDirectoryRegices = null, int matchingStartIndex = -1)
         {
-            return Directory.EnumerateFiles(path, searchPattern).Union(Directory.EnumerateDirectories(path, searchPattern).SelectMany(s =>
-            {
-                if (ignoreDirectoryRegices != null)
+            if (ignoreDirectoryRegices is null)
+                return Directory.EnumerateFiles(path)
+                 .Union(Directory.EnumerateDirectories(path)
+                 .SelectMany(s =>
+                 {
+                     try
+                     {
+                         return EnumerateAllFiles(s, null, matchingStartIndex);
+                     }
+                     catch (Exception e)
+                     {
+                         Logger.Error(e, "'{0}'の列挙に失敗", s);
+                         return Enumerable.Empty<string>();
+                     }
+                 }));
+            if (matchingStartIndex == -1)
+                matchingStartIndex = path.Length - 1;
+            return Directory.EnumerateFiles(path)
+                .Union(Directory.EnumerateDirectories(path)
+                .Where(d => ignoreDirectoryRegices
+                .All(r => !r.IsMatch((d + Path.DirectorySeparatorChar).Substring(matchingStartIndex))))
+                .SelectMany(s =>
                 {
-                    if (matchingStartIndex == -1)
-                        matchingStartIndex = path.Length - 1;
-                    bool isIgnore = false;
-                    foreach (var reg in ignoreDirectoryRegices)
+                    try
                     {
-                        if (reg.IsMatch((path + Path.DirectorySeparatorChar).Substring(matchingStartIndex)))
-                        {
-                            isIgnore = true;
-                            break;
-                        }
+                        return EnumerateAllFiles(s, ignoreDirectoryRegices, matchingStartIndex);
                     }
-                    if (isIgnore)
+                    catch (Exception e)
+                    {
+                        Logger.Error(e, "'{0}'の列挙に失敗", s);
                         return Enumerable.Empty<string>();
-                }
-                try
-                {
-                    return EnumerateAllFiles(s, searchPattern, ignoreDirectoryRegices, matchingStartIndex);
-                }
-                catch (Exception e)
-                {
-                    Logger.Error(e, "'{0}'の列挙に失敗", s);
-                    return Enumerable.Empty<string>();
-                }
-            }));
+                    }
+                }));
         }
 
-        public static IEnumerable<string> EnumerateAllDirectories(string path, string searchPattern = "*", IEnumerable<Regex> ignoreDirectoryRegices = null, int matchingStartIndex = -1)
+        public static IEnumerable<string> EnumerateAllDirectories(string path, IEnumerable<Regex> ignoreDirectoryRegices = null, int matchingStartIndex = -1)
         {
-            return Directory.EnumerateDirectories(path, searchPattern).Union(Directory.EnumerateDirectories(path, searchPattern).SelectMany(s =>
-            {
-                if (ignoreDirectoryRegices != null)
-                {
-                    if (matchingStartIndex == -1)
-                        matchingStartIndex = path.Length - 1;
-                    bool isIgnore = false;
-                    foreach (var reg in ignoreDirectoryRegices)
+            if (ignoreDirectoryRegices is null)
+                return Enumerable.Empty<string>()
+                    .Append(path)
+                    .Union(Directory.EnumerateDirectories(path)
+                    .SelectMany(s =>
                     {
-                        if (reg.IsMatch((path + Path.DirectorySeparatorChar).Substring(matchingStartIndex)))
+                        try
                         {
-                            isIgnore = true;
-                            break;
+                            return EnumerateAllDirectories(s, ignoreDirectoryRegices, matchingStartIndex);
                         }
+                        catch (Exception e)
+                        {
+                            Logger.Error(e, "'{0}'の列挙に失敗", s);
+                            return Enumerable.Empty<string>();
+                        }
+                    }));
+            if (matchingStartIndex == -1)
+                matchingStartIndex = path.Length - 1;
+            return Enumerable.Empty<string>()
+                .Append(path)
+                .Union(Directory.EnumerateDirectories(path)
+                .Where(d => ignoreDirectoryRegices
+                .All(r => !r.IsMatch((d + Path.DirectorySeparatorChar).Substring(matchingStartIndex))))
+                .SelectMany(s =>
+                {
+                    try
+                    {
+                        return EnumerateAllDirectories(s, ignoreDirectoryRegices, matchingStartIndex);
                     }
-                    if (isIgnore)
+                    catch (Exception e)
+                    {
+                        Logger.Error(e, "'{0}'の列挙に失敗", s);
                         return Enumerable.Empty<string>();
-                }
-                try
-                {
-                    return EnumerateAllDirectories(s, searchPattern, ignoreDirectoryRegices, matchingStartIndex);
-                }
-                catch (Exception e)
-                {
-                    Logger.Error(e, "'{0}'の列挙に失敗", s);
-                    return Enumerable.Empty<string>();
-                }
-            }));
+                    }
+                }));
         }
 
         public static Dictionary<string, BackedUpDirectoryData> CopyDirectoryStructure(string sourceBaseDirPath,
@@ -498,7 +509,7 @@ namespace SkyziBackup
                 throw new ArgumentNullException(nameof(backedUpDirectoriesDict));
             }
             Logger.Info(results.Message = $"ディレクトリ構造をコピー");
-            foreach (string originDirPath in EnumerateAllDirectories(sourceBaseDirPath, "*", regices))
+            foreach (string originDirPath in EnumerateAllDirectories(sourceBaseDirPath, regices))
             {
                 if (regices != null)
                 {
