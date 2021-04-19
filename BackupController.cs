@@ -520,19 +520,19 @@ namespace SkyziBackup
                     string destDirPath = originDirPath.Replace(sourceBaseDirPath, destBaseDirPath);
                     Logger.Debug($"存在しなければ作成: '{destDirPath}'");
                     destDirInfo = Directory.CreateDirectory(destDirPath);
-                    if (isCopyAttributes)
+                    if (isCopyAttributes) // originDirInfo は null ではない
                     {
                         Logger.Debug("ディレクトリ属性をコピー");
                         try
                         {
-                            destDirInfo.CreationTime = originDirInfo.CreationTime;
+                            destDirInfo.CreationTime = originDirInfo!.CreationTime;
                             destDirInfo.LastWriteTime = originDirInfo.LastWriteTime;
                         }
                         catch (UnauthorizedAccessException)
                         {
                             Logger.Warn($"'{destDirPath}'のCreationTime/LastWriteTimeを変更できません");
                         }
-                        destDirInfo.Attributes = originDirInfo.Attributes;
+                        destDirInfo.Attributes = originDirInfo!.Attributes;
                     }
                 }
                 else if (isRestoreAttributesFromDatabase)
@@ -543,22 +543,22 @@ namespace SkyziBackup
                     Logger.Info("データベースからディレクトリ属性をリストア: '{0}'", destDirPath);
                     try
                     {
-                        destDirInfo.CreationTime = data.CreationTime ?? originDirInfo.CreationTime;
-                        destDirInfo.LastWriteTime = data.LastWriteTime ?? originDirInfo.LastWriteTime;
+                        destDirInfo.CreationTime = data.CreationTime ?? (originDirInfo ??= new DirectoryInfo(originDirPath)).CreationTime;
+                        destDirInfo.LastWriteTime = data.LastWriteTime ?? (originDirInfo ??= new DirectoryInfo(originDirPath)).LastWriteTime;
                     }
                     catch (UnauthorizedAccessException)
                     {
                         Logger.Warn($"'{destDirPath}'のCreationTime/LastWriteTimeを変更できません");
                     }
-                    destDirInfo.Attributes = data.FileAttributes ?? originDirInfo.Attributes;
+                    destDirInfo.Attributes = data.FileAttributes ?? (originDirInfo ?? new DirectoryInfo(originDirPath)).Attributes;
                 }
                 // 以前のバックアップデータがある場合、変更されたプロパティのみ更新する(変更なしなら何もしない)
-                else if (isCopyAttributes)
+                else if (isCopyAttributes) // originDirInfo は null ではない
                 {
                     string destDirPath = originDirPath.Replace(sourceBaseDirPath, destBaseDirPath);
                     try
                     {
-                        if (originDirInfo.CreationTime != backedUpDirectoriesDict[originDirPath].CreationTime)
+                        if (originDirInfo!.CreationTime != backedUpDirectoriesDict[originDirPath].CreationTime)
                             (destDirInfo = Directory.CreateDirectory(destDirPath)).CreationTime = originDirInfo.CreationTime;
                         if (originDirInfo.LastWriteTime != backedUpDirectoriesDict[originDirPath].LastWriteTime)
                             (destDirInfo ??= Directory.CreateDirectory(destDirPath)).LastWriteTime = originDirInfo.LastWriteTime;
@@ -567,7 +567,7 @@ namespace SkyziBackup
                     {
                         Logger.Warn($"'{destDirPath}'のCreationTime/LastWriteTimeを変更できません");
                     }
-                    if (originDirInfo.Attributes != backedUpDirectoriesDict[originDirPath].FileAttributes)
+                    if (originDirInfo!.Attributes != backedUpDirectoriesDict[originDirPath].FileAttributes)
                         (destDirInfo ?? Directory.CreateDirectory(destDirPath)).Attributes = originDirInfo.Attributes;
                 }
                 results.successfulDirectories.Add(originDirPath);
@@ -897,7 +897,7 @@ namespace SkyziBackup
                     {
                         Logger.Warn($"'{destFilePath}'のCreationTime/LastWriteTimeを変更できません");
                     }
-                    destInfo.Attributes = originInfo.Attributes;
+                    destInfo.Attributes = (originInfo ?? new FileInfo(originFilePath)).Attributes;
                 }
                 // 以前のバックアップデータがある場合、変更されたプロパティのみ更新する(変更なしなら何もしない)
                 else
@@ -905,7 +905,7 @@ namespace SkyziBackup
                     try
                     {
                         if (!data.CreationTime.HasValue || (originInfo = new FileInfo(originFilePath)).CreationTime != data.CreationTime)
-                            (destInfo = new FileInfo(destFilePath)).CreationTime = originInfo.CreationTime;
+                            (destInfo = new FileInfo(destFilePath)).CreationTime = (originInfo ??= new FileInfo(originFilePath)).CreationTime;
                         if (!data.LastWriteTime.HasValue || originInfo.LastWriteTime != data.LastWriteTime)
                             (destInfo ??= new FileInfo(destFilePath)).LastWriteTime = originInfo.LastWriteTime;
                     }
@@ -913,13 +913,13 @@ namespace SkyziBackup
                     {
                         Logger.Warn($"'{destFilePath}'のCreationTime/LastWriteTimeを変更できません");
                     }
-                    if (!data.FileAttributes.HasValue || originInfo.Attributes != data.FileAttributes)
-                        (destInfo ?? new FileInfo(destFilePath)).Attributes = originInfo.Attributes;
+                    if (!data.FileAttributes.HasValue || (originInfo ??= new FileInfo(originFilePath)).Attributes != data.FileAttributes)
+                        (destInfo ?? new FileInfo(destFilePath)).Attributes = (originInfo ??= new FileInfo(originFilePath)).Attributes;
                     // バックアップ先ファイルから取り除いた読み取り専用属性を戻す
                     else if (Settings.IsOverwriteReadonly && data.FileAttributes.Value.HasFlag(FileAttributes.ReadOnly))
                         (destInfo ?? new FileInfo(destFilePath)).Attributes = data.FileAttributes.Value;
                 }
-                if (Settings.ComparisonMethod.HasFlag(ComparisonMethod.ArchiveAttribute) && originInfo.Attributes.HasFlag(FileAttributes.Archive))
+                if (Settings.ComparisonMethod.HasFlag(ComparisonMethod.ArchiveAttribute) && (originInfo ??= new FileInfo(originFilePath)).Attributes.HasFlag(FileAttributes.Archive))
                 {
                     (originInfo ??= new FileInfo(originFilePath)).Attributes = RemoveAttribute(originInfo.Attributes, FileAttributes.Archive);
                 }

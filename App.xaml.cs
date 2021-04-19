@@ -89,8 +89,8 @@ namespace SkyziBackup
 
         private void TaskScheduler_UnobservedTaskException(object sender, UnobservedTaskExceptionEventArgs e)
         {
-            Logger.Error(e.Exception, "予期しない例外: バックグラウンドタスクのメソッド{1} で {2}が発生しました: {3}", e.Exception.InnerException.TargetSite.Name, e.Exception.InnerException.GetType().Name, e.Exception.InnerException.Message);
-            if (MessageBoxResult.Yes == MessageBox.Show($"バックグラウンドタスクで予期しない例外({e.Exception.InnerException.GetType().Name})が発生しました。プログラムを継続しますか？\nエラーメッセージ: {e.Exception.InnerException.Message}\nスタックトレース: {e.Exception.InnerException.StackTrace}", $"{AssemblyName.Name} - エラー", MessageBoxButton.YesNo, MessageBoxImage.Error))
+            Logger.Error(e.Exception, "バックグラウンドタスクで予期しない例外が発生しました");
+            if (MessageBoxResult.Yes == MessageBox.Show($"バックグラウンドタスクで予期しない例外({e.Exception?.InnerException?.GetType().Name})が発生しました。プログラムを継続しますか？\nエラーメッセージ: {e.Exception?.InnerException?.Message}\nスタックトレース: {e.Exception?.InnerException?.StackTrace}", $"{AssemblyName.Name} - エラー", MessageBoxButton.YesNo, MessageBoxImage.Error))
                 e.SetObserved();
             else
                 Quit();
@@ -98,8 +98,8 @@ namespace SkyziBackup
 
         private void App_DispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
         {
-            Logger.Error(e.Exception, "予期しない例外: メソッド{1} で {2}が発生しました: {3}", e.Exception.TargetSite.Name, e.Exception.GetType().Name, e.Exception.Message);
-            if (MessageBoxResult.Yes == MessageBox.Show($"予期しない例外({e.Exception.GetType().Name})が発生しました。プログラムを継続しますか？\nエラーメッセージ: {e.Exception.Message}\nスタックトレース: {e.Exception.StackTrace}", $"{AssemblyName.Name} - エラー", MessageBoxButton.YesNo, MessageBoxImage.Error))
+            Logger.Error(e.Exception, "予期しない例外が発生しました: {3}", e.Exception?.TargetSite?.Name, e.Exception?.GetType().Name, e.Exception?.Message);
+            if (MessageBoxResult.Yes == MessageBox.Show($"予期しない例外({e.Exception?.GetType().Name})が発生しました。プログラムを継続しますか？\nエラーメッセージ: {e.Exception?.Message}\nスタックトレース: {e.Exception?.StackTrace}", $"{AssemblyName.Name} - エラー", MessageBoxButton.YesNo, MessageBoxImage.Error))
                 e.Handled = true;
             else
                 Quit();

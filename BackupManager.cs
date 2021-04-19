@@ -47,10 +47,10 @@ namespace SkyziBackup
             }
             finally
             {
+                App.NotifyIcon.Text = IsRunning ? $"{App.AssemblyName.Name} - バックアップ中" : App.AssemblyName.Name;
+                runningBackups.Remove((backup.originBaseDirPath, backup.destBaseDirPath));
                 semaphore?.Dispose();
                 backup?.Dispose();
-                runningBackups.Remove((backup.originBaseDirPath, backup.destBaseDirPath));
-                App.NotifyIcon.Text = IsRunning ? $"{App.AssemblyName.Name} - バックアップ中" : App.AssemblyName.Name;
             }
             return result;
         }

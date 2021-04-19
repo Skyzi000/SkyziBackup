@@ -136,7 +136,7 @@ namespace SkyziBackup
                     BackedUpFilesDict = new Dictionary<string, BackedUpFileData>(this.BackedUpFilesDict)
                 };
                 string path = DataFileWriter.GetPath(temp);
-                string tempDirPath = Path.Combine(Path.GetDirectoryName(path), "Temp");
+                string tempDirPath = Path.Combine(Path.GetDirectoryName(path) ?? throw new InvalidOperationException($"Path.GetDirectoryName(path) is null. (path: {path})"), "Temp");
                 string tempPath = Path.Combine(tempDirPath, $"Database{tempCount}{DataFileWriter.TempFileExtension}");
                 DataFileWriter.Write(temp, tempPath);
                 DataFileWriter.Replace(tempPath, path, true);

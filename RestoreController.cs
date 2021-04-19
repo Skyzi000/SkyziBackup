@@ -237,7 +237,7 @@ namespace SkyziBackup
                     DirectoryInfo originInfo = null;
                     try
                     {
-                        if (isEnableWriteDatabase)
+                        if (isEnableWriteDatabase) // newDirDict は null ではない
                         {
                             var data = Database.BackedUpDirectoriesDict.TryGetValue(originDirPath, out var d) ? d : new BackedUpDirectoryData();
                             new DirectoryInfo(destDirPath)
@@ -246,7 +246,7 @@ namespace SkyziBackup
                                 LastWriteTime = (data.LastWriteTime = originInfo.LastWriteTime).Value,
                                 Attributes = (data.FileAttributes = originInfo.Attributes).Value
                             };
-                            newDirDict[originDirPath] = data;
+                            newDirDict![originDirPath] = data;
                         }
                         else
                         {
@@ -282,8 +282,8 @@ namespace SkyziBackup
                     }
                     try
                     {
-                        if (isEnableWriteDatabase)
-                            newFileDict[originFilePath] = CopyFileAttributes(originFilePath, destFilePath);
+                        if (isEnableWriteDatabase) // newFileDict は null ではない
+                            newFileDict![originFilePath] = CopyFileAttributes(originFilePath, destFilePath);
                         else
                             CopyFileAttributes(originFilePath, destFilePath);
                         Results.successfulFiles.Add(originFilePath);

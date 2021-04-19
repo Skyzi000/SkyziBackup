@@ -144,7 +144,7 @@ namespace SkyziBackup
                 newSettings.Versioning = VersioningMethod.PermanentDeletion;
             else if (VersioningButton.IsChecked ?? false)
             {
-                newSettings.Versioning = (VersioningMethod)int.Parse(VersioningMethodBox.SelectedValue.ToString());
+                newSettings.Versioning = (VersioningMethod)int.Parse(VersioningMethodBox.SelectedValue.ToString() ?? "0");
             }
             else 
                 newSettings.Versioning = settings.Versioning;
