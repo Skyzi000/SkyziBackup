@@ -368,7 +368,7 @@ namespace SkyziBackup
                 Logger.Info(Results.Message = $"ファイルを削除: '{destFilePath}'");
                 DeleteFile(destFilePath);
                 Results.deletedFiles.Add(originFilePath);
-                Database.BackedUpFilesDict.Remove(originFilePath);
+                Database?.BackedUpFilesDict.Remove(originFilePath);
             }
             catch (Exception e)
             {
