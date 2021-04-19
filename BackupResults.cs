@@ -49,16 +49,6 @@ namespace SkyziBackup
         public HashSet<string> unchangedFiles = null;
 
         /// <summary>
-        /// 除外パターンによって除外されたファイルのパス。
-        /// </summary>
-        public HashSet<string> ignoredFiles = null;
-
-        /// <summary>
-        /// 除外パターンによって除外されたディレクトリのパス。
-        /// </summary>
-        public HashSet<string> ignoredDirectories = null;
-
-        /// <summary>
         /// バックアップ対象だが失敗したファイルのパス。
         /// </summary>
         public HashSet<string> failedFiles = new HashSet<string>();

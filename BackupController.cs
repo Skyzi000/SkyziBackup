@@ -511,21 +511,6 @@ namespace SkyziBackup
             Logger.Info(results.Message = $"ディレクトリ構造をコピー");
             foreach (string originDirPath in EnumerateAllDirectories(sourceBaseDirPath, regices))
             {
-                if (regices != null)
-                {
-                    bool isIgnore = false;
-                    foreach (var reg in regices)
-                    {
-                        if (reg.IsMatch((originDirPath + Path.DirectorySeparatorChar).Substring(sourceBaseDirPath.Length - 1)))
-                        {
-                            Logger.Info("ディレクトリをスキップ(除外パターン '{0}' に一致) : '{1}'", reg, originDirPath);
-                            results.ignoredDirectories.Add(originDirPath);
-                            isIgnore = true;
-                            break;
-                        }
-                    }
-                    if (isIgnore) continue;
-                }
                 backedUpDirectoriesDict = CopyDirectory(originDirPath, sourceBaseDirPath, destBaseDirPath, results, isCopyAttributes, backedUpDirectoriesDict, isForceCreateDirectoryAndReturnDictionary, isRestoreAttributesFromDatabase);
             }
             return backedUpDirectoriesDict;
@@ -640,11 +625,6 @@ namespace SkyziBackup
             Results.successfulDirectories = new HashSet<string>();
             Results.failedFiles = new HashSet<string>();
             Results.failedDirectories = new HashSet<string>();
-            if (!string.IsNullOrEmpty(Settings.IgnorePattern))
-            {
-                Results.ignoredFiles = new HashSet<string>();
-                Results.ignoredDirectories = new HashSet<string>();
-            }
             if (Settings.ComparisonMethod != ComparisonMethod.NoComparison)
                 Results.unchangedFiles = new HashSet<string>();
             if (Settings.IsEnableDeletion)
@@ -663,8 +643,7 @@ namespace SkyziBackup
                 {
                     if (reg.IsMatch(originFilePath.Substring(originBaseDirPath.Length - 1)))
                     {
-                        Logger.Info("ファイルをスキップ(除外パターンに一致 '{0}') : '{1}'", reg, originFilePath);
-                        Results.ignoredFiles.Add(originFilePath);
+                        Logger.Debug("ファイルをスキップ(除外パターンに一致 '{0}') : '{1}'", reg, originFilePath);
                         return true;
                     }
                 }
