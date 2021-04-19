@@ -81,7 +81,6 @@ namespace SkyziBackup
         public DateTime StartTime { get; private set; }
 
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
-        private static readonly HashAlgorithm SHA1Provider = new SHA1CryptoServiceProvider();
         private int currentRetryCount = 0;
         private Task<BackupDatabase> loadBackupDatabaseTask = null;
         private bool disposedValue;
@@ -722,7 +721,7 @@ namespace SkyziBackup
                     return false;
                 }
                 Logger.Debug(Results.Message = $"SHA1で比較: '{destFileData.Sha1}' : '{originFilePath}'");
-                if (ComputeFileSHA1(originFilePath) != destFileData.Sha1)
+                if (BackupManager.ComputeFileSHA1(originFilePath) != destFileData.Sha1)
                 {
                     return false;
                 }
@@ -831,7 +830,7 @@ namespace SkyziBackup
                 }
                 Logger.Warn("データベースを利用しない場合、ハッシュでの比較は非効率的です。データベースを利用するか、生データでの比較を検討してください。");
                 Logger.Debug(Results.Message = $"SHA1で比較: '{originFilePath}' = '{destFilePath}'");
-                if (ComputeFileSHA1(originFilePath) != ComputeFileSHA1(destFilePath))
+                if (BackupManager.ComputeFileSHA1(originFilePath) != BackupManager.ComputeFileSHA1(destFilePath))
                 {
                     return false;
                 }
@@ -992,7 +991,7 @@ namespace SkyziBackup
                     lastWriteTime: Settings.IsCopyAttributes || Settings.ComparisonMethod.HasFlag(ComparisonMethod.WriteTime) ? (originInfo ??= new FileInfo(originFilePath)).LastWriteTime : (DateTime?)null,
                     originSize: Settings.ComparisonMethod.HasFlag(ComparisonMethod.Size) ? (originInfo ??= new FileInfo(originFilePath)).Length : BackedUpFileData.DefaultSize,
                     fileAttributes: Settings.IsCopyAttributes || Settings.ComparisonMethod != ComparisonMethod.NoComparison ? (originInfo ??= new FileInfo(originFilePath)).Attributes : (FileAttributes?)null,
-                    sha1: Settings.ComparisonMethod.HasFlag(ComparisonMethod.FileContentsSHA1) ? ComputeFileSHA1(originFilePath) : null
+                    sha1: Settings.ComparisonMethod.HasFlag(ComparisonMethod.FileContentsSHA1) ? BackupManager.ComputeFileSHA1(originFilePath) : null
                     );
             }
             Results.successfulFiles.Add(originFilePath);
@@ -1050,19 +1049,6 @@ namespace SkyziBackup
             return attributes & ~attributesToRemove;
         }
 
-        public static string ComputeFileSHA1(string filePath)
-        {
-            using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-            return ComputeStreamSHA1(fs);
-        }
-
-        public static string ComputeStreamSHA1(Stream stream)
-        {
-            var bs = SHA1Provider.ComputeHash(stream);
-            return BitConverter.ToString(bs).ToLower().Replace("-", "");
-        }
-        public static string ComputeStringSHA1(string value) => ComputeStreamSHA1(new MemoryStream(Encoding.UTF8.GetBytes(value)));
-
         protected virtual void Dispose(bool disposing)
         {
             if (!disposedValue)
@@ -1072,10 +1058,9 @@ namespace SkyziBackup
                     CTS?.Cancel();
                     CTS?.Dispose();
                     AesCryptor?.Dispose();
-                    Settings?.Dispose();
                     Database?.Dispose();
-                    SHA1Provider?.Dispose();
                     loadBackupDatabaseTask?.Dispose();
+                    // Settingsは借り物なので勝手にDisposeしない
                 }
                 disposedValue = true;
             }

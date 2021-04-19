@@ -224,7 +224,7 @@ namespace SkyziBackup
         public static string GetDatabaseDirectoryName(string originBaseDirPath, string destBaseDirPath)
         {
             return Path.Combine(ParentDirectoryName,
-                BackupController.ComputeStringSHA1(
+                BackupManager.ComputeStringSHA1(
                     BackupController.GetQualifiedDirectoryPath(originBaseDirPath) +
                     BackupController.GetQualifiedDirectoryPath(destBaseDirPath)
                     )
