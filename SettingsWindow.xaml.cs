@@ -48,6 +48,8 @@ namespace SkyziBackup
             this.settings = BackupSettings.TryLoadLocalSettings(originBaseDirPath, destBaseDirPath, out var settings)
                 ? settings
                 : BackupSettings.Default.ConvertToLocalSettings(originBaseDirPath, destBaseDirPath);
+            this.settings.OriginBaseDirPath = originBaseDirPath;
+            this.settings.DestBaseDirPath = destBaseDirPath;
             DisplaySettings();
         }
 
@@ -130,7 +132,7 @@ namespace SkyziBackup
 
         private BackupSettings GetNewSettings()
         {
-            BackupSettings newSettings = settings.IsGlobal ? new BackupSettings() : new BackupSettings(settings.SaveFileName);
+            BackupSettings newSettings = settings.IsDefault ? new BackupSettings() : new BackupSettings(settings.OriginBaseDirPath, settings.DestBaseDirPath);
             newSettings.IgnorePattern = ignorePatternBox.Text;
             newSettings.IsUseDatabase = isUseDatabaseCheckBox.IsChecked ?? settings.IsUseDatabase;
             newSettings.IsRecordPassword = isRecordPasswordCheckBox.IsChecked ?? settings.IsRecordPassword;
@@ -176,7 +178,7 @@ namespace SkyziBackup
         {
             if (MessageBox.Show("設定を初期値にリセットします。よろしいですか？", "設定リセットの確認", MessageBoxButton.OKCancel) == MessageBoxResult.OK)
             {
-                settings = settings.IsGlobal ? new BackupSettings() : new BackupSettings(settings.SaveFileName);
+                settings = settings.IsDefault ? new BackupSettings() : new BackupSettings(settings.OriginBaseDirPath, settings.DestBaseDirPath);
                 DataFileWriter.Write(settings);
                 DisplaySettings();
             }

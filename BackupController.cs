@@ -14,65 +14,10 @@ using System.Threading;
 
 namespace SkyziBackup
 {
-    [Flags]
-    public enum ComparisonMethod
-    {
-        /// <summary>
-        /// 比較無し
-        /// </summary>
-        NoComparison            = 0,
-        /// <summary>
-        /// Archive属性による比較(バックアップ時に元ファイルのArchive属性を変更する点に注意)
-        /// </summary>
-        ArchiveAttribute        = 1,
-        /// <summary>
-        /// 更新日時による比較
-        /// </summary>
-        WriteTime               = 1 << 1,
-        /// <summary>
-        /// サイズによる比較
-        /// </summary>
-        Size                    = 1 << 2,
-        /// <summary>
-        /// SHA1による比較
-        /// </summary>
-        FileContentsSHA1        = 1 << 3,
-        /// <summary>
-        /// 生データによるバイナリ比較(データベースを利用出来ず、暗号化や圧縮と併用できない点に注意)
-        /// </summary>
-        FileContentsBynary      = 1 << 4,
-    }
-
-    public enum VersioningMethod
-    {
-        /// <summary>
-        /// 完全消去する(バージョン管理を行わない)
-        /// </summary>
-        PermanentDeletion       = 0,
-        /// <summary>
-        /// ゴミ箱に送る(ゴミ箱が利用できない時は完全消去する)
-        /// </summary>
-        RecycleBin              = 1,
-        /// <summary>
-        /// 指定されたディレクトリにそのまま移動し、既存のファイルを置き換える
-        /// </summary>
-        Replace                 = 2,
-        /// <summary>
-        /// 新規作成されたタイムスタンプ付きのディレクトリ以下に移動する
-        /// <code>\YYYY-MM-DD_hhmmss\Directory\hoge.txt</code>
-        /// </summary>
-        DirectoryTimeStamp      = 3,
-        /// <summary>
-        /// タイムスタンプを追加したファイル名で、指定されたディレクトリに移動する
-        /// <code>\Directory\File.txt_YYYY-MM-DD_hhmmss.txt</code>
-        /// </summary>
-        FileTimeStamp           = 4,
-    }
-
     public class BackupController : IDisposable
     {
         public BackupResults Results { get; private set; } = new BackupResults(false);
-        public OpensslCompatibleAesCryptor AesCryptor { get; set; }
+        public OpensslCompatibleAesCryptor AesCryptor { get; private set; }
         public BackupSettings Settings { get; set; }
         public BackupDatabase Database { get; private set; } = null;
         public CancellationTokenSource CTS { get; private set; } = null;
@@ -90,6 +35,8 @@ namespace SkyziBackup
             originBaseDirPath = GetQualifiedDirectoryPath(originDirectoryPath);
             destBaseDirPath = GetQualifiedDirectoryPath(destDirectoryPath);
             Settings = settings ?? BackupSettings.LoadLocalSettingsOrNull(originBaseDirPath, destBaseDirPath) ?? BackupSettings.Default;
+            if (Settings.IsDefault)
+                Settings.ConvertToLocalSettings(originBaseDirPath, destBaseDirPath);
             if (Settings.IsUseDatabase)
             {
                 loadBackupDatabaseTask = LoadOrCreateDatabaseAsync();
@@ -103,6 +50,45 @@ namespace SkyziBackup
                 AesCryptor = new OpensslCompatibleAesCryptor(password, compressionLevel: Settings.CompressionLevel, compressAlgorithm: Settings.CompressAlgorithm);
             }
             Results.Finished += Results_Finished;
+        }
+
+        private async Task InitializeAsync()
+        {
+            if (Settings.IsDefault)
+                Settings.ConvertToLocalSettings(originBaseDirPath, destBaseDirPath);
+            var saveTask = Settings.SaveAsync();
+            if (Settings.IsUseDatabase)
+            {
+                Database = await loadBackupDatabaseTask;
+                // 万が一データベースと一致しない場合は読み込みなおす(データベースファイルを一旦削除かリネームする処理を入れても良いかも)
+                if (Database.DestBaseDirPath != destBaseDirPath)
+                {
+                    Database = await LoadOrCreateDatabaseAsync();
+                    if (Database.DestBaseDirPath != destBaseDirPath)
+                    {
+                        Logger.Error(Results.Message = $"データベースの読み込み失敗: 既存のデータベース'{DataFileWriter.GetPath(Database)}'を利用できません。");
+                        Database = new BackupDatabase(originBaseDirPath, destBaseDirPath);
+                    }
+                }
+                Database.StartAutoSave(60000);
+                Database.SaveTimer.Elapsed += (s, e) => { Logger.Info("現時点のデータベースを保存: '{0}'", DataFileWriter.GetPath(Database)); };
+            }
+            else
+            {
+                Database = null;
+            }
+            Results.successfulFiles = new HashSet<string>();
+            Results.successfulDirectories = new HashSet<string>();
+            Results.failedFiles = new HashSet<string>();
+            Results.failedDirectories = new HashSet<string>();
+            if (Settings.ComparisonMethod != ComparisonMethod.NoComparison)
+                Results.unchangedFiles = new HashSet<string>();
+            if (Settings.IsEnableDeletion)
+            {
+                Results.deletedFiles = new HashSet<string>();
+                Results.deletedDirectories = new HashSet<string>();
+            }
+            await saveTask;
         }
 
         public static string GetQualifiedDirectoryPath(string directoryPath)
@@ -597,41 +583,6 @@ namespace SkyziBackup
                 results.failedDirectories.Add(originDirPath);
             }
             return backedUpDirectoriesDict;
-        }
-
-        private async Task InitializeAsync()
-        {
-            if (Settings.IsUseDatabase)
-            {
-                Database = await loadBackupDatabaseTask;
-                // 万が一データベースと一致しない場合は読み込みなおす(データベースファイルを一旦削除かリネームする処理を入れても良いかも)
-                if (Database.DestBaseDirPath != destBaseDirPath)
-                {
-                    Database = await LoadOrCreateDatabaseAsync();
-                    if (Database.DestBaseDirPath != destBaseDirPath)
-                    {
-                        Logger.Error(Results.Message = $"データベースの読み込み失敗: 既存のデータベース'{DataFileWriter.GetPath(Database)}'を利用できません。");
-                        Database = new BackupDatabase(originBaseDirPath, destBaseDirPath);
-                    }
-                }
-                Database.StartAutoSave(60000);
-                Database.SaveTimer.Elapsed += (s, e) => { Logger.Info("現時点のデータベースを保存: '{0}'", DataFileWriter.GetPath(Database)); };
-            }
-            else
-            {
-                Database = null;
-            }
-            Results.successfulFiles = new HashSet<string>();
-            Results.successfulDirectories = new HashSet<string>();
-            Results.failedFiles = new HashSet<string>();
-            Results.failedDirectories = new HashSet<string>();
-            if (Settings.ComparisonMethod != ComparisonMethod.NoComparison)
-                Results.unchangedFiles = new HashSet<string>();
-            if (Settings.IsEnableDeletion)
-            {
-                Results.deletedFiles = new HashSet<string>();
-                Results.deletedDirectories = new HashSet<string>();
-            }
         }
 
         private bool IsIgnoredFile(string originFilePath)

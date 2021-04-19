@@ -193,7 +193,7 @@ namespace SkyziBackup
 
         private void LocalSettingsMenu_Click(object sender, RoutedEventArgs e)
         {
-            if (LoadCurrentSettings.IsGlobal)
+            if (LoadCurrentSettings.IsDefault)
                 if (MessageBox.Show("現在のバックアップペアに対応するローカル設定を新規作成します。", $"{App.AssemblyName.Name} - 確認", MessageBoxButton.OKCancel) == MessageBoxResult.Cancel) return;
             new SettingsWindow(originPath.Text, destPath.Text).ShowDialog();
             password.Password = PasswordManager.LoadPasswordOrNull(LoadCurrentSettings) ?? string.Empty;
@@ -207,7 +207,7 @@ namespace SkyziBackup
         private void DeleteLocalSettings_Click(object sender, RoutedEventArgs e)
         {
             var currentSettings = LoadCurrentSettings;
-            if (currentSettings.IsGlobal)
+            if (currentSettings.IsDefault)
             {
                 MessageBox.Show("現在のバックアップペアに対応するローカル設定は存在しません。", App.AssemblyName.Name, MessageBoxButton.OK, MessageBoxImage.Information);
             }
