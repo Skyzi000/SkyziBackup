@@ -384,7 +384,7 @@ namespace SkyziBackup
                     revisionFilePath = filePath.Replace(destBaseDirPath, Settings.RevisionsDirPath ?? throw new NullReferenceException(nameof(Settings.RevisionsDirPath))) + StartTime.ToString("_yyyy-MM-dd_HHmmss") + Path.GetExtension(filePath);
                     break;
                 default:
-                    throw new ArgumentOutOfRangeException(nameof(Settings.Versioning));
+                    throw new InvalidOperationException(nameof(Settings.Versioning));
             }
             bool removedReadonlyAttributeFromRevisionFile = false;
             FileAttributes? fileAttributes = null;
@@ -395,8 +395,24 @@ namespace SkyziBackup
             if (removedReadonlyAttributeFromRevisionFile && fileAttributes.HasValue)
                 File.SetAttributes(revisionFilePath, fileAttributes.Value);
         }
-
-        public static IEnumerable<string> EnumerateAllFiles(string path, IEnumerable<Regex>? ignoreDirectoryRegices = null, int matchingStartIndex = -1)
+        public static IEnumerable<string> EnumerateAllFiles(string path)
+        {
+            return Directory.EnumerateFiles(path)
+             .Union(Directory.EnumerateDirectories(path)
+             .SelectMany(s =>
+             {
+                 try
+                 {
+                     return EnumerateAllFiles(s);
+                 }
+                 catch (Exception e) when (e is UnauthorizedAccessException || e is DirectoryNotFoundException)
+                 {
+                     Logger.Error(e, "'{0}'の列挙に失敗", s);
+                     return Enumerable.Empty<string>();
+                 }
+             }));
+        }
+        public static IEnumerable<string> EnumerateAllFiles(string path, IEnumerable<Regex>? ignoreDirectoryRegices, int matchingStartIndex = -1)
         {
             if (ignoreDirectoryRegices is null)
                 return Directory.EnumerateFiles(path)
@@ -405,9 +421,9 @@ namespace SkyziBackup
                  {
                      try
                      {
-                         return EnumerateAllFiles(s, null, matchingStartIndex);
+                         return EnumerateAllFiles(s);
                      }
-                     catch (Exception e)
+                     catch (Exception e) when (e is UnauthorizedAccessException || e is DirectoryNotFoundException)
                      {
                          Logger.Error(e, "'{0}'の列挙に失敗", s);
                          return Enumerable.Empty<string>();
@@ -425,7 +441,26 @@ namespace SkyziBackup
                     {
                         return EnumerateAllFiles(s, ignoreDirectoryRegices, matchingStartIndex);
                     }
-                    catch (Exception e)
+                    catch (Exception e) when (e is UnauthorizedAccessException || e is DirectoryNotFoundException)
+                    {
+                        Logger.Error(e, "'{0}'の列挙に失敗", s);
+                        return Enumerable.Empty<string>();
+                    }
+                }));
+        }
+
+        public static IEnumerable<string> EnumerateAllDirectories(string path)
+        {
+            return Enumerable.Empty<string>()
+                .Append(path)
+                .Union(Directory.EnumerateDirectories(path)
+                .SelectMany(s =>
+                {
+                    try
+                    {
+                        return EnumerateAllDirectories(s);
+                    }
+                    catch (Exception e) when (e is UnauthorizedAccessException || e is DirectoryNotFoundException)
                     {
                         Logger.Error(e, "'{0}'の列挙に失敗", s);
                         return Enumerable.Empty<string>();
@@ -443,9 +478,9 @@ namespace SkyziBackup
                     {
                         try
                         {
-                            return EnumerateAllDirectories(s, ignoreDirectoryRegices, matchingStartIndex);
+                            return EnumerateAllDirectories(s);
                         }
-                        catch (Exception e)
+                        catch (Exception e) when (e is UnauthorizedAccessException || e is DirectoryNotFoundException)
                         {
                             Logger.Error(e, "'{0}'の列挙に失敗", s);
                             return Enumerable.Empty<string>();
@@ -464,7 +499,7 @@ namespace SkyziBackup
                     {
                         return EnumerateAllDirectories(s, ignoreDirectoryRegices, matchingStartIndex);
                     }
-                    catch (Exception e)
+                    catch (Exception e) when (e is UnauthorizedAccessException || e is DirectoryNotFoundException)
                     {
                         Logger.Error(e, "'{0}'の列挙に失敗", s);
                         return Enumerable.Empty<string>();
@@ -831,7 +866,15 @@ namespace SkyziBackup
                 Directory.CreateDirectory(Path.GetDirectoryName(destFilePath));
                 if (Settings.Versioning != VersioningMethod.PermanentDeletion && (Database?.BackedUpFilesDict.ContainsKey(originFilePath) ?? File.Exists(destFilePath)))
                 {
-                    DeleteFile(destFilePath);
+                    try
+                    {
+                        DeleteFile(destFilePath);
+                    }
+                    catch (Exception e) when (e is NullReferenceException || e is InvalidOperationException)
+                    {
+                        Logger.Warn(e, Results.Message = $"バージョン管理設定が正しくありません。");
+                        throw;
+                    }
                 }
                 if (Settings.IsOverwriteReadonly)
                 {
