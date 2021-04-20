@@ -12,16 +12,21 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace SkyziBackup
 {
+    /// <summary>
+    /// ファイルの変更を検知する方法
+    /// </summary>
     [Flags]
     public enum ComparisonMethod
     {
         /// <summary>
-        /// 比較無し
+        /// 比較しない
         /// </summary>
+        /// <remarks>他の値と同時に指定することはできない</remarks>
         NoComparison = 0,
         /// <summary>
-        /// Archive属性による比較(バックアップ時に元ファイルのArchive属性を変更する点に注意)
+        /// Archive属性による比較
         /// </summary>
+        /// <remarks>バックアップ時に元ファイルのArchive属性を変更する点に注意</remarks>
         ArchiveAttribute = 1,
         /// <summary>
         /// 更新日時による比較
@@ -36,11 +41,15 @@ namespace SkyziBackup
         /// </summary>
         FileContentsSHA1 = 1 << 3,
         /// <summary>
-        /// 生データによるバイナリ比較(データベースを利用出来ず、暗号化や圧縮と併用できない点に注意)
+        /// 生データによるバイナリ比較
         /// </summary>
+        /// <remarks>データベースを利用出来ず、暗号化や圧縮と併用できない点に注意</remarks>
         FileContentsBynary = 1 << 4,
     }
 
+    /// <summary>
+    /// 削除・上書き時の動作
+    /// </summary>
     public enum VersioningMethod
     {
         /// <summary>
@@ -65,6 +74,32 @@ namespace SkyziBackup
         /// <code>\Directory\File.txt_YYYY-MM-DD_hhmmss.txt</code>
         /// </summary>
         FileTimeStamp = 4,
+    }
+
+    /// <summary>
+    /// シンボリックリンクやジャンクション(リパースポイント)の取り扱い
+    /// </summary>
+    public enum SymbolicLinkHandling
+    {
+        /// <summary>
+        /// リパースポイントのディレクトリを無視して、ファイルへのシンボリックリンクの場合はターゲットの実体をバックアップする(デフォルト動作)
+        /// </summary>
+        /// <remarks>ファイルの属性を確認しない分ちょっと速いかも</remarks>
+        IgnoreOnlyDirectories = 0,
+        /// <summary>
+        /// ディレクトリだけでなくファイルのシンボリックリンクも無視する
+        /// </summary>
+        IgnoreAll = 1,
+        /// <summary>
+        /// ターゲットの実体をバックアップする
+        /// </summary>
+        /// <remarks>無限ループになる可能性があるので注意</remarks>
+        Follow = 2,
+        /// <summary>
+        /// シンボリックリンク/ジャンクション自体をバックアップ先に可能な限り再現する(ターゲットパスは変更しない)
+        /// </summary>
+        /// <remarks>ミラーリング機能を有効にしている場合、リンク先の実体が削除される恐れがあるので注意</remarks>
+        Direct = 3,
     }
 
     public class BackupSettings : SaveableData
@@ -148,6 +183,10 @@ namespace SkyziBackup
         /// バックアップなどの操作をキャンセル可能にする
         /// </summary>
         public bool IsCancelable { get; set; }
+        /// <summary>
+        /// シンボリックリンクやジャンクション(リパースポイント)の取り扱い
+        /// </summary>
+        public SymbolicLinkHandling SymbolicLink { get; set; }
 
         /// <summary>
         /// <see cref="Properties.Settings.AppDataPath"/> から見たローカル設定の相対パス。デフォルト設定の場合は null
@@ -208,6 +247,7 @@ namespace SkyziBackup
             CompressionLevel = CompressionLevel.NoCompression;
             CompressAlgorithm = CompressAlgorithm.Deflate;
             IsCancelable = true;
+            SymbolicLink = SymbolicLinkHandling.IgnoreOnlyDirectories;
         }
         /// <summary>
         /// ローカル設定用のコンストラクタ
@@ -236,7 +276,8 @@ namespace SkyziBackup
             sb.AppendFormat("ファイル比較方法-----------------: {0}\n", ComparisonMethod);
             sb.AppendFormat("圧縮レベル-----------------------: {0}\n", CompressionLevel);
             sb.AppendFormat("圧縮アルゴリズム-----------------: {0}\n", CompressAlgorithm);
-            sb.AppendFormat("キャンセル可能-------------------: {0}\n", IsCancelable);
+            sb.AppendFormat("キャンセル可能か-----------------: {0}\n", IsCancelable);
+            sb.AppendFormat("シンボリックリンクの取り扱い-----: {0}\n", SymbolicLink);
             sb.AppendFormat("除外パターン---------------------: \n{0}\n", IgnorePattern);
             return sb.ToString();
         }

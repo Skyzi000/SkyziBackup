@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics;
 
 namespace SkyziBackup
 {
@@ -171,11 +172,10 @@ namespace SkyziBackup
                     Database.BackedUpDirectoriesDict = await Task.Run(() => CopyDirectoryStructure(originBaseDirPath, destBaseDirPath, Results, Settings.IsCopyAttributes, Settings.Regices, Database.BackedUpDirectoriesDict), cToken).ConfigureAwait(false);
                 else
                     _ = await Task.Run(() => CopyDirectoryStructure(originBaseDirPath, destBaseDirPath, Results, Settings.IsCopyAttributes, Settings.Regices), cToken).ConfigureAwait(false);
-
                 // ファイルの処理
                 await Task.Run(async () =>
                 {
-                    foreach (string originFilePath in EnumerateAllFiles(originBaseDirPath, Settings.Regices))
+                    foreach (string originFilePath in EnumerateAllFilesIgnoreReparsePoints(originBaseDirPath, Settings.Regices))
                     {
                         string destFilePath = originFilePath.Replace(originBaseDirPath, destBaseDirPath);
                         // 除外パターンと一致せず、バックアップ済みファイルと一致しないファイルをバックアップする
@@ -245,7 +245,7 @@ namespace SkyziBackup
             }
             else // データベースを使わない
             {
-                foreach (string destDirPath in EnumerateAllDirectories(destBaseDirPath))
+                foreach (string destDirPath in EnumerateAllDirectoriesIgnoreReparsePoints(destBaseDirPath))
                 {
                     string originDirPath = destDirPath.Replace(destBaseDirPath, originBaseDirPath);
                     if (Results.successfulDirectories.Contains(originDirPath) || Results.failedDirectories.Contains(originDirPath))
@@ -271,7 +271,7 @@ namespace SkyziBackup
             switch (Settings.Versioning)
             {
                 case VersioningMethod.PermanentDeletion:
-                    Directory.Delete(directoryPath, true);
+                    Directory.Delete(directoryPath);
                     break;
                 case VersioningMethod.RecycleBin:
                     Microsoft.VisualBasic.FileIO.FileSystem.DeleteDirectory(directoryPath, Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs, Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
@@ -279,18 +279,18 @@ namespace SkyziBackup
                 case VersioningMethod.Replace:
                 case VersioningMethod.FileTimeStamp:
                     revDirPath = directoryPath.Replace(destBaseDirPath, Settings.RevisionsDirPath ?? throw new NullReferenceException(nameof(Settings.RevisionsDirPath)));
-                    MoveDirectory(directoryPath, revDirPath);
+                    CopyDirectoryAttributes(directoryPath, revDirPath);
                     break;
                 case VersioningMethod.DirectoryTimeStamp:
                     revDirPath = Path.Combine(Settings.RevisionsDirPath ?? throw new NullReferenceException(nameof(Settings.RevisionsDirPath)), StartTime.ToString("yyyy-MM-dd_HHmmss"), directoryPath.Replace(destBaseDirPath, null));
-                    MoveDirectory(directoryPath, revDirPath);
+                    CopyDirectoryAttributes(directoryPath, revDirPath);
                     break;
                 default:
                     return;
             }
         }
 
-        private void MoveDirectory(string originDirPath, string destDirPath)
+        private void CopyDirectoryAttributes(string originDirPath, string destDirPath)
         {
             var originDirInfo = new DirectoryInfo(originDirPath);
             Logger.Debug($"存在しなければ作成: '{destDirPath}'");
@@ -332,7 +332,7 @@ namespace SkyziBackup
             }
             else // データベースを使わない
             {
-                foreach (string destFilePath in EnumerateAllFiles(destBaseDirPath, Settings.Regices))
+                foreach (string destFilePath in EnumerateAllFilesIgnoreReparsePoints(destBaseDirPath, Settings.Regices))
                 {
                     string originFilePath = destFilePath.Replace(destBaseDirPath, originBaseDirPath);
                     if (Results.successfulFiles.Contains(originFilePath) || Results.failedFiles.Contains(originFilePath) || (Results.unchangedFiles?.Contains(originFilePath) ?? false))
@@ -395,6 +395,126 @@ namespace SkyziBackup
             if (removedReadonlyAttributeFromRevisionFile && fileAttributes.HasValue)
                 File.SetAttributes(revisionFilePath, fileAttributes.Value);
         }
+
+        public static IEnumerable<string> EnumerateAllFilesIgnoreReparsePoints(string path)
+        {
+            return File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint) ? Enumerable.Empty<string>() : Directory.EnumerateFiles(path)
+             .Union(Directory.EnumerateDirectories(path)
+             .SelectMany(s =>
+             {
+                 try
+                 {
+                     return EnumerateAllFilesIgnoreReparsePoints(s);
+                 }
+                 catch (Exception e) when (e is UnauthorizedAccessException || e is DirectoryNotFoundException)
+                 {
+                     Logger.Error(e, "'{0}'の列挙に失敗", s);
+                     return Enumerable.Empty<string>();
+                 }
+             }));
+        }
+
+        public static IEnumerable<string> EnumerateAllFilesIgnoreReparsePoints(string path, IEnumerable<Regex>? ignoreDirectoryRegices, int matchingStartIndex = -1)
+        {
+            if (ignoreDirectoryRegices is null)
+                return File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint) ? Enumerable.Empty<string>() : Directory.EnumerateFiles(path)
+                 .Union(Directory.EnumerateDirectories(path)
+                 .SelectMany(s =>
+                 {
+                     try
+                     {
+                         return EnumerateAllFilesIgnoreReparsePoints(s);
+                     }
+                     catch (Exception e) when (e is UnauthorizedAccessException || e is DirectoryNotFoundException)
+                     {
+                         Logger.Error(e, "'{0}'の列挙に失敗", s);
+                         return Enumerable.Empty<string>();
+                     }
+                 }));
+            if (matchingStartIndex == -1)
+                matchingStartIndex = path.Length - 1;
+            return File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint) ? Enumerable.Empty<string>() : Directory.EnumerateFiles(path)
+                .Union(Directory.EnumerateDirectories(path)
+                .Where(d =>
+                {
+                    string matchingPath = (d + Path.DirectorySeparatorChar)[matchingStartIndex..];
+                    return ignoreDirectoryRegices.All(r => !r.IsMatch(matchingPath));
+                })
+                .SelectMany(s =>
+                {
+                    try
+                    {
+                        return EnumerateAllFilesIgnoreReparsePoints(s, ignoreDirectoryRegices, matchingStartIndex);
+                    }
+                    catch (Exception e) when (e is UnauthorizedAccessException || e is DirectoryNotFoundException)
+                    {
+                        Logger.Error(e, "'{0}'の列挙に失敗", s);
+                        return Enumerable.Empty<string>();
+                    }
+                }));
+        }
+
+        public static IEnumerable<string> EnumerateAllDirectoriesIgnoreReparsePoints(string path)
+        {
+            return File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint) ? Enumerable.Empty<string>() : Enumerable.Empty<string>()
+                .Append(path)
+                .Union(Directory.EnumerateDirectories(path)
+                .SelectMany(s =>
+                {
+                    try
+                    {
+                        return EnumerateAllDirectoriesIgnoreReparsePoints(s);
+                    }
+                    catch (Exception e) when (e is UnauthorizedAccessException || e is DirectoryNotFoundException)
+                    {
+                        Logger.Error(e, "'{0}'の列挙に失敗", s);
+                        return Enumerable.Empty<string>();
+                    }
+                }));
+        }
+
+        public static IEnumerable<string> EnumerateAllDirectoriesIgnoreReparsePoints(string path, IEnumerable<Regex>? ignoreDirectoryRegices = null, int matchingStartIndex = -1)
+        {
+            if (ignoreDirectoryRegices is null)
+                return File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint) ? Enumerable.Empty<string>() : Enumerable.Empty<string>()
+                    .Append(path)
+                    .Union(Directory.EnumerateDirectories(path)
+                    .SelectMany(s =>
+                    {
+                        try
+                        {
+                            return EnumerateAllDirectoriesIgnoreReparsePoints(s);
+                        }
+                        catch (Exception e) when (e is UnauthorizedAccessException || e is DirectoryNotFoundException)
+                        {
+                            Logger.Error(e, "'{0}'の列挙に失敗", s);
+                            return Enumerable.Empty<string>();
+                        }
+                    }));
+            if (matchingStartIndex == -1)
+                matchingStartIndex = path.Length - 1;
+            return File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint) ? Enumerable.Empty<string>() : Enumerable.Empty<string>()
+                .Append(path)
+                .Union(Directory.EnumerateDirectories(path)
+                .Where(d =>
+                {
+                    string matchingPath = (d + Path.DirectorySeparatorChar)[matchingStartIndex..];
+                    return ignoreDirectoryRegices.All(r => !r.IsMatch(matchingPath));
+                })
+                .SelectMany(s =>
+                {
+                    try
+                    {
+                        return EnumerateAllDirectoriesIgnoreReparsePoints(s, ignoreDirectoryRegices, matchingStartIndex);
+                    }
+                    catch (Exception e) when (e is UnauthorizedAccessException || e is DirectoryNotFoundException)
+                    {
+                        Logger.Error(e, "'{0}'の列挙に失敗", s);
+                        return Enumerable.Empty<string>();
+                    }
+                }));
+        }
+
         public static IEnumerable<string> EnumerateAllFiles(string path)
         {
             return Directory.EnumerateFiles(path)
@@ -405,6 +525,11 @@ namespace SkyziBackup
                  {
                      return EnumerateAllFiles(s);
                  }
+                 catch (IOException e)
+                 {
+                     Logger.Error(e, "シンボリックリンク(リパースポイント)がループしている可能性があります。");
+                     return Enumerable.Empty<string>();
+                 }
                  catch (Exception e) when (e is UnauthorizedAccessException || e is DirectoryNotFoundException)
                  {
                      Logger.Error(e, "'{0}'の列挙に失敗", s);
@@ -412,6 +537,7 @@ namespace SkyziBackup
                  }
              }));
         }
+
         public static IEnumerable<string> EnumerateAllFiles(string path, IEnumerable<Regex>? ignoreDirectoryRegices, int matchingStartIndex = -1)
         {
             if (ignoreDirectoryRegices is null)
@@ -423,6 +549,11 @@ namespace SkyziBackup
                      {
                          return EnumerateAllFiles(s);
                      }
+                     catch (IOException e)
+                     {
+                         Logger.Error(e, "シンボリックリンク(リパースポイント)がループしている可能性があります。");
+                         return Enumerable.Empty<string>();
+                     }
                      catch (Exception e) when (e is UnauthorizedAccessException || e is DirectoryNotFoundException)
                      {
                          Logger.Error(e, "'{0}'の列挙に失敗", s);
@@ -433,13 +564,21 @@ namespace SkyziBackup
                 matchingStartIndex = path.Length - 1;
             return Directory.EnumerateFiles(path)
                 .Union(Directory.EnumerateDirectories(path)
-                .Where(d => ignoreDirectoryRegices
-                .All(r => !r.IsMatch((d + Path.DirectorySeparatorChar).Substring(matchingStartIndex))))
+                .Where(d =>
+                {
+                    string matchingPath = (d + Path.DirectorySeparatorChar)[matchingStartIndex..];
+                    return ignoreDirectoryRegices.All(r => !r.IsMatch(matchingPath));
+                })
                 .SelectMany(s =>
                 {
                     try
                     {
                         return EnumerateAllFiles(s, ignoreDirectoryRegices, matchingStartIndex);
+                    }
+                    catch (IOException e)
+                    {
+                        Logger.Error(e, "シンボリックリンク(リパースポイント)がループしている可能性があります。");
+                        return Enumerable.Empty<string>();
                     }
                     catch (Exception e) when (e is UnauthorizedAccessException || e is DirectoryNotFoundException)
                     {
@@ -459,6 +598,11 @@ namespace SkyziBackup
                     try
                     {
                         return EnumerateAllDirectories(s);
+                    }
+                    catch (IOException e)
+                    {
+                        Logger.Error(e, "シンボリックリンク(リパースポイント)がループしている可能性があります。");
+                        return Enumerable.Empty<string>();
                     }
                     catch (Exception e) when (e is UnauthorizedAccessException || e is DirectoryNotFoundException)
                     {
@@ -480,6 +624,11 @@ namespace SkyziBackup
                         {
                             return EnumerateAllDirectories(s);
                         }
+                        catch (IOException e)
+                        {
+                            Logger.Error(e, "シンボリックリンク(リパースポイント)がループしている可能性があります。");
+                            return Enumerable.Empty<string>();
+                        }
                         catch (Exception e) when (e is UnauthorizedAccessException || e is DirectoryNotFoundException)
                         {
                             Logger.Error(e, "'{0}'の列挙に失敗", s);
@@ -491,13 +640,21 @@ namespace SkyziBackup
             return Enumerable.Empty<string>()
                 .Append(path)
                 .Union(Directory.EnumerateDirectories(path)
-                .Where(d => ignoreDirectoryRegices
-                .All(r => !r.IsMatch((d + Path.DirectorySeparatorChar).Substring(matchingStartIndex))))
+                .Where(d =>
+                {
+                    string matchingPath = (d + Path.DirectorySeparatorChar)[matchingStartIndex..];
+                    return ignoreDirectoryRegices.All(r => !r.IsMatch(matchingPath));
+                })
                 .SelectMany(s =>
                 {
                     try
                     {
                         return EnumerateAllDirectories(s, ignoreDirectoryRegices, matchingStartIndex);
+                    }
+                    catch (IOException e)
+                    {
+                        Logger.Error(e, "シンボリックリンク(リパースポイント)がループしている可能性があります。");
+                        return Enumerable.Empty<string>();
                     }
                     catch (Exception e) when (e is UnauthorizedAccessException || e is DirectoryNotFoundException)
                     {
@@ -506,52 +663,109 @@ namespace SkyziBackup
                     }
                 }));
         }
+
+        // TODO: これをstaticにしたのは完全に失敗。RestoreControllerのも共にインスタンスメソッドに書き直す。
         [return: NotNullIfNotNull("backedUpDirectoriesDict")]
-        public static Dictionary<string, BackedUpDirectoryData>? CopyDirectoryStructure(string sourceBaseDirPath,
-                                                                                       string destBaseDirPath,
-                                                                                       BackupResults results,
-                                                                                       bool isCopyAttributes = true,
-                                                                                       IEnumerable<Regex>? regices = null,
-                                                                                       Dictionary<string, BackedUpDirectoryData>? backedUpDirectoriesDict = null,
-                                                                                       bool isForceCreateDirectoryAndReturnDictionary = false,
-                                                                                       bool isRestoreAttributesFromDatabase = false)
+        public Dictionary<string, BackedUpDirectoryData>? CopyDirectoryStructure(string sourceBaseDirPath,
+                                                                                 string destBaseDirPath,
+                                                                                 BackupResults results,
+                                                                                 bool isCopyAttributes = true,
+                                                                                 IEnumerable<Regex>? regices = null,
+                                                                                 Dictionary<string, BackedUpDirectoryData>? backedUpDirectoriesDict = null,
+                                                                                 bool isForceCreateDirectoryAndReturnDictionary = false,
+                                                                                 bool isRestoreAttributesFromDatabase = false,
+                                                                                 SymbolicLinkHandling symbolicLink = SymbolicLinkHandling.IgnoreOnlyDirectories,
+                                                                                 VersioningMethod versioning = VersioningMethod.PermanentDeletion)
         {
-            if (string.IsNullOrEmpty(sourceBaseDirPath))
-            {
-                throw new ArgumentException($"'{nameof(sourceBaseDirPath)}' を null または空にすることはできません", nameof(sourceBaseDirPath));
-            }
-
-            if (string.IsNullOrEmpty(destBaseDirPath))
-            {
-                throw new ArgumentException($"'{nameof(destBaseDirPath)}' を null または空にすることはできません", nameof(destBaseDirPath));
-            }
-
             if (isRestoreAttributesFromDatabase && backedUpDirectoriesDict == null)
             {
                 throw new ArgumentNullException(nameof(backedUpDirectoriesDict));
             }
             Logger.Info(results.Message = $"ディレクトリ構造をコピー");
-            foreach (string originDirPath in EnumerateAllDirectories(sourceBaseDirPath, regices))
+            foreach (string originDirPath in symbolicLink == SymbolicLinkHandling.IgnoreOnlyDirectories || symbolicLink == SymbolicLinkHandling.IgnoreAll
+                ? EnumerateAllDirectoriesIgnoreReparsePoints(sourceBaseDirPath, regices)
+                : EnumerateAllDirectories(sourceBaseDirPath, regices))
             {
-                backedUpDirectoriesDict = CopyDirectory(originDirPath, sourceBaseDirPath, destBaseDirPath, results, isCopyAttributes, backedUpDirectoriesDict, isForceCreateDirectoryAndReturnDictionary, isRestoreAttributesFromDatabase);
+                backedUpDirectoriesDict = CopyDirectory(originDirPath: originDirPath,
+                                                        sourceBaseDirPath: sourceBaseDirPath,
+                                                        destBaseDirPath: destBaseDirPath,
+                                                        results: results,
+                                                        isCopyAttributes: isCopyAttributes,
+                                                        backedUpDirectoriesDict: backedUpDirectoriesDict,
+                                                        isForceCreateDirectoryAndReturnDictionary: isForceCreateDirectoryAndReturnDictionary,
+                                                        isRestoreAttributesFromDatabase: isRestoreAttributesFromDatabase,
+                                                        versioning: versioning);
             }
             return backedUpDirectoriesDict;
         }
+        public static void CopyReparsePoint(string sourcePath, string destPath, bool overwrite = false)
+        {
+            // TODO: ネイティブAPIを利用するようにする
+            const string JUNCTION = "Junction";
+            const string SYMBOLICLINK = "SymbolicLink";
+            string powershell = "powershell.exe";
+            string getItemArg = "Get-ItemProperty ";
+            ProcessStartInfo startInfo = new ProcessStartInfo(powershell, getItemArg + sourcePath + @" | Select-Object -ExpandProperty LinkType")
+            {
+                WindowStyle = ProcessWindowStyle.Hidden,
+                CreateNoWindow = true,
+                RedirectStandardError = true,
+                RedirectStandardOutput = true,
+                UseShellExecute = false
+            };
+            string linkType = RunProcess(startInfo);
+            startInfo.Arguments = getItemArg + sourcePath + @" | Select-Object -ExpandProperty Target";
+            if (linkType == JUNCTION || linkType == SYMBOLICLINK)
+            {
+                string target = RunProcess(startInfo);
+                if (target == "") throw new IOException($"'{sourcePath}'のTargetを取得できません。");
+                if (overwrite)
+                {
+                    if (Directory.Exists(destPath))
+                        Directory.Delete(destPath);
+                    else if (File.Exists(destPath))
+                        File.Delete(destPath);
+                }
+                startInfo.Arguments = string.Join(' ', "New-Item", "-Type", linkType, destPath, "-Value", target);
+                Process.Start(startInfo);
+            }
+            else throw new IOException($"'{sourcePath}'のLinkType({linkType})を識別できません。");
 
-        private static Dictionary<string, BackedUpDirectoryData>? CopyDirectory(string originDirPath,
-                                                                               string sourceBaseDirPath,
-                                                                               string destBaseDirPath,
-                                                                               BackupResults results,
-                                                                               bool isCopyAttributes = true,
-                                                                               Dictionary<string, BackedUpDirectoryData>? backedUpDirectoriesDict = null,
-                                                                               bool isForceCreateDirectoryAndReturnDictionary = false,
-                                                                               bool isRestoreAttributesFromDatabase = false)
+            static string RunProcess(ProcessStartInfo startInfo)
+            {
+                using var proc = Process.Start(startInfo);
+                proc.WaitForExit();
+                return proc.StandardOutput.ReadToEnd();
+            }
+        }
+
+        private Dictionary<string, BackedUpDirectoryData>? CopyDirectory(string originDirPath,
+                                                                         string sourceBaseDirPath,
+                                                                         string destBaseDirPath,
+                                                                         BackupResults results,
+                                                                         bool isCopyAttributes = true,
+                                                                         Dictionary<string, BackedUpDirectoryData>? backedUpDirectoriesDict = null,
+                                                                         bool isForceCreateDirectoryAndReturnDictionary = false,
+                                                                         bool isRestoreAttributesFromDatabase = false,
+                                                                         SymbolicLinkHandling symbolicLinkHandling = SymbolicLinkHandling.IgnoreOnlyDirectories,
+                                                                         VersioningMethod versioning = VersioningMethod.PermanentDeletion)
         {
             try
             {
                 DirectoryInfo? originDirInfo = isCopyAttributes ? new DirectoryInfo(originDirPath) : null;
                 DirectoryInfo? destDirInfo = null;
-                if (backedUpDirectoriesDict is null || !backedUpDirectoriesDict.TryGetValue(originDirPath, out var data) || (isForceCreateDirectoryAndReturnDictionary && !isRestoreAttributesFromDatabase))
+                // シンボリックリンクをバックアップ先に再現する場合
+                if (symbolicLinkHandling == SymbolicLinkHandling.Direct && (originDirInfo ??= new DirectoryInfo(originDirPath)).Attributes.HasFlag(FileAttributes.ReparsePoint))
+                {
+                    string destDirPath = originDirPath.Replace(sourceBaseDirPath, destBaseDirPath);
+                    if (versioning != VersioningMethod.PermanentDeletion && (destDirInfo = new DirectoryInfo(destDirPath)).Attributes.HasFlag(FileAttributes.ReparsePoint))
+                    {
+                        DeleteDirectory(destDirPath);
+                    }
+                    CopyReparsePoint(originDirPath, destDirPath, versioning == VersioningMethod.PermanentDeletion);
+                }
+                // データベースのデータを使わない場合
+                else if (backedUpDirectoriesDict is null || !backedUpDirectoriesDict.TryGetValue(originDirPath, out var data) || (isForceCreateDirectoryAndReturnDictionary && !isRestoreAttributesFromDatabase))
                 {
                     string destDirPath = originDirPath.Replace(sourceBaseDirPath, destBaseDirPath);
                     Logger.Debug($"存在しなければ作成: '{destDirPath}'");
@@ -571,6 +785,7 @@ namespace SkyziBackup
                         destDirInfo.Attributes = originDirInfo!.Attributes;
                     }
                 }
+                // データベースのデータを元に属性を復元する場合
                 else if (isRestoreAttributesFromDatabase)
                 {
                     string destDirPath = originDirPath.Replace(sourceBaseDirPath, destBaseDirPath);
@@ -623,17 +838,15 @@ namespace SkyziBackup
 
         private bool IsIgnoredFile(string originFilePath)
         {
+            if (Settings.SymbolicLink == SymbolicLinkHandling.IgnoreAll)
+                if (File.GetAttributes(originFilePath).HasFlag(FileAttributes.ReparsePoint))
+                    return true;
             // 除外パターンとマッチング
             if (Settings.Regices != null)
             {
-                foreach (var reg in Settings.Regices)
-                {
-                    if (reg.IsMatch(originFilePath.Substring(originBaseDirPath.Length - 1)))
-                    {
-                        Logger.Debug("ファイルをスキップ(除外パターンに一致 '{0}') : '{1}'", reg, originFilePath);
-                        return true;
-                    }
-                }
+                string s = originFilePath[(originBaseDirPath.Length - 1)..];
+                if (Settings.Regices.Any(r => r.IsMatch(s)))
+                    return true;
             }
             return false;
         }
@@ -880,7 +1093,11 @@ namespace SkyziBackup
                 {
                     RemoveReadonlyAttribute(originFilePath, destFilePath);
                 }
-                if (AesCryptor != null)
+                if (Settings.SymbolicLink == SymbolicLinkHandling.Direct && File.GetAttributes(originFilePath).HasFlag(FileAttributes.ReparsePoint))
+                {
+                    CopyReparsePoint(originFilePath, destFilePath, Settings.Versioning == VersioningMethod.PermanentDeletion);
+                }
+                else if (AesCryptor != null)
                 {
                     AesCryptor.EncryptFile(originFilePath, destFilePath);
                     CopyFileAttributesAndUpdateDatabase(originFilePath, destFilePath);
@@ -889,11 +1106,9 @@ namespace SkyziBackup
                 {
                     // 暗号化しないでバックアップ
                     using (FileStream origin = new FileStream(originFilePath, FileMode.Open, FileAccess.Read))
+                    using (FileStream dest = new FileStream(destFilePath, FileMode.Create, FileAccess.ReadWrite))
                     {
-                        using (FileStream dest = new FileStream(destFilePath, FileMode.Create, FileAccess.ReadWrite))
-                        {
-                            origin.CopyWithCompressionTo(dest, Settings.CompressionLevel, CompressionMode.Compress, Settings.CompressAlgorithm);
-                        }
+                        origin.CopyWithCompressionTo(dest, Settings.CompressionLevel, CompressionMode.Compress, Settings.CompressAlgorithm);
                     }
                     CopyFileAttributesAndUpdateDatabase(originFilePath, destFilePath);
                 }
