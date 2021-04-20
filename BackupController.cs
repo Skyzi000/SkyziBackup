@@ -210,6 +210,12 @@ namespace SkyziBackup
                 Logger.Info("バックアップはキャンセルされました。");
                 throw;
             }
+            catch (IOException e) when (!(Settings.SymbolicLink == SymbolicLinkHandling.IgnoreOnlyDirectories || Settings.SymbolicLink == SymbolicLinkHandling.IgnoreAll))
+            {
+                Results.isSuccess = false;
+                Results.IsFinished = true;
+                throw;
+            }
 
             await SaveDatabaseAsync().ConfigureAwait(false);
             return Results;
@@ -532,7 +538,7 @@ namespace SkyziBackup
                  catch (IOException e)
                  {
                      Logger.Error(e, "シンボリックリンク(リパースポイント)がループしている可能性があります。");
-                     return Enumerable.Empty<string>();
+                     throw;
                  }
                  catch (Exception e) when (e is UnauthorizedAccessException || e is DirectoryNotFoundException)
                  {
@@ -556,7 +562,7 @@ namespace SkyziBackup
                      catch (IOException e)
                      {
                          Logger.Error(e, "シンボリックリンク(リパースポイント)がループしている可能性があります。");
-                         return Enumerable.Empty<string>();
+                         throw;
                      }
                      catch (Exception e) when (e is UnauthorizedAccessException || e is DirectoryNotFoundException)
                      {
@@ -582,7 +588,7 @@ namespace SkyziBackup
                     catch (IOException e)
                     {
                         Logger.Error(e, "シンボリックリンク(リパースポイント)がループしている可能性があります。");
-                        return Enumerable.Empty<string>();
+                        throw;
                     }
                     catch (Exception e) when (e is UnauthorizedAccessException || e is DirectoryNotFoundException)
                     {
@@ -606,7 +612,7 @@ namespace SkyziBackup
                     catch (IOException e)
                     {
                         Logger.Error(e, "シンボリックリンク(リパースポイント)がループしている可能性があります。");
-                        return Enumerable.Empty<string>();
+                        throw;
                     }
                     catch (Exception e) when (e is UnauthorizedAccessException || e is DirectoryNotFoundException)
                     {
@@ -631,7 +637,7 @@ namespace SkyziBackup
                         catch (IOException e)
                         {
                             Logger.Error(e, "シンボリックリンク(リパースポイント)がループしている可能性があります。");
-                            return Enumerable.Empty<string>();
+                            throw;
                         }
                         catch (Exception e) when (e is UnauthorizedAccessException || e is DirectoryNotFoundException)
                         {
@@ -658,7 +664,7 @@ namespace SkyziBackup
                     catch (IOException e)
                     {
                         Logger.Error(e, "シンボリックリンク(リパースポイント)がループしている可能性があります。");
-                        return Enumerable.Empty<string>();
+                        throw;
                     }
                     catch (Exception e) when (e is UnauthorizedAccessException || e is DirectoryNotFoundException)
                     {
@@ -733,10 +739,7 @@ namespace SkyziBackup
                 startInfo.Arguments = string.Join(' ', "New-Item", "-Type", linkType, destPath, "-Value", target);
                 if(!Path.IsPathFullyQualified(target))
                     startInfo.WorkingDirectory = Path.GetDirectoryName(sourcePath);
-                var p = Process.Start(startInfo);
-                p.WaitForExit();
-                System.Windows.MessageBox.Show(p.StandardError.ReadToEnd(), p.StandardOutput.ReadToEnd());
-                //Process.Start(startInfo);
+                RunProcess(startInfo);
             }
             else throw new IOException($"'{sourcePath}'のLinkType({linkType})を識別できません。");
 
