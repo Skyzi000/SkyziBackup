@@ -25,12 +25,12 @@ namespace SkyziBackup
         {
             InitializeComponent();
             dataPath.Text = Properties.Settings.Default.AppDataPath;
+            settings = BackupSettings.Default;
             ContentRendered += (s, e) =>
             {
                 NoComparisonLBI.Selected += (s, e) => ComparisonMethodListBox.SelectedIndex = 0;
                 VersioningPanel.IsEnabled = (int)settings.Versioning >= (int)VersioningMethod.Replace;
             };
-            settings = BackupSettings.Default;
         }
         /// <summary>
         /// 受け取った設定をもとに設定画面を開く。設定画面を閉じた後にリロードする必要がある。
@@ -132,7 +132,7 @@ namespace SkyziBackup
 
         private BackupSettings GetNewSettings()
         {
-            BackupSettings newSettings = settings.IsDefault ? new BackupSettings() : new BackupSettings(settings.OriginBaseDirPath, settings.DestBaseDirPath);
+            BackupSettings newSettings = settings.IsDefault || settings.OriginBaseDirPath is null || settings.DestBaseDirPath is null ? new BackupSettings() : new BackupSettings(settings.OriginBaseDirPath, settings.DestBaseDirPath);
             newSettings.IgnorePattern = ignorePatternBox.Text;
             newSettings.IsUseDatabase = isUseDatabaseCheckBox.IsChecked ?? settings.IsUseDatabase;
             newSettings.IsRecordPassword = isRecordPasswordCheckBox.IsChecked ?? settings.IsRecordPassword;
@@ -178,7 +178,7 @@ namespace SkyziBackup
         {
             if (MessageBox.Show("設定を初期値にリセットします。よろしいですか？", "設定リセットの確認", MessageBoxButton.OKCancel) == MessageBoxResult.OK)
             {
-                settings = settings.IsDefault ? new BackupSettings() : new BackupSettings(settings.OriginBaseDirPath, settings.DestBaseDirPath);
+                settings = settings.IsDefault || settings.OriginBaseDirPath is null || settings.DestBaseDirPath is null ? new BackupSettings() : new BackupSettings(settings.OriginBaseDirPath, settings.DestBaseDirPath);
                 DataFileWriter.Write(settings);
                 DisplaySettings();
             }

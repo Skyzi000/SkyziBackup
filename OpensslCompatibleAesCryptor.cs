@@ -6,6 +6,7 @@
  */
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.IO.Compression;
 using System.Security.Cryptography;
@@ -34,14 +35,14 @@ namespace Skyzi000.Cryptography
         public CompressionLevel CompressionLevel { get; set; }
         public CompressAlgorithm CompressAlgorithm { get; set; }
         public int IterationCount { get; set; }
-        public byte[] Salt { get; private set; }
-        public byte[] Iv { get; private set; }
+        public byte[]? Salt { get; private set; }
+        public byte[]? Iv { get; private set; }
 
         public readonly int keySize;
         public readonly string prefix = "Salted__";
         private readonly int blockSize;
         private byte[] password;
-        private byte[] key;
+        private byte[]? key;
         private readonly SymmetricAlgorithm aes;
 
         public OpensslCompatibleAesCryptor(string password,
@@ -79,18 +80,8 @@ namespace Skyzi000.Cryptography
 
         public void EncryptStream(Stream input, Stream output)
         {
-            if (input is null)
-            {
-                throw new ArgumentNullException(nameof(input));
-            }
-
-            if (output is null)
-            {
-                throw new ArgumentNullException(nameof(output));
-            }
             Salt = GenerateSalt(8);
-            //if (!GetOpenSSLKey(password, salt)) throw new NotSupportedException();
-            SetKeyAndIV(GenerateKIV(Salt, password, HashAlgorithm, 10000, keySize / 8 + blockSize));
+            (key, Iv) = GetKeyAndIV(GenerateKIV(Salt, password, HashAlgorithm, 10000, keySize / 8 + blockSize));
             output.Write(Encoding.UTF8.GetBytes(prefix));
             output.Write(Salt);
             if (Mode == CustomCipherMode.CTR)
@@ -127,19 +118,11 @@ namespace Skyzi000.Cryptography
 
         public void DecryptStream(Stream input, Stream output)
         {
-            if (input is null)
-            {
-                throw new ArgumentNullException(nameof(input));
-            }
-
-            if (output is null)
-            {
-                throw new ArgumentNullException(nameof(output));
-            }
-            if (!ExtractAndSetSalt(input))
-                throw new NotSupportedException("Cannot read salt from input.");
-            //if (!GetOpenSSLKey(password, salt)) throw new NotSupportedException();
-            SetKeyAndIV(GenerateKIV(Salt, password, HashAlgorithmName.SHA256, 10000, keySize / 8 + blockSize));
+            if (!TryExtractSalt(input, out var salt))
+                throw new ArgumentException("Cannot read salt from input.");
+            else
+                Salt = salt;
+            (key, Iv) = GetKeyAndIV(GenerateKIV(Salt, password, HashAlgorithmName.SHA256, 10000, keySize / 8 + blockSize));
             if (Mode == CustomCipherMode.CTR)
                 AesCtrTransform(Iv, input, output);
             else
@@ -175,24 +158,26 @@ namespace Skyzi000.Cryptography
             }
         }
 
-        private bool ExtractAndSetSalt(Stream encrypted)
+        private bool TryExtractSalt(Stream encrypted, [NotNullWhen(true)] out byte[]? salt)
         {
             byte[] pre = new byte[8];
             encrypted.Read(pre, 0, 8);
             if (Encoding.ASCII.GetString(pre) == prefix)
             {
-                Salt = new byte[8];
-                if (encrypted.Read(Salt, 0, 8) == 8)
+                salt = new byte[8];
+                if (encrypted.Read(salt, 0, 8) == 8)
                     return true;
             }
+            salt = null;
             return false;
         }
-        private void SetKeyAndIV(byte[] kiv)
+        private (byte[] key, byte[] iv) GetKeyAndIV(byte[] kiv)
         {
-            key = new byte[keySize / 8];
-            Iv = new byte[blockSize];
-            Array.Copy(kiv, 0, key, 0, key.Length);
-            Array.Copy(kiv, key.Length, Iv, 0, blockSize);
+            byte[] k = new byte[keySize / 8];
+            byte[] i = new byte[blockSize];
+            Array.Copy(kiv, 0, k, 0, k.Length);
+            Array.Copy(kiv, k.Length, i, 0, blockSize);
+            return (k, i);
         }
 
         // 参考: https://qiita.com/c-yan/items/1e8f66f6b1019aad56bd
@@ -207,8 +192,7 @@ namespace Skyzi000.Cryptography
         }
         private byte[] GenerateKIV(byte[] salt, byte[] password, HashAlgorithmName hashAlgorithm, int iterationCount, int size)
         {
-            return new Rfc2898DeriveBytes(password, salt, iterationCount, hashAlgorithm)
-                .GetBytes(size);
+            return new Rfc2898DeriveBytes(password, salt, iterationCount, hashAlgorithm).GetBytes(size);
         }
 
         // 1バイトずつ処理するせいか、CBCモードなどと比べて非常に遅い
@@ -260,7 +244,7 @@ namespace Skyzi000.Cryptography
             }
         }
 
-        // 恐らく古いバージョンのOpenSSLで使われていたMD5を利用する方法
+        // 恐らく古いバージョンのOpenSSLで使われていたと思われる、MD5を利用する方法
         // 参考: https://qiita.com/h-ymmr/items/eb21378f5132400b3e80
         private bool GetOpenSSLKey(byte[] baKey, byte[] baSalt)
         {

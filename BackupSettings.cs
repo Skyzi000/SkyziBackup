@@ -8,6 +8,7 @@ using System.Text.RegularExpressions;
 using System.Linq;
 using System.Text;
 using System.Text.Json.Serialization;
+using System.Diagnostics.CodeAnalysis;
 
 namespace SkyziBackup
 {
@@ -68,24 +69,24 @@ namespace SkyziBackup
 
     public class BackupSettings : SaveableData
     {
-        private static BackupSettings _default = null;
+        private static BackupSettings? _default = null;
         /// <summary>
         /// デフォルト設定
         /// </summary>
         [JsonIgnore]
-        public static BackupSettings Default => _default ??= LoadDefaultSettingsOrNull() ?? new BackupSettings();
+        public static BackupSettings Default => _default ??= LoadDefaultSettings() ?? new BackupSettings();
         /// <summary>
         /// バックアップ元ディレクトリパス
         /// </summary>
         /// <remarks>デフォルト設定では常にnull。セットするときは<see cref="BackupController.GetQualifiedDirectoryPath"/>が自動的に適用される。</remarks>
-        public string OriginBaseDirPath { get => IsDefault ? null : originBaseDirPath; set => originBaseDirPath = value is null ? null : BackupController.GetQualifiedDirectoryPath(value); }
-        private string originBaseDirPath;
+        public string? OriginBaseDirPath { get => IsDefault ? null : originBaseDirPath; set => originBaseDirPath = value is null ? null : BackupController.GetQualifiedDirectoryPath(value); }
+        private string? originBaseDirPath;
         /// <summary>
         /// バックアップ先ディレクトリパス
         /// </summary>
         /// <remarks>デフォルト設定では常にnull。セットするときは<see cref="BackupController.GetQualifiedDirectoryPath"/>が自動的に適用される。</remarks>
-        public string DestBaseDirPath { get => IsDefault ? null : destBaseDirPath; set => destBaseDirPath = value is null ? null : BackupController.GetQualifiedDirectoryPath(value); }
-        private string destBaseDirPath;
+        public string? DestBaseDirPath { get => IsDefault ? null : destBaseDirPath; set => destBaseDirPath = value is null ? null : BackupController.GetQualifiedDirectoryPath(value); }
+        private string? destBaseDirPath;
         /// <summary>
         /// データベースを利用する
         /// </summary>
@@ -109,7 +110,7 @@ namespace SkyziBackup
         /// <summary>
         /// 削除または上書きされたファイルの移動先ディレクトリ
         /// </summary>
-        public string RevisionsDirPath { get; set; }
+        public string? RevisionsDirPath { get; set; }
         /// <summary>
         /// パスワードを記録する
         /// </summary>
@@ -122,7 +123,7 @@ namespace SkyziBackup
         /// 暗号化されたパスワード(保存用のプロパティ)
         /// </summary>
         [JsonPropertyName("ProtectedPassword")]
-        public string ProtectedPassword { get; set; }
+        public string? ProtectedPassword { get; set; }
         /// <summary>
         /// リトライ回数
         /// </summary>
@@ -151,15 +152,15 @@ namespace SkyziBackup
         /// <summary>
         /// <see cref="Properties.Settings.AppDataPath"/> から見たローカル設定の相対パス。デフォルト設定の場合は null
         /// </summary>
-        private string localFileName;
+        private string? localFileName;
 
-        private HashSet<Regex> regices;
+        private HashSet<Regex>? regices;
 
         /// <summary>
         /// <see cref="IgnorePattern"/> を元に生成した除外用の正規表現セット
         /// </summary>
         [JsonIgnore]
-        public HashSet<Regex> Regices { get => regices ?? (string.IsNullOrEmpty(IgnorePattern) ? null : Regices = PatternToRegices(IgnorePattern)); private set => regices = value; }
+        public HashSet<Regex>? Regices { get => regices ?? (string.IsNullOrEmpty(IgnorePattern) ? null : Regices = PatternToRegices(IgnorePattern)); private set => regices = value; }
         /// <summary>
         /// バックアップ設定のファイル名
         /// </summary>
@@ -173,7 +174,7 @@ namespace SkyziBackup
         /// デフォルト設定であれば <see cref="FileName"/> 、そうでなければ <see cref="localFileName"/> 
         /// </summary>
         [JsonIgnore]
-        public override string SaveFileName => IsDefault ? FileName : localFileName;
+        public override string SaveFileName => string.IsNullOrEmpty(localFileName) ? FileName : localFileName;
         /// <summary>
         /// 除外パターン
         /// </summary>
@@ -243,8 +244,8 @@ namespace SkyziBackup
         /// <summary>
         /// デフォルト設定をファイルから読み込み直す。読み込めない場合は何もしない。
         /// </summary>
-        public static BackupSettings ReloadDefault() => _default = LoadDefaultSettingsOrNull() ?? Default;
-        public static bool TryLoadDefaultSettings(out BackupSettings globalSettings)
+        public static BackupSettings ReloadDefault() => _default = LoadDefaultSettings() ?? Default;
+        public static bool TryLoadDefaultSettings([NotNullWhen(true)] out BackupSettings? globalSettings)
         {
             if (File.Exists(DataFileWriter.GetPath(FileName)))
             {
@@ -258,8 +259,8 @@ namespace SkyziBackup
             globalSettings = null;
             return false;
         }
-        public static BackupSettings LoadDefaultSettingsOrNull() => TryLoadDefaultSettings(out BackupSettings globalSettings) ? globalSettings : null;
-        public static bool TryLoadLocalSettings(string originBaseDirPath, string destBaseDirPath, out BackupSettings localSettings)
+        public static BackupSettings? LoadDefaultSettings() => TryLoadDefaultSettings(out BackupSettings? globalSettings) ? globalSettings : null;
+        public static bool TryLoadLocalSettings(string originBaseDirPath, string destBaseDirPath, [NotNullWhen(true)] out BackupSettings? localSettings)
         {
             string lfName;
             try
@@ -275,7 +276,7 @@ namespace SkyziBackup
             localSettings = null;
             return false;
         }
-        public static BackupSettings LoadLocalSettingsOrNull(string originBaseDirPath, string destBaseDirPath) => TryLoadLocalSettings(originBaseDirPath, destBaseDirPath, out BackupSettings localSettings) ? localSettings : null;
+        public static BackupSettings? LoadLocalSettings(string originBaseDirPath, string destBaseDirPath) => TryLoadLocalSettings(originBaseDirPath, destBaseDirPath, out BackupSettings? localSettings) ? localSettings : null;
         public BackupSettings ConvertToLocalSettings(string originBaseDirPath, string destBaseDirPath)
         {
             localFileName = Path.Combine(DataFileWriter.GetDatabaseDirectoryName(originBaseDirPath, destBaseDirPath), FileName);
@@ -298,7 +299,7 @@ namespace SkyziBackup
         private Regex ConvertToRegex(string strPattern)
         {
             var sb = new StringBuilder("^");
-            if (Path.IsPathFullyQualified(strPattern) && !IsDefault)
+            if (Path.IsPathFullyQualified(strPattern) && !IsDefault && OriginBaseDirPath != null)
                 strPattern = Path.DirectorySeparatorChar + Path.GetRelativePath(OriginBaseDirPath, strPattern);
             if (!strPattern.StartsWith(Path.DirectorySeparatorChar) && !strPattern.StartsWith('*')) sb.Append(Path.DirectorySeparatorChar, 2);
             sb.Append(Regex.Escape(strPattern).Replace(@"\*", ".*").Replace(@"\?", ".?"));

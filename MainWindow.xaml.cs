@@ -31,7 +31,7 @@ namespace SkyziBackup
     {
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
-        private BackupSettings LoadCurrentSettings => BackupSettings.LoadLocalSettingsOrNull(originPath.Text, destPath.Text) ?? BackupSettings.Default;
+        private BackupSettings LoadCurrentSettings => BackupSettings.LoadLocalSettings(originPath.Text, destPath.Text) ?? BackupSettings.Default;
         private bool ButtonsIsEnabled
         {
             get => StartBackupButton.IsEnabled || GlobalSettingsMenu.IsEnabled || LocalSettingsMenu.IsEnabled || DeleteLocalSettings.IsEnabled;
@@ -49,7 +49,7 @@ namespace SkyziBackup
             InitializeComponent();
             originPath.Text = Properties.Settings.Default.OriginPath;
             destPath.Text = Properties.Settings.Default.DestPath;
-            password.Password = PasswordManager.LoadPasswordOrNull(LoadCurrentSettings) ?? string.Empty;
+            password.Password = PasswordManager.LoadPassword(LoadCurrentSettings) ?? string.Empty;
             if (BackupManager.IsRunning)
             {
                 BackupController running;
@@ -115,7 +115,7 @@ namespace SkyziBackup
                         DeleteDatabase();
                         break;
                     case MessageBoxResult.No:
-                        if (MessageBox.Show("前回のパスワードを使用します。", App.AssemblyName.Name, MessageBoxButton.OKCancel, MessageBoxImage.Information) == MessageBoxResult.OK && PasswordManager.TryLoadPassword(settings, out string pass))
+                        if (MessageBox.Show("前回のパスワードを使用します。", App.AssemblyName.Name, MessageBoxButton.OKCancel, MessageBoxImage.Information) == MessageBoxResult.OK && PasswordManager.TryLoadPassword(settings, out string? pass))
                             password.Password = pass;
                         else
                             goto case MessageBoxResult.Cancel;
@@ -216,7 +216,7 @@ namespace SkyziBackup
             {
                 if (MessageBox.Show("現在のバックアップペアに対応するローカル設定を削除します。", $"{App.AssemblyName.Name} - 確認", MessageBoxButton.OKCancel, MessageBoxImage.Warning) == MessageBoxResult.Cancel) return;
                 DataFileWriter.Delete(currentSettings);
-                password.Password = PasswordManager.LoadPasswordOrNull(LoadCurrentSettings) ?? string.Empty;
+                password.Password = PasswordManager.LoadPassword(LoadCurrentSettings) ?? string.Empty;
             }
         }
 
@@ -243,10 +243,10 @@ namespace SkyziBackup
                 switch (((Button)sender).Tag)
                 {
                     case "OriginPath":
-                        originPath.Text = BackupController.GetQualifiedDirectoryPath(Path.GetDirectoryName(ofd.FileName));
+                        originPath.Text = BackupController.GetQualifiedDirectoryPath(Path.GetDirectoryName(ofd.FileName) ?? string.Empty);
                         break;
                     case "DestPath":
-                        destPath.Text = BackupController.GetQualifiedDirectoryPath(Path.GetDirectoryName(ofd.FileName));
+                        destPath.Text = BackupController.GetQualifiedDirectoryPath(Path.GetDirectoryName(ofd.FileName) ?? string.Empty);
                         break;
                 }
             }

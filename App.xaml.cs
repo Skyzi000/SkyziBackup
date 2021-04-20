@@ -20,12 +20,11 @@ namespace SkyziBackup
     /// </summary>
     public partial class App : System.Windows.Application
     {
-        public static NotifyIcon NotifyIcon { get; private set; }
+        public static NotifyIcon NotifyIcon { get; private set; } = new NotifyIcon();
         public static AssemblyName AssemblyName = Assembly.GetExecutingAssembly().GetName();
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
-        protected override async void OnStartup(StartupEventArgs e)
+        public App()
         {
-            base.OnStartup(e);
             DispatcherUnhandledException += App_DispatcherUnhandledException;
             TaskScheduler.UnobservedTaskException += TaskScheduler_UnobservedTaskException;
             if (SkyziBackup.Properties.Settings.Default.IsUpgradeRequired)
@@ -62,6 +61,10 @@ namespace SkyziBackup
                     ContextMenuStrip = menu
                 };
             NotifyIcon.MouseClick += new MouseEventHandler(NotifyIcon_Click);
+        }
+        protected override async void OnStartup(StartupEventArgs e)
+        {
+            base.OnStartup(e);
 
             // アプリケーションの実行
             if (!e.Args.Any())
@@ -75,7 +78,7 @@ namespace SkyziBackup
                 var destPath = e.Args[1];
                 if (Directory.Exists(originPath))
                 {
-                    var settings = BackupSettings.LoadLocalSettingsOrNull(originPath, destPath) ?? BackupSettings.Default;
+                    var settings = BackupSettings.LoadLocalSettings(originPath, destPath) ?? BackupSettings.Default;
                     var results = await BackupManager.StartBackupAsync(originPath, destPath, settings.IsRecordPassword ? settings.GetRawPassword() : null, settings);
                 }
                 else
@@ -87,7 +90,7 @@ namespace SkyziBackup
             }
         }
 
-        private void TaskScheduler_UnobservedTaskException(object sender, UnobservedTaskExceptionEventArgs e)
+        private void TaskScheduler_UnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
         {
             Logger.Error(e.Exception, "バックグラウンドタスクで予期しない例外が発生しました");
             if (MessageBoxResult.Yes == MessageBox.Show($"バックグラウンドタスクで予期しない例外({e.Exception?.InnerException?.GetType().Name})が発生しました。プログラムを継続しますか？\nエラーメッセージ: {e.Exception?.InnerException?.Message}\nスタックトレース: {e.Exception?.InnerException?.StackTrace}", $"{AssemblyName.Name} - エラー", MessageBoxButton.YesNo, MessageBoxImage.Error))
@@ -96,7 +99,7 @@ namespace SkyziBackup
                 Quit();
         }
 
-        private void App_DispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
+        private void App_DispatcherUnhandledException(object? sender, DispatcherUnhandledExceptionEventArgs e)
         {
             Logger.Error(e.Exception, "予期しない例外が発生しました: {3}", e.Exception?.TargetSite?.Name, e.Exception?.GetType().Name, e.Exception?.Message);
             if (MessageBoxResult.Yes == MessageBox.Show($"予期しない例外({e.Exception?.GetType().Name})が発生しました。プログラムを継続しますか？\nエラーメッセージ: {e.Exception?.Message}\nスタックトレース: {e.Exception?.StackTrace}", $"{AssemblyName.Name} - エラー", MessageBoxButton.YesNo, MessageBoxImage.Error))
@@ -118,7 +121,7 @@ namespace SkyziBackup
             return false;
         }
 
-        private void OpenLog_Click(object sender, EventArgs e) => OpenLatestLog();
+        private void OpenLog_Click(object? sender, EventArgs e) => OpenLatestLog();
 
         /// <summary>
         /// MainWindowが閉じられている場合は新規作成して開き、既に存在する場合はアクティベートする
@@ -134,9 +137,9 @@ namespace SkyziBackup
             MainWindow.Activate();
         }
 
-        private void MainShow_Click(object sender, EventArgs e) => ShowMainWindowIfClosed();
+        private void MainShow_Click(object? sender, EventArgs e) => ShowMainWindowIfClosed();
 
-        private void NotifyIcon_Click(object sender, MouseEventArgs e)
+        private void NotifyIcon_Click(object? sender, MouseEventArgs e)
         {
             if (e.Button == MouseButtons.Left)
             {
@@ -165,7 +168,7 @@ namespace SkyziBackup
             return true;
         }
 
-        private void Exit_Click(object sender, EventArgs e) => Quit();
+        private void Exit_Click(object? sender, EventArgs e) => Quit();
 
         protected override void OnSessionEnding(SessionEndingCancelEventArgs e)
         {

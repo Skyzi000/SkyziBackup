@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using SkyziBackup;
 using NLog;
 using System.Windows;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Skyzi000.Cryptography
 {
@@ -30,7 +31,7 @@ namespace Skyzi000.Cryptography
                 Logger.Error(ex, "パスワードの保存に失敗");
             }
         }
-        public static bool TryLoadPassword(BackupSettings settings, out string password)
+        public static bool TryLoadPassword(BackupSettings settings,[NotNullWhen(true)] out string? password)
         {
             if (settings.IsRecordPassword && !string.IsNullOrEmpty(settings.ProtectedPassword))
             {
@@ -53,6 +54,6 @@ namespace Skyzi000.Cryptography
                 return false;
             }
         }
-        public static string LoadPasswordOrNull(BackupSettings settings) => TryLoadPassword(settings, out string password) ? password : null;
+        public static string? LoadPassword(BackupSettings settings) => TryLoadPassword(settings, out string? password) ? password : null;
     }
 }

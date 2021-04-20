@@ -11,13 +11,13 @@ namespace SkyziBackup
     public abstract class SaveableData : IDisposable
     {
         [JsonIgnore]
-        public virtual string SaveFileName { get; }
+        public virtual string? SaveFileName { get; }
         [JsonIgnore]
         public System.Timers.Timer SaveTimer { get => saveTimer ??= new System.Timers.Timer(); set => saveTimer = value; }
-        private System.Timers.Timer saveTimer;
+        private System.Timers.Timer? saveTimer;
         [JsonIgnore]
         public SemaphoreSlim Semaphore { get => semaphore ??= new SemaphoreSlim(1, 1); set => semaphore = value; }
-        private SemaphoreSlim semaphore;
+        private SemaphoreSlim? semaphore;
         private bool disposedValue;
         public virtual void StartAutoSave(double intervalMilliSeconds)
         {
@@ -118,7 +118,10 @@ namespace SkyziBackup
         
         private int tempCount = 0;
 
-        public BackupDatabase() { }
+        public BackupDatabase()
+        {
+            OriginBaseDirPath = DestBaseDirPath = string.Empty;
+        }
 
         public BackupDatabase(string originBaseDirPath, string destBaseDirPath)
         {
@@ -162,13 +165,13 @@ namespace SkyziBackup
         [JsonPropertyName("a")]
         public FileAttributes? FileAttributes { get; set; } = null;
         [JsonPropertyName("s")]
-        public string Sha1 { get; set; } = null;
+        public string? Sha1 { get; set; } = null;
         
         public const long DefaultSize = -1;
 
         public BackedUpFileData() { }
 
-        public BackedUpFileData(DateTime? creationTime = null, DateTime? lastWriteTime = null, long originSize = DefaultSize, FileAttributes? fileAttributes = null, string sha1 = null)
+        public BackedUpFileData(DateTime? creationTime = null, DateTime? lastWriteTime = null, long originSize = DefaultSize, FileAttributes? fileAttributes = null, string? sha1 = null)
         {
             this.CreationTime = creationTime;
             this.LastWriteTime = lastWriteTime;
@@ -214,7 +217,7 @@ namespace SkyziBackup
             WriteIndented = false,
             IgnoreNullValues = true,
         };
-        public static string GetPath(SaveableData obj) => GetPath(obj.SaveFileName);
+        public static string GetPath(SaveableData obj) => GetPath(obj.SaveFileName ?? throw new NullReferenceException(nameof(obj.SaveFileName)));
         public static string GetPath(string fileName) => Path.Combine(Properties.Settings.Default.AppDataPath, fileName);
         /// <summary>
         /// <see cref="ParentDirectoryName"/>とSHA1ハッシュ値でAppDataPathからの相対ディレクトリパスを求める。
@@ -243,7 +246,7 @@ namespace SkyziBackup
         /// <returns>データベースの絶対パス</returns>
         public static string GetDatabasePath(string originBaseDirPath, string destBaseDirPath) => GetPath(GetDatabaseFileName(originBaseDirPath, destBaseDirPath));
 
-        public static async Task WriteAsync(SaveableData obj, string filePath = null, bool makeBackup = false, CancellationToken cancellationToken = default)
+        public static async Task WriteAsync(SaveableData obj, string? filePath = null, bool makeBackup = false, CancellationToken cancellationToken = default)
         {
             filePath ??= GetPath(obj);
             string tmpPath = filePath + TempFileExtension;
@@ -266,7 +269,7 @@ namespace SkyziBackup
                 File.Move(sourceFileName, destinationFileName, true);
             }
         }
-        public static void Write(SaveableData obj, string filePath = null, bool makeBackup = false)
+        public static void Write(SaveableData obj, string? filePath = null, bool makeBackup = false)
         {
             WriteAsync(obj, filePath, makeBackup).Wait();
         }

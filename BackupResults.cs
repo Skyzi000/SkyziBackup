@@ -12,7 +12,7 @@ namespace SkyziBackup
 
         private bool _isFinished;
 
-        public event EventHandler Finished;
+        public event EventHandler? Finished;
 
         protected virtual void OnFinished(EventArgs e) => Finished?.Invoke(this, e);
 
@@ -26,9 +26,9 @@ namespace SkyziBackup
         /// </summary>
         public string Message { get => _message; set { _message = value; OnMessageChanged(EventArgs.Empty); } }
 
-        private string _message;
+        private string _message = string.Empty;
 
-        public event EventHandler MessageChanged;
+        public event EventHandler? MessageChanged;
 
         protected virtual void OnMessageChanged(EventArgs e) => MessageChanged?.Invoke(this, e);
 
@@ -46,7 +46,7 @@ namespace SkyziBackup
         /// <summary>
         /// バックアップ対象だが前回のバックアップからの変更が確認されず、スキップされたファイルのパス。
         /// </summary>
-        public HashSet<string> unchangedFiles = null;
+        public HashSet<string>? unchangedFiles = null;
 
         /// <summary>
         /// バックアップ対象だが失敗したファイルのパス。
@@ -61,12 +61,12 @@ namespace SkyziBackup
         /// <summary>
         /// 削除したファイルのパス。
         /// </summary>
-        public HashSet<string> deletedFiles = null;
+        public HashSet<string>? deletedFiles = null;
 
         /// <summary>
         /// 削除したディレクトリのパス。
         /// </summary>
-        public HashSet<string> deletedDirectories = null;
+        public HashSet<string>? deletedDirectories = null;
 
         public BackupResults(bool isSuccess, bool isFinished = false, string message = "")
         {

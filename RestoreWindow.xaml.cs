@@ -22,14 +22,14 @@ namespace SkyziBackup
     /// </summary>
     public partial class RestoreWindow : Window
     {
-        private BackupSettings LoadCurrentSettings => BackupSettings.LoadLocalSettingsOrNull(destPath.Text.Trim(), originPath.Text.Trim()) ?? BackupSettings.Default;
+        private BackupSettings LoadCurrentSettings => BackupSettings.LoadLocalSettings(destPath.Text.Trim(), originPath.Text.Trim()) ?? BackupSettings.Default;
 
         public RestoreWindow()
         {
             InitializeComponent();
             ContentRendered += (s, e) =>
             {
-                password.Password = PasswordManager.LoadPasswordOrNull(LoadCurrentSettings) ?? string.Empty;
+                password.Password = PasswordManager.LoadPassword(LoadCurrentSettings) ?? string.Empty;
             };
         }
         public RestoreWindow(string restoreSourcePath, string restoreDestinationPath) : this()
@@ -100,7 +100,7 @@ namespace SkyziBackup
         {
             new SettingsWindow(BackupSettings.Default).ShowDialog();
             BackupSettings.ReloadDefault();
-            password.Password = PasswordManager.LoadPasswordOrNull(LoadCurrentSettings) ?? string.Empty;
+            password.Password = PasswordManager.LoadPassword(LoadCurrentSettings) ?? string.Empty;
         }
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
