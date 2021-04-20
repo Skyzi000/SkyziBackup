@@ -145,11 +145,21 @@ namespace SkyziBackup
                   },
                 System.Windows.Threading.DispatcherPriority.ApplicationIdle);
             };
-            var results = await BackupManager.StartBackupAsync(bc);
-            if (results != null)
-                message.Text = m + results.Message + "\n";
-            progressBar.Visibility = Visibility.Collapsed;
-            ButtonsIsEnabled = true;
+            try
+            {
+                var results = await BackupManager.StartBackupAsync(bc);
+                if (results != null)
+                    message.Text = m + results.Message + "\n";
+            }
+            catch (OperationCanceledException)
+            {
+                message.Text = m + "バックアップはキャンセルされました。" + "\n";
+            }
+            finally
+            {
+                progressBar.Visibility = Visibility.Collapsed;
+                ButtonsIsEnabled = true;
+            }
         }
 
 
