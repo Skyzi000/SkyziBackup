@@ -42,10 +42,6 @@ namespace SkyziBackup
                 if (!result.isSuccess)
                     App.NotifyIcon.ShowBalloonTip(10000, $"{App.AssemblyName.Name} - エラー", "バックアップに失敗しました。", System.Windows.Forms.ToolTipIcon.Error);
             }
-            catch (Exception ex)
-            {
-                Logger.Error(ex, "バックアップ中に予期しない例外が発生しました。");
-            }
             finally
             {
                 App.NotifyIcon.Text = IsRunning ? $"{App.AssemblyName.Name} - バックアップ中" : App.AssemblyName.Name;

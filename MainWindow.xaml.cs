@@ -34,13 +34,15 @@ namespace SkyziBackup
         private BackupSettings LoadCurrentSettings => BackupSettings.LoadLocalSettings(originPath.Text, destPath.Text) ?? BackupSettings.Default;
         private bool ButtonsIsEnabled
         {
-            get => StartBackupButton.IsEnabled || GlobalSettingsMenu.IsEnabled || LocalSettingsMenu.IsEnabled || DeleteLocalSettings.IsEnabled;
             set
             {
                 StartBackupButton.IsEnabled = value;
                 GlobalSettingsMenu.IsEnabled = value;
                 LocalSettingsMenu.IsEnabled = value;
                 DeleteLocalSettings.IsEnabled = value;
+                OptionMenu.IsEnabled = value;
+                StartBackupMenu.IsEnabled = value;
+                CancelBackupMenu.IsEnabled = !value;
             }
         }
 
@@ -50,6 +52,7 @@ namespace SkyziBackup
             originPath.Text = Properties.Settings.Default.OriginPath;
             destPath.Text = Properties.Settings.Default.DestPath;
             password.Password = PasswordManager.LoadPassword(LoadCurrentSettings) ?? string.Empty;
+            CancelBackupMenu.IsEnabled = false;
             if (BackupManager.IsRunning)
             {
                 BackupController running;
@@ -160,7 +163,7 @@ namespace SkyziBackup
             string databasePath;
             if (LoadCurrentSettings.IsUseDatabase && File.Exists(databasePath = DataFileWriter.GetDatabasePath(originPath.Text, destPath.Text)))
             {
-                var deleteDatabase = MessageBox.Show($"{databasePath}\n上記データベースを削除しますか？\nなお、データベースを削除すると全てのファイルを初めからバックアップすることになります。", $"{App.AssemblyName.Name} - 確認", MessageBoxButton.YesNo);
+                var deleteDatabase = MessageBox.Show($"{databasePath}\n上記データベースを削除しますか？", $"{App.AssemblyName.Name} - 確認", MessageBoxButton.YesNo);
                 switch (deleteDatabase)
                 {
                     case MessageBoxResult.Yes:
@@ -250,6 +253,32 @@ namespace SkyziBackup
                         break;
                 }
             }
+        }
+
+        private void OpenAppDataButton_Click(object sender, RoutedEventArgs e)
+        {
+            Process.Start("explorer.exe", Properties.Settings.Default.AppDataPath);
+        }
+
+        private void DeleteDatabaseMenu_Click(object sender, RoutedEventArgs e)
+        {
+            DeleteDatabase();
+        }
+
+        private async void CancelBackupMenu_Click(object sender, RoutedEventArgs e)
+        {
+            if (BackupManager.IsRunning)
+                await BackupManager.CancelAllAsync();
+        }
+
+        private void AboutAppMenu_Click(object sender, RoutedEventArgs e)
+        {
+            throw new NotImplementedException();
+        }
+
+        private void RepositoryLinkMenu_Click(object sender, RoutedEventArgs e)
+        {
+            Process.Start("explorer.exe", @"https://github.com/skyzi000/SkyziBackup");
         }
     }
 }

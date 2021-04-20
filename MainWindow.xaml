@@ -52,20 +52,30 @@
 
         <Menu DockPanel.Dock="Top" Height="20" VerticalAlignment="Top" Grid.ColumnSpan="3">
             <MenuItem Header="ファイル(_F)">
+                <MenuItem Header="データ保存先を開く(_D)" Name="OpenAppDataButton" Click="OpenAppDataButton_Click"/>
                 <MenuItem Header="最新のログファイルを開く(_L)" Click="OpenLog_Click"/>
                 <MenuItem Name="CloseButton" Header="閉じる(_X)" Click="CloseButton_Click"/>
                 <Separator/>
                 <MenuItem Header="終了(_E)" Click="Exit_Click"/>
             </MenuItem>
             <MenuItem Header="表示(_V)">
-                <MenuItem Name="RestoreWindowMenu" Header="リストア(復元)ウィンドウ" Click="RestoreWindowMenu_Click"/>
+                <MenuItem Name="RestoreWindowMenu" Header="リストア(復元)ウィンドウ(_R)" Click="RestoreWindowMenu_Click"/>
+                <MenuItem Name="ShowCurrentSettings" Header="現在の設定を表示(_C)" Click="ShowCurrentSettings_Click"/>
             </MenuItem>
-            <MenuItem Header="オプション(_O)">
-                <MenuItem x:Name="GlobalSettingsMenu" Header="グローバル設定(_G)" Click="GlobalSettingsMenu_Click"/>
+            <MenuItem Header="動作(_A)">
+                <MenuItem x:Name="StartBackupMenu" Header="現在の設定でバックアップ開始(_B)" Click="StartBackupButton_ClickAsync"/>
+                <MenuItem x:Name="CancelBackupMenu" Header="現在のバックアップをキャンセル(_C)" Click="CancelBackupMenu_Click"/>
+            </MenuItem>
+            <MenuItem Header="オプション(_O)" x:Name="OptionMenu">
+                <MenuItem x:Name="GlobalSettingsMenu" Header="デフォルト設定(_D)" Click="GlobalSettingsMenu_Click"/>
                 <MenuItem x:Name="LocalSettingsMenu" Header="ローカル設定(_L)" Click="LocalSettingsMenu_Click"/>
-                <MenuItem Name="ShowCurrentSettings" Header="現在の設定を表示" Click="ShowCurrentSettings_Click"/>
                 <Separator/>
                 <MenuItem x:Name="DeleteLocalSettings" Header="ローカル設定を削除" Click="DeleteLocalSettings_Click"/>
+                <MenuItem x:Name="DeleteDatabaseMenu" Header="データベースを削除" Click="DeleteDatabaseMenu_Click"/>
+            </MenuItem>
+            <MenuItem Header="ヘルプ(_H)">
+                <MenuItem x:Name="RepositoryLinkMenu" Header="リポジトリページ(_R)" Click="RepositoryLinkMenu_Click"/>
+                <MenuItem x:Name="AboutAppMenu" Header="このアプリについて(_A)" Click="AboutAppMenu_Click"/>
             </MenuItem>
         </Menu>
     </Grid>
