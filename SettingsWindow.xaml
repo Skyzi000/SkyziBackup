@@ -78,13 +78,40 @@
                     </Grid>
                 </TabItem>
                 <TabItem Header="除外フィルタ">
-                    <Grid>
-                        <StackPanel>
-                            <GroupBox Header="除外パターン" ToolTip="バックアップから除外するディレクトリ(末尾が\)やファイルを設定します。'*'と'?'がワイルドカードとして利用できます。改行や'|'で区切ります。">
-                                <TextBox x:Name="ignorePatternBox" AcceptsReturn="True" MinLines="8" MaxLines="17"/>
-                            </GroupBox>
-                        </StackPanel>
-                    </Grid>
+                    <GroupBox Header="除外パターン" ToolTip="バックアップから除外するディレクトリ(末尾が\)やファイルを設定します。'*'と'?'がワイルドカードとして利用できます。改行や'|'で区切ります。">
+                        <Grid>
+                            <StackPanel>
+                                <TextBox x:Name="ignorePatternBox" AcceptsReturn="True" MinLines="8" MaxLines="8"/>
+                                <TextBlock VerticalAlignment="Bottom" FontFamily="Meiryo UI">
+                                    末尾が\のものをディレクトリとして認識します。「*」と「?」がワイルドカードとして利用できます。改行や「|」で区切ります。大文字と小文字を区別しません。<LineBreak/>
+                                    絶対パスも一応認識するようにしましたが、ワイルドカードは使えません。<LineBreak/>
+                                    例:<LineBreak/>
+                                </TextBlock>
+                            </StackPanel>
+                            <Grid VerticalAlignment="Bottom" Margin="0,0,0,-15">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition/>
+                                    <ColumnDefinition Width="2*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock>
+                                    \$Recycle.Bin\<LineBreak/>
+                                    *\RECYCLE?\<LineBreak/>
+                                    *\tHuMBs.Db<LineBreak/>
+                                    *.tmp|*.exe|*.log<LineBreak/>
+                                    \*\<LineBreak/>
+                                    C:\Users\Skyzi000\Documents\Temp\<LineBreak/>
+                                </TextBlock>
+                                <TextBlock Grid.Column="1">
+                                    ：ベースディレクトリ直下のゴミ箱<LineBreak/>
+                                    ：「?」は0または1文字の任意の文字として認識<LineBreak/>
+                                    ：大文字と小文字は区別しない(全角と半角は区別されます)<LineBreak/>
+                                    ：縦棒「|」で区切る<LineBreak/>
+                                    ：全てのサブディレクトリ<LineBreak/>
+                                    ：絶対パス(バックアップ元ディレクトリ配下)<LineBreak/>
+                                </TextBlock>
+                            </Grid>
+                        </Grid>
+                    </GroupBox>
                 </TabItem>
                 <TabItem Header="比較">
                     <Grid>
@@ -93,7 +120,7 @@
                                 <ListBox x:Name="ComparisonMethodListBox" SelectionMode="Multiple">
                                     <ListBoxItem x:Name="NoComparisonLBI" Content="比較しない(毎回フルバックアップ)" ToolTip="比較しません。これを選択した場合、他の選択は無効になります。"/>
                                     <ListBoxItem x:Name="ArchiveAttributeLBI" Content="アーカイブ属性" ToolTip="バックアップ済みのバックアップ元ファイルからアーカイブ属性を取り除き、アーカイブ属性の付いたファイルだけをバックアップします。バックアップ元ファイルのアーカイブ属性を取り除く点に注意してください。"/>
-                                    <ListBoxItem x:Name="WriteTimeLBI" Content="更新日時" IsSelected="True" ToolTip="更新日時によって比較します。" />
+                                    <ListBoxItem x:Name="WriteTimeLBI" Content="更新日時" IsSelected="True" ToolTip="更新日時によって比較します。バックアップ先が古くても新しくても上書きします。" />
                                     <ListBoxItem x:Name="SizeLBI" Content="サイズ" IsSelected="True" ToolTip="ファイルサイズで比較します。暗号化や圧縮が有効な場合、データベースを利用する必要があります。" />
                                     <ListBoxItem x:Name="SHA1LBI" Content="ファイル内容(SHA1)" IsSelected="False" ToolTip="ファイル内容からSHA1を計算して比較します。この比較方法を使う場合はデータベースを利用し、ファイルサイズでの比較を併用することをおすすめします。暗号化や圧縮が有効な場合、データベースを利用する必要があります。" />
                                     <ListBoxItem x:Name="BynaryLBI" Content="ファイル内容(Bynary)" IsSelected="False" ToolTip="1バイトずつ内容を比較します。ファイルサイズでの比較を併用することをおすすめします。この比較方法ではデータベースを利用できません。また、暗号化や圧縮が有効な場合は比較できません。" />
@@ -142,6 +169,22 @@
                                 <GroupBox Header="圧縮除外パターン(未実装)" IsEnabled="False" ToolTip="既に圧縮されている動画や音楽などのファイルや、.zipなどのアーカイブファイル等を圧縮対象から除外することができます。リストア時に同じ設定にする必要があります。">
                                     <TextBox x:Name="ignoreCompExBox" AcceptsReturn="True" MinLines="4" MaxLines="4"/>
                                 </GroupBox>
+                            </StackPanel>
+                        </GroupBox>
+                    </Grid>
+                </TabItem>
+                <TabItem Header="その他">
+                    <Grid>
+                        <GroupBox Header="上級者向け">
+                            <StackPanel HorizontalAlignment="Stretch" VerticalAlignment="Top">
+                                <Label Content="リパースポイント(シンボリックリンク/ジャンクション)の取り扱い" HorizontalAlignment="Left"/>
+                                <ComboBox x:Name="SymbolicLinkHandlingBox" MaxWidth="200" Margin="0,-26,0,0" HorizontalAlignment="Right" Width="200" SelectedIndex="0">
+                                    <ComboBoxItem DataContext="IgnoreOnlyDirectories" Content="ディレクトリのみ無視する" ToolTip="ディレクトリのリパースポイントは無視し、ファイルのシンボリックリンクはターゲットの実体をバックアップします。(デフォルト動作)" />
+                                    <ComboBoxItem DataContext="IgnoreAll" Content="全て無視する" ToolTip="リパースポイントはディレクトリだろうとファイルだろうと無視します。すべてのファイルはリパースポイントでないかをチェックされます。" />
+                                    <ComboBoxItem DataContext="Follow" Content="フォローする" ToolTip="ターゲットの実体をバックアップします。無限ループに陥る可能性があるので注意してください。"/>
+                                    <ComboBoxItem DataContext="Direct" Content="直接コピーする(非推奨)" ToolTip="ジャンクションやシンボリックリンクを出来る限りバックアップ先に再現します。設定によってはバックアップ先に作成されたリンクを削除する際にターゲットの実体が削除される恐れがあり危険です。また、管理者権限が必要かもしれません。"/>
+                                </ComboBox>
+                                <CheckBox x:Name="IsCancelableBox" Content="キャンセル可能" IsChecked="True" />
                             </StackPanel>
                         </GroupBox>
                     </Grid>

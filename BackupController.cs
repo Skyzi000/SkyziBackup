@@ -245,7 +245,9 @@ namespace SkyziBackup
             }
             else // データベースを使わない
             {
-                foreach (string destDirPath in EnumerateAllDirectoriesIgnoreReparsePoints(destBaseDirPath))
+                foreach (string destDirPath in Settings.SymbolicLink == SymbolicLinkHandling.IgnoreOnlyDirectories || Settings.SymbolicLink == SymbolicLinkHandling.IgnoreAll
+                    ? EnumerateAllDirectoriesIgnoreReparsePoints(destBaseDirPath, Settings.Regices)
+                    : EnumerateAllDirectories(destBaseDirPath, Settings.Regices))
                 {
                     string originDirPath = destDirPath.Replace(destBaseDirPath, originBaseDirPath);
                     if (Results.successfulDirectories.Contains(originDirPath) || Results.failedDirectories.Contains(originDirPath))
@@ -332,7 +334,9 @@ namespace SkyziBackup
             }
             else // データベースを使わない
             {
-                foreach (string destFilePath in EnumerateAllFilesIgnoreReparsePoints(destBaseDirPath, Settings.Regices))
+                foreach (string destFilePath in Settings.SymbolicLink == SymbolicLinkHandling.IgnoreOnlyDirectories || Settings.SymbolicLink == SymbolicLinkHandling.IgnoreAll
+                    ? EnumerateAllFilesIgnoreReparsePoints(destBaseDirPath, Settings.Regices)
+                    : EnumerateAllFiles(destBaseDirPath, Settings.Regices))
                 {
                     string originFilePath = destFilePath.Replace(destBaseDirPath, originBaseDirPath);
                     if (Results.successfulFiles.Contains(originFilePath) || Results.failedFiles.Contains(originFilePath) || (Results.unchangedFiles?.Contains(originFilePath) ?? false))
@@ -727,7 +731,12 @@ namespace SkyziBackup
                         File.Delete(destPath);
                 }
                 startInfo.Arguments = string.Join(' ', "New-Item", "-Type", linkType, destPath, "-Value", target);
-                Process.Start(startInfo);
+                if(!Path.IsPathFullyQualified(target))
+                    startInfo.WorkingDirectory = Path.GetDirectoryName(sourcePath);
+                var p = Process.Start(startInfo);
+                p.WaitForExit();
+                System.Windows.MessageBox.Show(p.StandardError.ReadToEnd(), p.StandardOutput.ReadToEnd());
+                //Process.Start(startInfo);
             }
             else throw new IOException($"'{sourcePath}'のLinkType({linkType})を識別できません。");
 
@@ -735,7 +744,7 @@ namespace SkyziBackup
             {
                 using var proc = Process.Start(startInfo);
                 proc.WaitForExit();
-                return proc.StandardOutput.ReadToEnd();
+                return proc.StandardOutput.ReadToEnd().Trim('\n', '\r', ' ');
             }
         }
 
@@ -1066,10 +1075,10 @@ namespace SkyziBackup
         /// 読み取り専用属性を持っていないとデータベースに記録されているファイルかどうか。
         /// </summary>
         /// <returns>前回のバックアップ時に読み取り専用属性がなかった場合 true, 対象のファイルが読み取り専用属性を持っていたり、データが無い場合は false</returns>
-        private bool IsNotReadOnlyInDatabase(string originFilePath)
+        private bool IsNotAttributesInDatabase(string originFilePath, FileAttributes fileAttributes)
         {
             if (Database is null) return false;
-            return Database.BackedUpFilesDict.TryGetValue(originFilePath, out BackedUpFileData? data) && data.FileAttributes.HasValue && !data.FileAttributes.Value.HasFlag(FileAttributes.ReadOnly); 
+            return Database.BackedUpFilesDict.TryGetValue(originFilePath, out BackedUpFileData? data) && data.FileAttributes.HasValue && !data.FileAttributes.Value.HasFlag(fileAttributes); 
         }
         private void BackupFile(string originFilePath, string destFilePath)
         {
@@ -1077,6 +1086,11 @@ namespace SkyziBackup
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(destFilePath));
+                if (Settings.IsOverwriteReadonly)
+                {
+                    RemoveReadonlyAttribute(originFilePath, destFilePath);
+                    RemoveHiddenAttribute(originFilePath, destFilePath);
+                }
                 if (Settings.Versioning != VersioningMethod.PermanentDeletion && (Database?.BackedUpFilesDict.ContainsKey(originFilePath) ?? File.Exists(destFilePath)))
                 {
                     try
@@ -1089,13 +1103,10 @@ namespace SkyziBackup
                         throw;
                     }
                 }
-                if (Settings.IsOverwriteReadonly)
-                {
-                    RemoveReadonlyAttribute(originFilePath, destFilePath);
-                }
                 if (Settings.SymbolicLink == SymbolicLinkHandling.Direct && File.GetAttributes(originFilePath).HasFlag(FileAttributes.ReparsePoint))
                 {
                     CopyReparsePoint(originFilePath, destFilePath, Settings.Versioning == VersioningMethod.PermanentDeletion);
+                    CopyFileAttributesAndUpdateDatabase(originFilePath, destFilePath);
                 }
                 else if (AesCryptor != null)
                 {
@@ -1128,9 +1139,9 @@ namespace SkyziBackup
         /// <returns>読み取り専用を解除したら true</returns>
         private bool RemoveReadonlyAttribute(string originFilePath, string destFilePath)
         {
-            if (!(Settings.IsUseDatabase && IsNotReadOnlyInDatabase(originFilePath)))
-                return RemoveReadonlyAttribute(destFilePath);
-            return false;
+            if (Settings.IsUseDatabase && IsNotAttributesInDatabase(originFilePath, FileAttributes.ReadOnly))
+                return false;
+            return RemoveReadonlyAttribute(destFilePath);
         }
         private bool RemoveReadonlyAttribute(string filePath)
         {
@@ -1138,6 +1149,23 @@ namespace SkyziBackup
             if (fi.Exists && fi.Attributes.HasFlag(FileAttributes.ReadOnly))
             {
                 fi.Attributes = RemoveAttribute(fi.Attributes, FileAttributes.ReadOnly);
+                return true;
+            }
+            return false;
+        }
+        private bool RemoveHiddenAttribute(string originFilePath, string destFilePath)
+        {
+            if (Settings.IsUseDatabase && IsNotAttributesInDatabase(originFilePath, FileAttributes.Hidden))
+                return false;
+            return RemoveHiddenAttribute(destFilePath);
+        }
+        private bool RemoveHiddenAttribute(string filePath)
+        {
+            FileInfo fi = new FileInfo(filePath);
+            if (fi.Exists && fi.Attributes.HasFlag(FileAttributes.Hidden))
+            {
+                fi.Attributes = RemoveAttribute(fi.Attributes, FileAttributes.Hidden);
+                fi.Refresh();
                 return true;
             }
             return false;
@@ -1165,9 +1193,12 @@ namespace SkyziBackup
                     }
                     if (!data.FileAttributes.HasValue || (originInfo ??= new FileInfo(originFilePath)).Attributes != data.FileAttributes)
                         (destInfo ?? new FileInfo(destFilePath)).Attributes = (originInfo ??= new FileInfo(originFilePath)).Attributes;
-                    // バックアップ先ファイルから取り除いた読み取り専用属性を戻す
-                    else if (Settings.IsOverwriteReadonly && data.FileAttributes.Value.HasFlag(FileAttributes.ReadOnly))
-                        (destInfo ?? new FileInfo(destFilePath)).Attributes = data.FileAttributes.Value;
+                    // バックアップ先ファイルから取り除いた読み取り専用/隠し属性を戻す
+                    else
+                    {
+                        if (Settings.IsOverwriteReadonly && (data.FileAttributes.Value.HasFlag(FileAttributes.ReadOnly) || data.FileAttributes.Value.HasFlag(FileAttributes.Hidden)))
+                            (destInfo ?? new FileInfo(destFilePath)).Attributes = data.FileAttributes.Value;
+                    }
                 }
                 else
                 {
@@ -1184,6 +1215,7 @@ namespace SkyziBackup
                     }
                     destInfo.Attributes = (originInfo ?? new FileInfo(originFilePath)).Attributes;
                 }
+                // Archive属性
                 if (Settings.ComparisonMethod.HasFlag(ComparisonMethod.ArchiveAttribute) && (originInfo ??= new FileInfo(originFilePath)).Attributes.HasFlag(FileAttributes.Archive))
                 {
                     (originInfo ??= new FileInfo(originFilePath)).Attributes = RemoveAttribute(originInfo.Attributes, FileAttributes.Archive);

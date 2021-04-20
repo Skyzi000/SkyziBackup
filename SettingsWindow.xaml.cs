@@ -30,6 +30,8 @@ namespace SkyziBackup
             {
                 NoComparisonLBI.Selected += (s, e) => ComparisonMethodListBox.SelectedIndex = 0;
                 VersioningPanel.IsEnabled = (int)settings.Versioning >= (int)VersioningMethod.Replace;
+                if ((SymbolicLinkHandling)SymbolicLinkHandlingBox.SelectedIndex == SymbolicLinkHandling.Direct)
+                    SymbolicLinkHandlingBox.IsEnabled = false;
             };
         }
         /// <summary>
@@ -84,6 +86,8 @@ namespace SkyziBackup
             SizeLBI.IsSelected = settings.ComparisonMethod.HasFlag(ComparisonMethod.Size);
             SHA1LBI.IsSelected = settings.ComparisonMethod.HasFlag(ComparisonMethod.FileContentsSHA1);
             BynaryLBI.IsSelected = settings.ComparisonMethod.HasFlag(ComparisonMethod.FileContentsBynary);
+            SymbolicLinkHandlingBox.SelectedIndex = (int)settings.SymbolicLink;
+            IsCancelableBox.IsChecked = settings.IsCancelable;
         }
 
         private void TextBox_PreviewTextInput(object sender, TextCompositionEventArgs e)
@@ -96,37 +100,6 @@ namespace SkyziBackup
             if (e.Command == ApplicationCommands.Paste)
             {
                 e.Handled = true;
-            }
-        }
-
-        private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
-        {
-            BackupSettings newSettings = GetNewSettings();
-            if (!File.Exists(DataFileWriter.GetPath(newSettings)) || settings.ToString() != newSettings.ToString()) // TODO: できればもうちょっとましな比較方法にしたい
-            {
-                var r = MessageBox.Show("設定を保存しますか？", "設定変更の確認", MessageBoxButton.YesNoCancel);
-                if (r == MessageBoxResult.Yes)
-                {
-                    if ((int)newSettings.Versioning >= (int)VersioningMethod.Replace && !Directory.Exists(newSettings.RevisionsDirPath))
-                    {
-                        MessageBox.Show("バージョン管理の移動先ディレクトリが存在しません。\n正しいパスを入力してください。", $"{App.AssemblyName.Name} - 警告", MessageBoxButton.OK, MessageBoxImage.Warning);
-                        e.Cancel = true;
-                        return;
-                    }
-                    if (Properties.Settings.Default.AppDataPath != dataPath.Text && System.IO.Directory.Exists(dataPath.Text))
-                    {
-                        Properties.Settings.Default.AppDataPath = dataPath.Text;
-                        Properties.Settings.Default.Save();
-                        dataPath.Text = Properties.Settings.Default.AppDataPath;
-                        NLog.GlobalDiagnosticsContext.Set("AppDataPath", dataPath.Text);
-                    }
-                    settings = newSettings;
-                    DataFileWriter.Write(settings);
-                }
-                else if (r == MessageBoxResult.Cancel)
-                {
-                    e.Cancel = true;
-                }
             }
         }
 
@@ -170,7 +143,8 @@ namespace SkyziBackup
                 }
                 newSettings.ComparisonMethod |= (ComparisonMethod)(1 << (i - 1));
             }
-
+            newSettings.SymbolicLink = (SymbolicLinkHandling)SymbolicLinkHandlingBox.SelectedIndex;
+            newSettings.IsCancelable = IsCancelableBox.IsChecked ?? newSettings.IsCancelable;
             return newSettings;
         }
 
@@ -195,7 +169,18 @@ namespace SkyziBackup
             if (VersioningPanel != null)
                 VersioningPanel.IsEnabled = false;
         }
-
+        private void SaveNewSettings(BackupSettings newSettings)
+        {
+            if (Properties.Settings.Default.AppDataPath != dataPath.Text && Directory.Exists(dataPath.Text))
+            {
+                Properties.Settings.Default.AppDataPath = dataPath.Text;
+                Properties.Settings.Default.Save();
+                dataPath.Text = Properties.Settings.Default.AppDataPath;
+                NLog.GlobalDiagnosticsContext.Set("AppDataPath", dataPath.Text);
+            }
+            settings = newSettings;
+            settings.Save();
+        }
         private void OkButton_Click(object sender, RoutedEventArgs e)
         {
             BackupSettings newSettings = GetNewSettings();
@@ -206,18 +191,54 @@ namespace SkyziBackup
                     MessageBox.Show("バージョン管理の移動先ディレクトリが存在しません。\n正しいパスを入力してください。", $"{App.AssemblyName.Name} - 警告", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
-                if (Properties.Settings.Default.AppDataPath != dataPath.Text && System.IO.Directory.Exists(dataPath.Text))
+                if (settings.SymbolicLink != newSettings.SymbolicLink && newSettings.SymbolicLink == SymbolicLinkHandling.Direct)
                 {
-                    Properties.Settings.Default.AppDataPath = dataPath.Text;
-                    Properties.Settings.Default.Save();
-                    dataPath.Text = Properties.Settings.Default.AppDataPath;
-                    NLog.GlobalDiagnosticsContext.Set("AppDataPath", dataPath.Text);
+                    if (MessageBoxResult.OK != MessageBox.Show(
+                        "リパースポイント(シンボリックリンク/ジャンクション)を直接コピーするモードを本当に有効にしますか？\n" +
+                        "※設定や操作次第ではリンクターゲットを意図せず削除してしまう場合があります。\n" +
+                        "　そういった危険を減らすために、これ以降この設定を変更できないようになります。",
+                        $"{App.AssemblyName.Name} - 確認", MessageBoxButton.OKCancel, MessageBoxImage.None, MessageBoxResult.Cancel))
+                        return;
                 }
-                settings = newSettings;
-                DataFileWriter.Write(settings);
+                SaveNewSettings(newSettings);
             }
             DisplaySettings();
             Close();
+        }
+
+        private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            BackupSettings newSettings = GetNewSettings();
+            if (!File.Exists(DataFileWriter.GetPath(newSettings)) || settings.ToString() != newSettings.ToString()) // TODO: できればもうちょっとましな比較方法にしたい
+            {
+                var r = MessageBox.Show("設定を保存しますか？", "設定変更の確認", MessageBoxButton.YesNoCancel);
+                if (r == MessageBoxResult.Yes)
+                {
+                    if ((int)newSettings.Versioning >= (int)VersioningMethod.Replace && !Directory.Exists(newSettings.RevisionsDirPath))
+                    {
+                        MessageBox.Show("バージョン管理の移動先ディレクトリが存在しません。\n正しいパスを入力してください。", $"{App.AssemblyName.Name} - 警告", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        e.Cancel = true;
+                        return;
+                    }
+                    if (settings.SymbolicLink != newSettings.SymbolicLink && newSettings.SymbolicLink == SymbolicLinkHandling.Direct)
+                    {
+                        if (MessageBoxResult.OK != MessageBox.Show(
+                            "リパースポイント(シンボリックリンク/ジャンクション)を直接コピーするモードを本当に有効にしますか？\n" +
+                            "※設定や操作次第ではリンクターゲットを意図せず削除してしまう場合があります。\n" +
+                            "　そういった危険を減らすために、これ以降この設定を変更できないようになります。",
+                            $"{App.AssemblyName.Name} - 確認", MessageBoxButton.OKCancel, MessageBoxImage.Information, MessageBoxResult.Cancel))
+                        {
+                            e.Cancel = true;
+                            return;
+                        }
+                    }
+                    SaveNewSettings(newSettings);
+                }
+                else if (r == MessageBoxResult.Cancel)
+                {
+                    e.Cancel = true;
+                }
+            }
         }
 
         private void CancelButton_Click(object sender, RoutedEventArgs e)
