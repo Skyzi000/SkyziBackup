@@ -8,7 +8,7 @@
         mc:Ignorable="d"
         Closing="Window_Closing"
         ResizeMode="NoResize"
-        Title="SkyziBackup - 設定" Height="400" Width="800">
+        Title="SkyziBackup - 設定" Height="450" Width="800">
     <Grid>
         <Grid.Background>
             <LinearGradientBrush EndPoint="0.5,1" StartPoint="0.5,0">
@@ -84,8 +84,7 @@
                                 <TextBox x:Name="ignorePatternBox" AcceptsReturn="True" MinLines="8" MaxLines="8"/>
                                 <TextBlock VerticalAlignment="Bottom" FontFamily="Meiryo UI">
                                     末尾が\のものをディレクトリとして認識します。「*」と「?」がワイルドカードとして利用できます。改行や「|」で区切ります。大文字と小文字を区別しません。<LineBreak/>
-                                    絶対パスも一応認識するようにしましたが、ワイルドカードは使えません。<LineBreak/>
-                                    例:<LineBreak/>
+                                    絶対パスも一応認識するようにしましたが、ワイルドカードは使えません。
                                 </TextBlock>
                             </StackPanel>
                             <Grid VerticalAlignment="Bottom" Margin="0,0,0,-15">
@@ -94,14 +93,15 @@
                                     <ColumnDefinition Width="2*"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock>
-                                    \$Recycle.Bin\<LineBreak/>
+                                    例:<LineBreak/>
+                                    $Recycle.Bin\<LineBreak/>
                                     *\RECYCLE?\<LineBreak/>
                                     *\tHuMBs.Db<LineBreak/>
                                     *.tmp|*.exe|*.log<LineBreak/>
                                     \*\<LineBreak/>
                                     C:\Users\Skyzi000\Documents\Temp\<LineBreak/>
                                 </TextBlock>
-                                <TextBlock Grid.Column="1">
+                                <TextBlock Grid.Column="1"><LineBreak/>
                                     ：ベースディレクトリ直下のゴミ箱<LineBreak/>
                                     ：「?」は0または1文字の任意の文字として認識<LineBreak/>
                                     ：大文字と小文字は区別しない(全角と半角は区別されます)<LineBreak/>
@@ -182,9 +182,9 @@
                                     <ComboBoxItem DataContext="IgnoreOnlyDirectories" Content="ディレクトリのみ無視する" ToolTip="ディレクトリのリパースポイントは無視し、ファイルのシンボリックリンクはターゲットの実体をバックアップします。(デフォルト動作)" />
                                     <ComboBoxItem DataContext="IgnoreAll" Content="全て無視する" ToolTip="リパースポイントはディレクトリだろうとファイルだろうと無視します。すべてのファイルはリパースポイントでないかをチェックされます。" />
                                     <ComboBoxItem DataContext="Follow" Content="フォローする" ToolTip="ターゲットの実体をバックアップします。無限ループに陥る可能性があるので注意してください。"/>
-                                    <ComboBoxItem DataContext="Direct" Content="直接コピーする(非推奨)" ToolTip="ジャンクションやシンボリックリンクを出来る限りバックアップ先に再現します。設定によってはバックアップ先に作成されたリンクを削除する際にターゲットの実体が削除される恐れがあり危険です。また、管理者権限が必要かもしれません。"/>
+                                    <ComboBoxItem DataContext="Direct" Content="直接コピーする(非推奨・アルファ版)" ToolTip="ジャンクションやシンボリックリンクを出来る限りバックアップ先に再現します。設定によってはバックアップ先に作成されたリンクを削除する際にターゲットの実体が削除される恐れがあり危険です。また、管理者権限が必要かもしれません。"/>
                                 </ComboBox>
-                                <CheckBox x:Name="IsCancelableBox" Content="キャンセル可能" IsChecked="True" />
+                                <CheckBox x:Name="IsCancelableBox" Content="キャンセル可能(推奨)" IsChecked="True" />
                             </StackPanel>
                         </GroupBox>
                     </Grid>

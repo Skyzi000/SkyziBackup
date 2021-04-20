@@ -210,12 +210,6 @@ namespace SkyziBackup
                 Logger.Info("バックアップはキャンセルされました。");
                 throw;
             }
-            catch (IOException e) when (!(Settings.SymbolicLink == SymbolicLinkHandling.IgnoreOnlyDirectories || Settings.SymbolicLink == SymbolicLinkHandling.IgnoreAll))
-            {
-                Results.isSuccess = false;
-                Results.IsFinished = true;
-                throw;
-            }
 
             await SaveDatabaseAsync().ConfigureAwait(false);
             return Results;
