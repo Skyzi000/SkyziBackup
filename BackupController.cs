@@ -38,7 +38,7 @@ namespace SkyziBackup
             destBaseDirPath = GetQualifiedDirectoryPath(destDirectoryPath);
             Settings = settings ?? BackupSettings.LoadLocalSettings(originBaseDirPath, destBaseDirPath) ?? BackupSettings.Default;
             if (Settings.IsDefault)
-                Settings.ConvertToLocalSettings(originBaseDirPath, destBaseDirPath);
+                Settings = new BackupSettings(Settings).ConvertToLocalSettings(originBaseDirPath, destBaseDirPath);
             if (Settings.IsUseDatabase)
             {
                 loadBackupDatabaseTask = LoadOrCreateDatabaseAsync();
@@ -57,7 +57,7 @@ namespace SkyziBackup
         private async Task InitializeAsync()
         {
             if (Settings.IsDefault)
-                Settings.ConvertToLocalSettings(originBaseDirPath, destBaseDirPath);
+                Settings = new BackupSettings(Settings).ConvertToLocalSettings(originBaseDirPath, destBaseDirPath);
             var saveTask = Settings.SaveAsync();
             if (Settings.IsUseDatabase)
             {
@@ -106,6 +106,7 @@ namespace SkyziBackup
             Logger.Info(Results.Message = isExists ? $"既存のデータベースをロード: '{databasePath}'" : "新規データベースを初期化");
             return isExists
                 ? await DataFileWriter.ReadAsync<BackupDatabase>(DataFileWriter.GetDatabaseFileName(originBaseDirPath, destBaseDirPath))
+                ?? new BackupDatabase(originBaseDirPath, destBaseDirPath)
                 : new BackupDatabase(originBaseDirPath, destBaseDirPath);
         }
 
@@ -394,7 +395,7 @@ namespace SkyziBackup
             FileAttributes? fileAttributes = null;
             if (Settings.IsOverwriteReadonly && File.Exists(revisionFilePath) && (removedReadonlyAttributeFromRevisionFile = RemoveReadonlyAttribute(revisionFilePath)))
                 fileAttributes = File.GetAttributes(filePath);
-            Directory.CreateDirectory(Path.GetDirectoryName(revisionFilePath));
+            Directory.CreateDirectory(Path.GetDirectoryName(revisionFilePath) ?? throw new NullReferenceException(nameof(Settings.RevisionsDirPath)));
             File.Move(filePath, revisionFilePath, true);
             if (removedReadonlyAttributeFromRevisionFile && fileAttributes.HasValue)
                 File.SetAttributes(revisionFilePath, fileAttributes.Value);
@@ -717,12 +718,12 @@ namespace SkyziBackup
                 RedirectStandardOutput = true,
                 UseShellExecute = false
             };
-            string linkType = RunProcess(startInfo);
+            string? linkType = RunProcess(startInfo);
             startInfo.Arguments = getItemArg + sourcePath + @" | Select-Object -ExpandProperty Target";
             if (linkType == JUNCTION || linkType == SYMBOLICLINK)
             {
-                string target = RunProcess(startInfo);
-                if (target == "") throw new IOException($"'{sourcePath}'のTargetを取得できません。");
+                string? target = RunProcess(startInfo);
+                if (string.IsNullOrEmpty(target)) throw new IOException($"'{sourcePath}'のTargetを取得できません。");
                 if (overwrite)
                 {
                     if (Directory.Exists(destPath))
@@ -731,17 +732,18 @@ namespace SkyziBackup
                         File.Delete(destPath);
                 }
                 startInfo.Arguments = string.Join(' ', "New-Item", "-Type", linkType, destPath, "-Value", target);
-                if(!Path.IsPathFullyQualified(target))
-                    startInfo.WorkingDirectory = Path.GetDirectoryName(sourcePath);
+                string? wd = Path.GetDirectoryName(sourcePath);
+                if (!Path.IsPathFullyQualified(target) && wd != null)
+                    startInfo.WorkingDirectory = wd;
                 RunProcess(startInfo);
             }
             else throw new IOException($"'{sourcePath}'のLinkType({linkType})を識別できません。");
 
-            static string RunProcess(ProcessStartInfo startInfo)
+            static string? RunProcess(ProcessStartInfo startInfo)
             {
                 using var proc = Process.Start(startInfo);
-                proc.WaitForExit();
-                return proc.StandardOutput.ReadToEnd().Trim('\n', '\r', ' ');
+                proc?.WaitForExit();
+                return proc?.StandardOutput.ReadToEnd().Trim('\n', '\r', ' ');
             }
         }
 
@@ -1082,7 +1084,7 @@ namespace SkyziBackup
             Logger.Info(Results.Message = $"ファイルをバックアップ: '{originFilePath}' => '{destFilePath}'");
             try
             {
-                Directory.CreateDirectory(Path.GetDirectoryName(destFilePath));
+                Directory.CreateDirectory(Path.GetDirectoryName(destFilePath) ?? throw new ArgumentException(nameof(destFilePath)));
                 if (Settings.IsOverwriteReadonly)
                 {
                     RemoveReadonlyAttribute(originFilePath, destFilePath);

@@ -250,7 +250,7 @@ namespace SkyziBackup
         {
             filePath ??= GetPath(obj);
             string tmpPath = filePath + TempFileExtension;
-            Directory.CreateDirectory(Path.GetDirectoryName(filePath));
+            Directory.CreateDirectory(Path.GetDirectoryName(filePath) ?? throw new ArgumentException(nameof(filePath)));
             using (var fs = new FileStream(tmpPath, FileMode.Create, FileAccess.Write, FileShare.None))
                 await JsonSerializer.SerializeAsync(fs, obj, obj.GetType(), SerializerOptions, cancellationToken).ConfigureAwait(false);
             Replace(tmpPath, filePath, makeBackup);
@@ -273,7 +273,7 @@ namespace SkyziBackup
         {
             WriteAsync(obj, filePath, makeBackup).Wait();
         }
-        public static async Task<T> ReadAsync<T>(string fileName, CancellationToken cancellationToken = default) where T : SaveableData
+        public static async Task<T?> ReadAsync<T>(string fileName, CancellationToken cancellationToken = default) where T : SaveableData
         {
             string filePath = GetPath(fileName);
             try
@@ -287,18 +287,11 @@ namespace SkyziBackup
                 string bacFilePath = filePath + BackupFileExtension;
                 if (!File.Exists(bacFilePath))
                     throw;
-                try
-                {
-                    using var bfs = new FileStream(bacFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-                    return await JsonSerializer.DeserializeAsync<T>(bfs, SerializerOptions, cancellationToken).ConfigureAwait(false);
-                }
-                catch (Exception)
-                {
-                    throw;
-                }
+                using var bfs = new FileStream(bacFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                return await JsonSerializer.DeserializeAsync<T>(bfs, SerializerOptions, cancellationToken).ConfigureAwait(false);
             }
         }
-        public static T Read<T>(string fileName) where T : SaveableData
+        public static T? Read<T>(string fileName) where T : SaveableData
         {
             return ReadAsync<T>(fileName).Result;
         }

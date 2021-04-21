@@ -85,7 +85,7 @@ namespace Skyzi000.Cryptography
             output.Write(Encoding.UTF8.GetBytes(prefix));
             output.Write(Salt);
             if (Mode == CustomCipherMode.CTR)
-                AesCtrTransform(Iv, input, output);
+                AesCtrTransform(Iv, key, input, output);
             else
             {
                 ICryptoTransform cryptoTransform = aes.CreateEncryptor(key, Iv);
@@ -100,7 +100,6 @@ namespace Skyzi000.Cryptography
                                 input.CopyTo(deflateStream);
                                 break;
                             }
-
                         case CompressAlgorithm.GZip:
                             {
                                 using GZipStream deflateStream = new GZipStream(cryptoStream, CompressionLevel);
@@ -124,7 +123,7 @@ namespace Skyzi000.Cryptography
                 Salt = salt;
             (key, Iv) = GetKeyAndIV(GenerateKIV(Salt, password, HashAlgorithmName.SHA256, 10000, keySize / 8 + blockSize));
             if (Mode == CustomCipherMode.CTR)
-                AesCtrTransform(Iv, input, output);
+                AesCtrTransform(Iv, key, input, output);
             else
             {
                 ICryptoTransform cryptoTransform = aes.CreateDecryptor(key, Iv);
@@ -139,7 +138,6 @@ namespace Skyzi000.Cryptography
                                 deflateStream.CopyTo(output);
                                 break;
                             }
-
                         case CompressAlgorithm.GZip:
                             {
                                 using CryptoStream cryptoStream = new CryptoStream(input, cryptoTransform, CryptoStreamMode.Read);
@@ -148,7 +146,6 @@ namespace Skyzi000.Cryptography
                                 break;
                             }
                     }
-
                 }
                 else
                 {
@@ -195,10 +192,9 @@ namespace Skyzi000.Cryptography
             return new Rfc2898DeriveBytes(password, salt, iterationCount, hashAlgorithm).GetBytes(size);
         }
 
-        // 1バイトずつ処理するせいか、CBCモードなどと比べて非常に遅い
+        // 1バイトずつ処理するせいか、CBCモードなどと比べて遅い?
         // 参考: https://stackoverflow.com/questions/6374437/can-i-use-aes-in-ctr-mode-in-net
-        private void AesCtrTransform(
-        byte[] salt, Stream inputStream, Stream outputStream)
+        private void AesCtrTransform(byte[] salt, byte[]key, Stream inputStream, Stream outputStream)
         {
             if (salt.Length != blockSize)
             {
