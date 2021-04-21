@@ -5,11 +5,13 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:SkyziBackup"
         mc:Ignorable="d"
+        xmlns:ui="http://schemas.modernwpf.com/2019"
+        ui:WindowHelper.UseModernWindowStyle="True"
         Closing="Window_Closing"
-        Title="SkyziBackup" Height="450" Width="800">
+        Title="SkyziBackup" Height="500" Width="800">
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="20"/>
+            <RowDefinition Height="40"/>
             <RowDefinition MaxHeight="250" Height="*"/>
             <RowDefinition/>
         </Grid.RowDefinitions>
@@ -18,7 +20,7 @@
             <ColumnDefinition/>
             <ColumnDefinition/>
         </Grid.ColumnDefinitions>
-        <StackPanel Margin="10,0" Grid.Row="1" Grid.ColumnSpan="3">
+        <ui:SimpleStackPanel Margin="10,0" Grid.Row="1" Grid.ColumnSpan="3">
             <Label x:Name="originPathLabel" Content="バックアップ元フォルダ" HorizontalAlignment="Left" VerticalAlignment="Top"/>
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -39,18 +41,18 @@
             </Grid>
             <Label x:Name="passwordLabel" Content="パスワード" HorizontalAlignment="Left" VerticalAlignment="Top"/>
             <PasswordBox x:Name="password" HorizontalAlignment="Stretch" VerticalAlignment="Top" ToolTip="オプションからパスワードを保存するかどうか設定できます。"/>
-            <Button x:Name="StartBackupButton" Click="StartBackupButton_ClickAsync" Content="バックアップ開始" Height="30" HorizontalAlignment="Stretch" VerticalAlignment="Top" Grid.ColumnSpan="3" Grid.Row="1" Margin="10" FontSize="20"/>
-            <ProgressBar x:Name="progressBar" Height="30" Margin="10,-40,10,10" IsIndeterminate="True" Grid.ColumnSpan="2" Visibility="Collapsed" VerticalAlignment="Top" />
-        </StackPanel>
+            <Button x:Name="StartBackupButton" Click="StartBackupButton_ClickAsync" Content="バックアップ開始" Height="40" HorizontalAlignment="Stretch" VerticalAlignment="Top" Grid.ColumnSpan="3" Grid.Row="1" Margin="10" FontSize="20" Style="{ui:StaticResource AccentButtonStyle}" />
+            <ProgressBar x:Name="progressBar" Height="Auto" Margin="10,-10,10,10" IsIndeterminate="True" Grid.ColumnSpan="2" Visibility="Collapsed" VerticalAlignment="Top" />
+        </ui:SimpleStackPanel>
 
-        <GroupBox Header="メッセージ" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3">
+        <GroupBox Header="メッセージ" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Margin="10,0">
             <ScrollViewer Name="MessageScrollViewer" VerticalScrollBarVisibility="Auto" BorderBrush="Black">
                 <TextBlock x:Name="message" HorizontalAlignment="Left" Text="" TextWrapping="Wrap" VerticalAlignment="Top"/>
             </ScrollViewer>
         </GroupBox>
         
 
-        <Menu DockPanel.Dock="Top" Height="20" VerticalAlignment="Top" Grid.ColumnSpan="3">
+        <Menu DockPanel.Dock="Top" Height="40" VerticalAlignment="Top" Grid.ColumnSpan="3">
             <MenuItem Header="ファイル(_F)">
                 <MenuItem Header="データ保存先を開く(_D)" Name="OpenAppDataButton" Click="OpenAppDataButton_Click"/>
                 <MenuItem Header="最新のログファイルを開く(_L)" Click="OpenLog_Click"/>

@@ -132,7 +132,7 @@ namespace SkyziBackup
             {
                 // TODO: パスワード確認入力ウィンドウを出す
             }
-            message.Text = $"\n'{originPath.Text.Trim()}' => '{destPath.Text.Trim()}'";
+            message.Text = $"'{originPath.Text.Trim()}' => '{destPath.Text.Trim()}'";
             message.Text += $"\nバックアップ開始: {DateTime.Now}\n";
             progressBar.Visibility = Visibility.Visible;
             var bc = new BackupController(originPath.Text.Trim(), destPath.Text.Trim(), password.Password, settings);
