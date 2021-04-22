@@ -49,6 +49,12 @@ namespace SkyziBackup
         public MainWindow()
         {
             InitializeComponent();
+            if (Properties.Settings.Default.IsUpgradeRequired)
+            {
+                Properties.Settings.Default.Upgrade();
+                Properties.Settings.Default.IsUpgradeRequired = false;
+                Properties.Settings.Default.Save();
+            }
             originPath.Text = Properties.Settings.Default.OriginPath;
             destPath.Text = Properties.Settings.Default.DestPath;
             password.Password = PasswordManager.LoadPassword(LoadCurrentSettings) ?? string.Empty;
