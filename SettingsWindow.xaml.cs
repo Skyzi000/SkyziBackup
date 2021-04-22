@@ -105,7 +105,7 @@ namespace SkyziBackup
 
         private BackupSettings GetNewSettings()
         {
-            BackupSettings newSettings = settings.IsDefault || settings.OriginBaseDirPath is null || settings.DestBaseDirPath is null ? new BackupSettings() : new BackupSettings(settings.OriginBaseDirPath, settings.DestBaseDirPath);
+            BackupSettings newSettings = settings.OriginBaseDirPath is null || settings.DestBaseDirPath is null ? new BackupSettings() : new BackupSettings(settings.OriginBaseDirPath, settings.DestBaseDirPath);
             newSettings.IgnorePattern = ignorePatternBox.Text;
             newSettings.IsUseDatabase = isUseDatabaseCheckBox.IsChecked ?? settings.IsUseDatabase;
             newSettings.IsRecordPassword = isRecordPasswordCheckBox.IsChecked ?? settings.IsRecordPassword;
@@ -184,24 +184,21 @@ namespace SkyziBackup
         private void OkButton_Click(object sender, RoutedEventArgs e)
         {
             BackupSettings newSettings = GetNewSettings();
-            if (!File.Exists(DataFileWriter.GetPath(newSettings)) || settings.ToString() != newSettings.ToString()) // TODO: できればもうちょっとましな比較方法にしたい
+            if ((int)newSettings.Versioning >= (int)VersioningMethod.Replace && !Directory.Exists(newSettings.RevisionsDirPath))
             {
-                if ((int)newSettings.Versioning >= (int)VersioningMethod.Replace && !Directory.Exists(newSettings.RevisionsDirPath))
-                {
-                    MessageBox.Show("バージョン管理の移動先ディレクトリが存在しません。\n正しいパスを入力してください。", $"{App.AssemblyName.Name} - 警告", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    return;
-                }
-                if (settings.SymbolicLink != newSettings.SymbolicLink && newSettings.SymbolicLink == SymbolicLinkHandling.Direct)
-                {
-                    if (MessageBoxResult.OK != MessageBox.Show(
-                        "リパースポイント(シンボリックリンク/ジャンクション)を直接コピーするモードを本当に有効にしますか？\n" +
-                        "※設定や操作次第ではリンクターゲットを意図せず削除してしまう場合があります。\n" +
-                        "　そういった危険を減らすために、これ以降この設定を変更できないようになります。",
-                        $"{App.AssemblyName.Name} - 確認", MessageBoxButton.OKCancel, MessageBoxImage.None, MessageBoxResult.Cancel))
-                        return;
-                }
-                SaveNewSettings(newSettings);
+                MessageBox.Show("バージョン管理の移動先ディレクトリが存在しません。\n正しいパスを入力してください。", $"{App.AssemblyName.Name} - 警告", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
             }
+            if (settings.SymbolicLink != newSettings.SymbolicLink && newSettings.SymbolicLink == SymbolicLinkHandling.Direct)
+            {
+                if (MessageBoxResult.OK != MessageBox.Show(
+                    "リパースポイント(シンボリックリンク/ジャンクション)を直接コピーするモードを本当に有効にしますか？\n" +
+                    "※設定や操作次第ではリンクターゲットを意図せず削除してしまう場合があります。\n" +
+                    "　そういった危険を減らすために、これ以降この設定を変更できないようになります。",
+                    $"{App.AssemblyName.Name} - 確認", MessageBoxButton.OKCancel, MessageBoxImage.None, MessageBoxResult.Cancel))
+                    return;
+            }
+            SaveNewSettings(newSettings);
             DisplaySettings();
             Close();
         }

@@ -114,13 +114,13 @@ namespace SkyziBackup
         /// バックアップ元ディレクトリパス
         /// </summary>
         /// <remarks>デフォルト設定では常にnull。セットするときは<see cref="BackupController.GetQualifiedDirectoryPath"/>が自動的に適用される。</remarks>
-        public string? OriginBaseDirPath { get => IsDefault ? null : originBaseDirPath; set => originBaseDirPath = value is null ? null : BackupController.GetQualifiedDirectoryPath(value); }
+        public string? OriginBaseDirPath { get => originBaseDirPath; set => originBaseDirPath = value is null ? null : BackupController.GetQualifiedDirectoryPath(value); }
         private string? originBaseDirPath;
         /// <summary>
         /// バックアップ先ディレクトリパス
         /// </summary>
         /// <remarks>デフォルト設定では常にnull。セットするときは<see cref="BackupController.GetQualifiedDirectoryPath"/>が自動的に適用される。</remarks>
-        public string? DestBaseDirPath { get => IsDefault ? null : destBaseDirPath; set => destBaseDirPath = value is null ? null : BackupController.GetQualifiedDirectoryPath(value); }
+        public string? DestBaseDirPath { get => destBaseDirPath; set => destBaseDirPath = value is null ? null : BackupController.GetQualifiedDirectoryPath(value); }
         private string? destBaseDirPath;
         /// <summary>
         /// データベースを利用する
@@ -191,7 +191,8 @@ namespace SkyziBackup
         /// <summary>
         /// <see cref="Properties.Settings.AppDataPath"/> から見たローカル設定の相対パス。デフォルト設定の場合は null
         /// </summary>
-        private string? localFileName;
+        [JsonIgnore]
+        private string? localFileName => (OriginBaseDirPath is null || DestBaseDirPath is null) ? null : GetLocalSettingsFileName(OriginBaseDirPath, DestBaseDirPath);
 
         private HashSet<Regex>? regices;
 
@@ -256,7 +257,6 @@ namespace SkyziBackup
         {
             OriginBaseDirPath = originBaseDirPath;
             DestBaseDirPath = destBaseDirPath;
-            localFileName = Path.Combine(DataFileWriter.GetDatabaseDirectoryName(originBaseDirPath, destBaseDirPath), FileName);
         }
         public BackupSettings(BackupSettings backupSettings) : this()
         {
@@ -284,7 +284,6 @@ namespace SkyziBackup
         public override string ToString()
         {
             var sb = new StringBuilder();
-            sb.AppendFormat("設定ファイルのパス---------------: {0}\n", DataFileWriter.GetPath(this));
             sb.AppendFormat("ローカル設定である---------------: {0}\n", !IsDefault);
             sb.AppendFormat("データベースを利用する-----------: {0}\n", IsUseDatabase);
             sb.AppendFormat("属性をコピーする-----------------: {0}\n", IsCopyAttributes);
@@ -303,7 +302,10 @@ namespace SkyziBackup
             sb.AppendFormat("除外パターン---------------------: \n{0}\n", IgnorePattern);
             return sb.ToString();
         }
-
+        public static string GetLocalSettingsFileName(string originBaseDirPath, string destBaseDirPath)
+        {
+            return Path.Combine(DataFileWriter.GetDatabaseDirectoryName(originBaseDirPath, destBaseDirPath), FileName);
+        }
         /// <summary>
         /// デフォルト設定をファイルから読み込み直す。読み込めない場合は何もしない。
         /// </summary>
@@ -325,10 +327,10 @@ namespace SkyziBackup
         public static BackupSettings? LoadDefaultSettings() => TryLoadDefaultSettings(out BackupSettings? globalSettings) ? globalSettings : null;
         public static bool TryLoadLocalSettings(string originBaseDirPath, string destBaseDirPath, [NotNullWhen(true)] out BackupSettings? localSettings)
         {
-            string lfName;
             try
             {
-                if (File.Exists(DataFileWriter.GetPath(lfName = Path.Combine(DataFileWriter.GetDatabaseDirectoryName(originBaseDirPath, destBaseDirPath), FileName))))
+                string lfName;
+                if (File.Exists(DataFileWriter.GetPath(lfName = GetLocalSettingsFileName(originBaseDirPath, destBaseDirPath))))
                 {
                     localSettings = DataFileWriter.Read<BackupSettings>(lfName);
                     if (localSettings is null)
@@ -336,7 +338,6 @@ namespace SkyziBackup
                         localSettings = new BackupSettings(Default).ConvertToLocalSettings(originBaseDirPath, destBaseDirPath);
                         ReloadDefault();
                     }
-                    localSettings.localFileName = lfName;
                     return true;
                 }
             }
@@ -349,7 +350,6 @@ namespace SkyziBackup
         {
             OriginBaseDirPath = originBaseDirPath;
             DestBaseDirPath = destBaseDirPath;
-            localFileName = Path.Combine(DataFileWriter.GetDatabaseDirectoryName(originBaseDirPath, destBaseDirPath), FileName);
             return this;
         }
         public HashSet<Regex> PatternToRegices(string pattern)
