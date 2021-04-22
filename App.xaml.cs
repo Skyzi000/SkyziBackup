@@ -79,7 +79,7 @@ namespace SkyziBackup
                 if (Directory.Exists(originPath))
                 {
                     var settings = BackupSettings.LoadLocalSettings(originPath, destPath) ?? BackupSettings.Default;
-                    var results = await BackupManager.StartBackupAsync(originPath, destPath, settings.IsRecordPassword ? settings.GetRawPassword() : null, settings);
+                    _ = await BackupManager.StartBackupAsync(originPath, destPath, settings.IsRecordPassword ? settings.GetRawPassword() : null, settings);
                 }
                 else
                 {
@@ -108,7 +108,7 @@ namespace SkyziBackup
                 Quit();
         }
 
-        public bool OpenLatestLog(bool showDialog = true)
+        public static bool OpenLatestLog(bool showDialog = true)
         {
             var logsDirectory = new DirectoryInfo(Path.Combine(SkyziBackup.Properties.Settings.Default.AppDataPath, "Logs"));
             if (logsDirectory.Exists && logsDirectory.EnumerateFiles("*.log").Any())

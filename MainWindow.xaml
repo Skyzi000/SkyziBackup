@@ -23,7 +23,7 @@
         </Grid.ColumnDefinitions>
         <ui:SimpleStackPanel Margin="10,0" Grid.Row="1" Grid.ColumnSpan="3">
             <Label x:Name="originPathLabel" Content="バックアップ元フォルダ" HorizontalAlignment="Left" VerticalAlignment="Top"/>
-            <Grid>
+            <Grid x:Name="OriginPathGrid">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition/>
                     <ColumnDefinition MaxWidth="50"/>
@@ -32,7 +32,7 @@
                 <Button Tag="OriginPath" Click="OpenDirectoryDialogButton_Click" Content="参照" Grid.Column="1"/>
             </Grid>
             <Label x:Name="destPathLabel" Content="バックアップ先フォルダ" HorizontalAlignment="Left" VerticalAlignment="Top"/>
-            <Grid>
+            <Grid x:Name="DestPathGrid">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition/>
                     <ColumnDefinition MaxWidth="50"/>

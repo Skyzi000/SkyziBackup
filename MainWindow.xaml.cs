@@ -37,12 +37,14 @@ namespace SkyziBackup
             set
             {
                 StartBackupButton.IsEnabled = value;
-                GlobalSettingsMenu.IsEnabled = value;
                 LocalSettingsMenu.IsEnabled = value;
                 DeleteLocalSettings.IsEnabled = value;
-                OptionMenu.IsEnabled = value;
                 StartBackupMenu.IsEnabled = value;
                 CancelBackupMenu.IsEnabled = !value;
+                OriginPathGrid.IsEnabled = value;
+                DestPathGrid.IsEnabled = value;
+                password.IsEnabled = value;
+                DeleteDatabaseMenu.IsEnabled = value;
             }
         }
 
@@ -168,8 +170,6 @@ namespace SkyziBackup
             }
         }
 
-
-
         /// <summary>
         /// データベースを削除するかどうかの確認ウィンドウを出してから削除する。
         /// </summary>
@@ -239,7 +239,7 @@ namespace SkyziBackup
             }
         }
 
-        private void OpenLog_Click(object sender, RoutedEventArgs e) => ((App)Application.Current).OpenLatestLog();
+        private void OpenLog_Click(object sender, RoutedEventArgs e) => App.OpenLatestLog();
 
         private void Exit_Click(object sender, RoutedEventArgs e) => ((App)Application.Current).Quit();
 
