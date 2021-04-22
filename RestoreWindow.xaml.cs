@@ -14,6 +14,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
+using Path = System.IO.Path;
 
 namespace SkyziBackup
 {
@@ -22,20 +23,22 @@ namespace SkyziBackup
     /// </summary>
     public partial class RestoreWindow : Window
     {
-        private BackupSettings LoadCurrentSettings => BackupSettings.LoadLocalSettings(destPath.Text.Trim(), originPath.Text.Trim()) ?? BackupSettings.Default;
+        private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
+
+        private BackupSettings LoadCurrentSettings => importedSettings ?? BackupSettings.LoadLocalSettings(destPath.Text, originPath.Text) ?? BackupSettings.Default;
+        private BackupSettings? importedSettings;
 
         public RestoreWindow()
         {
             InitializeComponent();
-            ContentRendered += (s, e) =>
-            {
-                password.Password = PasswordManager.LoadPassword(LoadCurrentSettings) ?? string.Empty;
-            };
         }
         public RestoreWindow(string restoreSourcePath, string restoreDestinationPath) : this()
         {
             originPath.Text = restoreSourcePath;
             destPath.Text = restoreDestinationPath;
+            password.Password = PasswordManager.LoadPassword(LoadCurrentSettings) ?? string.Empty;
+            if (LoadCurrentSettings.IsDefault)
+                MessageBox.Show("ローカル設定を読み込めませんでした。\nローカル設定をインポートするか、手動でバックアップ時の設定に戻してください。", $"{App.AssemblyName.Name} - 情報", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         private async void RestoreButton_ClickAsync(object sender, RoutedEventArgs e)
@@ -100,7 +103,6 @@ namespace SkyziBackup
         {
             new SettingsWindow(BackupSettings.Default).ShowDialog();
             BackupSettings.ReloadDefault();
-            password.Password = PasswordManager.LoadPassword(LoadCurrentSettings) ?? string.Empty;
         }
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
@@ -116,6 +118,67 @@ namespace SkyziBackup
                     return;
                 }
             }
+        }
+
+        private void LocalSettingsMenu_Click(object sender, RoutedEventArgs e)
+        {
+            if (LoadCurrentSettings.IsDefault)
+                if (MessageBox.Show("現在のバックアップペアに対応するローカル設定を新規作成します。", $"{App.AssemblyName.Name} - 確認", MessageBoxButton.OKCancel) == MessageBoxResult.Cancel) return;
+            new SettingsWindow(originPath.Text, destPath.Text).ShowDialog();
+        }
+        private void OpenDirectoryDialogButton_Click(object sender, RoutedEventArgs e)
+        {
+            using var ofd = new System.Windows.Forms.OpenFileDialog() { FileName = "SelectFolder", Filter = "Folder|.", CheckFileExists = false };
+            if (ofd.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            {
+                switch (((Button)sender).Tag)
+                {
+                    case "OriginPath":
+                        originPath.Text = BackupController.GetQualifiedDirectoryPath(Path.GetDirectoryName(ofd.FileName) ?? string.Empty);
+                        break;
+                    case "DestPath":
+                        destPath.Text = BackupController.GetQualifiedDirectoryPath(Path.GetDirectoryName(ofd.FileName) ?? string.Empty);
+                        break;
+                }
+            }
+        }
+        private void ImportSettingsMenu_Click(object sender, RoutedEventArgs e)
+        {
+            using var ofd = new System.Windows.Forms.OpenFileDialog()
+            {
+                FileName = BackupSettings.FileName,
+                Filter = $"{nameof(BackupSettings)} files(*{DataFileWriter.JsonExtension})|*{DataFileWriter.JsonExtension}",
+                CheckFileExists = true,
+                InitialDirectory = Path.Combine(Properties.Settings.Default.AppDataPath,
+                DataFileWriter.ParentDirectoryName)
+            };
+            if (ofd.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            {
+                try
+                {
+                    importedSettings = DataFileWriter.Read<BackupSettings>(ofd.FileName);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error(ex, "設定のインポートに失敗しました。");
+                    importedSettings = null;
+                }
+                if (importedSettings is null)
+                    MessageBox.Show("インポートに失敗しました。", $"{App.AssemblyName.Name} - エラー", MessageBoxButton.OK, MessageBoxImage.Error);
+                else if (importedSettings.IsDefault)
+                    MessageBox.Show("デフォルト設定がインポートされました。", $"{App.AssemblyName.Name} - 警告", MessageBoxButton.OK, MessageBoxImage.Warning);
+                DiscardImportedSettings.IsEnabled = importedSettings is not null;
+            }
+        }
+        private void ShowCurrentSettings_Click(object sender, RoutedEventArgs e)
+        {
+            MessageBox.Show(LoadCurrentSettings.ToString(), $"{App.AssemblyName.Name} - 現在の設定");
+        }
+        private void DiscardImportedSettings_Click(object sender, RoutedEventArgs e)
+        {
+            importedSettings = null;
+            MessageBox.Show("インポートされた設定を破棄しました。", $"{App.AssemblyName.Name} - 現在の設定");
+            DiscardImportedSettings.IsEnabled = false;
         }
     }
 }
