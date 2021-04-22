@@ -78,7 +78,7 @@ namespace SkyziBackup
             RetryCountTextBox.Text = settings.RetryCount.ToString();
             RetryWaitTimeTextBox.Text = settings.RetryWaitMilliSec.ToString();
             CompressAlgorithmComboBox.SelectedIndex = (int)settings.CompressAlgorithm;
-            CompressionLevelSlider.Value = (double)settings.CompressionLevel;
+            CompressionLevelSlider.Value = -((int)settings.CompressionLevel - 2); // 最大値で引いてから符号を反転することでSliderの表示に合わせている
             PasswordScopeComboBox.SelectedIndex = (int)settings.PasswordProtectionScope;
             NoComparisonLBI.IsSelected = settings.ComparisonMethod == ComparisonMethod.NoComparison;
             ArchiveAttributeLBI.IsSelected = settings.ComparisonMethod.HasFlag(ComparisonMethod.ArchiveAttribute);
@@ -126,7 +126,7 @@ namespace SkyziBackup
             newSettings.RetryCount = int.TryParse(RetryCountTextBox.Text, out int rcount) ? rcount : settings.RetryCount;
             newSettings.RetryWaitMilliSec = int.TryParse(RetryWaitTimeTextBox.Text, out int wait) ? wait : settings.RetryWaitMilliSec;
             newSettings.CompressAlgorithm = (Skyzi000.Cryptography.CompressAlgorithm)CompressAlgorithmComboBox.SelectedIndex;
-            newSettings.CompressionLevel = (System.IO.Compression.CompressionLevel)CompressionLevelSlider.Value;
+            newSettings.CompressionLevel = (System.IO.Compression.CompressionLevel)(-(CompressionLevelSlider.Value - 2));
             newSettings.PasswordProtectionScope = (System.Security.Cryptography.DataProtectionScope)PasswordScopeComboBox.SelectedIndex;
             if (newSettings.IsRecordPassword)
             {
