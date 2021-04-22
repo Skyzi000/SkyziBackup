@@ -7,6 +7,7 @@
         mc:Ignorable="d"
         xmlns:ui="http://schemas.modernwpf.com/2019"
         ui:WindowHelper.UseModernWindowStyle="True"
+        ui:TitleBar.IsIconVisible="True"
         Closing="Window_Closing"
         Title="SkyziBackup" Height="500" Width="800">
     <Grid>
