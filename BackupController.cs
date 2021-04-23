@@ -18,7 +18,7 @@ namespace SkyziBackup
 {
     public class BackupController : IDisposable
     {
-        public BackupResults Results { get; private set; } = new BackupResults(false);
+        public BackupResults Results { get; private set; }
         public OpensslCompatibleAesCryptor? AesCryptor { get; private set; }
         public BackupSettings Settings { get; set; }
         public BackupDatabase? Database { get; private set; } = null;
@@ -37,6 +37,7 @@ namespace SkyziBackup
             originBaseDirPath = GetQualifiedDirectoryPath(originDirectoryPath);
             destBaseDirPath = GetQualifiedDirectoryPath(destDirectoryPath);
             Settings = settings ?? BackupSettings.LoadLocalSettings(originBaseDirPath, destBaseDirPath) ?? BackupSettings.Default;
+            Results = new BackupResults(originDirectoryPath, destDirectoryPath);
             if (Settings.IsDefault)
                 Settings = new BackupSettings(Settings).ConvertToLocalSettings(originBaseDirPath, destBaseDirPath);
             if (Settings.IsUseDatabase)
@@ -51,7 +52,6 @@ namespace SkyziBackup
             {
                 AesCryptor = new OpensslCompatibleAesCryptor(password, compressionLevel: Settings.CompressionLevel, compressAlgorithm: Settings.CompressAlgorithm);
             }
-            Results.Finished += Results_Finished;
         }
 
         private async Task InitializeAsync()
@@ -110,11 +110,10 @@ namespace SkyziBackup
                 : new BackupDatabase(originBaseDirPath, destBaseDirPath);
         }
 
-        private void Results_Finished(object? sender, EventArgs e)
+        private void CleanUpDatabase()
         {
-            Database?.SaveTimer?.Stop();
-            Results.Message = (Results.isSuccess ? "バックアップ完了: " : Results.Message + "\nバックアップ失敗: ") + DateTime.Now;
-            Logger.Info("{0}\n=============================\n\n", Results.isSuccess ? "バックアップ完了" : "バックアップ失敗");
+            Database?.Dispose();
+            Database = null;
         }
 
         public async Task SaveDatabaseAsync()
@@ -122,8 +121,8 @@ namespace SkyziBackup
             if (Settings.IsUseDatabase && Database != null)
             {
                 Database.SaveTimer.Stop();
-                Logger.Info("データベースを保存開始: '{0}'", DataFileWriter.GetPath(Database));
-                await Database.SaveAsync();
+                Logger.Info("データベースを保存: '{0}'", DataFileWriter.GetPath(Database));
+                await Database.SaveAsync().ConfigureAwait(false);
                 Logger.Debug("データベース保存完了: '{0}'", DataFileWriter.GetPath(Database));
             }
         }
@@ -162,7 +161,7 @@ namespace SkyziBackup
 
             if (!Directory.Exists(originBaseDirPath))
             {
-                Logger.Error(Results.Message = $"バックアップ元のディレクトリ'{originBaseDirPath}'が見つかりません。");
+                Logger.Warn(Results.Message = $"バックアップ元のディレクトリ'{originBaseDirPath}'が見つかりません。");
                 Results.IsFinished = true;
                 return Results;
             }
@@ -209,10 +208,19 @@ namespace SkyziBackup
             catch (OperationCanceledException)
             {
                 Logger.Info("バックアップはキャンセルされました。");
+                if (Results.SaveFileName is not null)
+                    Results.Save();
                 throw;
             }
-
-            await SaveDatabaseAsync().ConfigureAwait(false);
+            if (Database is not null)
+            {
+                await SaveDatabaseAsync();
+                CleanUpDatabase();
+            }
+            Results.Message = (Results.isSuccess ? "バックアップ完了: " : Results.Message + "\nバックアップ失敗: ") + DateTime.Now;
+            Logger.Info("{0}\n=============================\n\n", Results.isSuccess ? "バックアップ完了" : "バックアップ失敗");
+            if (Results.SaveFileName is not null)
+                await Results.SaveAsync().ConfigureAwait(false);
             return Results;
         }
 

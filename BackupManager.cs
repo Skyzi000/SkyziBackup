@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Runtime;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
@@ -41,13 +42,16 @@ namespace SkyziBackup
                 result = await backup.StartBackupAsync();
                 if (!result.isSuccess)
                     App.NotifyIcon.ShowBalloonTip(10000, $"{App.AssemblyName.Name} - エラー", "バックアップに失敗しました。", System.Windows.Forms.ToolTipIcon.Error);
+                result = null;
             }
             finally
             {
-                App.NotifyIcon.Text = IsRunning ? $"{App.AssemblyName.Name} - バックアップ中" : App.AssemblyName.Name;
-                runningBackups.Remove((backup.originBaseDirPath, backup.destBaseDirPath));
                 semaphore?.Dispose();
+                runningBackups.Remove((backup.originBaseDirPath, backup.destBaseDirPath));
                 backup?.Dispose();
+                App.NotifyIcon.Text = IsRunning ? $"{App.AssemblyName.Name} - バックアップ中" : App.AssemblyName.Name;
+                GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+                GC.Collect(2);
             }
             return result;
         }

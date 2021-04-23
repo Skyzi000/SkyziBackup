@@ -33,24 +33,24 @@ namespace SkyziBackup
             SaveTimer.Start();
         }
         public virtual void AutoSave() => Save();
-        public virtual void Save()
+        public virtual void Save(string? filePath = null)
         {
             Semaphore.Wait();
             try
             {
-                DataFileWriter.Write(this, makeBackup: true);
+                DataFileWriter.Write(this, filePath, makeBackup: true);
             }
             finally
             {
                 Semaphore.Release();
             }
         }
-        public virtual async Task SaveAsync(CancellationToken cancellationToken = default)
+        public virtual async Task SaveAsync(string? filePath = null, CancellationToken cancellationToken = default)
         {
             await Semaphore.WaitAsync();
             try
             {
-                await DataFileWriter.WriteAsync(this, makeBackup: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+                await DataFileWriter.WriteAsync(this, filePath, makeBackup: true, cancellationToken: cancellationToken).ConfigureAwait(false);
             }
             finally
             {
@@ -115,7 +115,8 @@ namespace SkyziBackup
         /// </summary>
         [JsonIgnore]
         public override string SaveFileName => DataFileWriter.GetDatabaseFileName(OriginBaseDirPath, DestBaseDirPath);
-        
+        public static readonly string FileName = "Database" + DataFileWriter.DefaultExtension;
+
         private int tempCount = 0;
 
         public BackupDatabase()
@@ -133,7 +134,7 @@ namespace SkyziBackup
             Semaphore.Wait();
             try
             {
-                var temp = new BackupDatabase(OriginBaseDirPath, DestBaseDirPath)
+                using var temp = new BackupDatabase(OriginBaseDirPath, DestBaseDirPath)
                 {
                     BackedUpDirectoriesDict = new Dictionary<string, BackedUpDirectoryData>(this.BackedUpDirectoriesDict),
                     BackedUpFilesDict = new Dictionary<string, BackedUpFileData>(this.BackedUpFilesDict)
@@ -205,11 +206,10 @@ namespace SkyziBackup
     public class DataFileWriter
     {
         public const string JsonExtension = ".json";
-        public static string DefaultExtension = JsonExtension;
-        public static string ParentDirectoryName = "Data";
-        public static string DatabaseFileName = "Database" + DefaultExtension;
-        public static string TempFileExtension = ".tmp";
-        public static string BackupFileExtension = ".bac";
+        public static readonly string DefaultExtension = JsonExtension;
+        public static readonly string ParentDirectoryName = "Data";
+        public static readonly string TempFileExtension = ".tmp";
+        public static readonly string BackupFileExtension = ".bac";
 
         private static JsonSerializerOptions SerializerOptions { get; } = new JsonSerializerOptions()
         {
@@ -217,8 +217,9 @@ namespace SkyziBackup
             WriteIndented = false,
             IgnoreNullValues = true,
         };
-        public static string GetPath(SaveableData obj) => GetPath(obj.SaveFileName ?? throw new NullReferenceException(nameof(obj.SaveFileName)));
+        public static string GetPath(SaveableData obj) => GetPath(obj.SaveFileName ?? throw new ArgumentException(nameof(obj.SaveFileName)));
         public static string GetPath(string fileName) => Path.Combine(Properties.Settings.Default.AppDataPath, fileName);
+        
         /// <summary>
         /// <see cref="ParentDirectoryName"/>とSHA1ハッシュ値でAppDataPathからの相対ディレクトリパスを求める。
         /// </summary>
@@ -233,12 +234,14 @@ namespace SkyziBackup
                     )
                 );
         }
+
+        // TODO: ここ以下のデータベース関連メソッドはBackupDatabaseクラスの方に移動させる
         /// <summary>
         /// <see cref="DatabaseFileName"/>と<see cref="GetDatabaseDirectoryName(string, string)"/>でAppDataPathからの相対ファイルパスを求める。
         /// </summary>
         /// <remarks>引数はもちろん予めTrim()したりする必要はない</remarks>
         /// <returns>AppDataPathからの相対パス</returns>
-        public static string GetDatabaseFileName(string originBaseDirPath, string destBaseDirPath) => Path.Combine(GetDatabaseDirectoryName(originBaseDirPath, destBaseDirPath), DatabaseFileName);
+        public static string GetDatabaseFileName(string originBaseDirPath, string destBaseDirPath) => Path.Combine(GetDatabaseDirectoryName(originBaseDirPath, destBaseDirPath), BackupDatabase.FileName);
         /// <summary>
         /// <see cref="GetDatabaseFileName(string, string)"/>と<see cref="GetPath(string)"/>で絶対パスを得る。
         /// </summary>
@@ -248,6 +251,8 @@ namespace SkyziBackup
 
         public static async Task WriteAsync(SaveableData obj, string? filePath = null, bool makeBackup = false, CancellationToken cancellationToken = default)
         {
+            if (filePath is null && obj.SaveFileName is null)
+                throw new ArgumentNullException(nameof(filePath));
             filePath ??= GetPath(obj);
             string tmpPath = filePath + TempFileExtension;
             Directory.CreateDirectory(Path.GetDirectoryName(filePath) ?? throw new ArgumentException(nameof(filePath)));
@@ -302,10 +307,6 @@ namespace SkyziBackup
         public static void Delete<T>(string fileName) where T : SaveableData
         {
             File.Delete(GetPath(fileName));
-        }
-        public static void DeleteAllDatabase()
-        {
-            throw new NotImplementedException();
         }
         public static void DeleteDatabase(string originBaseDirPath, string destBaseDirPath) => Delete<BackupDatabase>(GetDatabaseFileName(originBaseDirPath, destBaseDirPath));
     }

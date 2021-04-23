@@ -155,7 +155,7 @@ namespace SkyziBackup
             };
             try
             {
-                var results = await BackupManager.StartBackupAsync(bc);
+                using var results = await BackupManager.StartBackupAsync(bc);
                 if (results != null)
                     message.Text = m + results.Message + "\n";
             }
