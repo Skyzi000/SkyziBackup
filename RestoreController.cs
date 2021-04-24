@@ -14,7 +14,7 @@ namespace SkyziBackup
     public class RestoreController
     {
         public BackupResults Results { get; private set; } = new BackupResults(false);
-        public OpensslCompatibleAesCryptor? AesCryptor { get; set; }
+        public CompressiveAesCryptor? AesCryptor { get; set; }
         public BackupSettings Settings { get; set; }
         public BackupDatabase? Database { get; private set; } = null;
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
@@ -54,7 +54,7 @@ namespace SkyziBackup
             }
             if (!string.IsNullOrEmpty(password))
             {
-                AesCryptor = new OpensslCompatibleAesCryptor(password, compressionLevel: Settings.CompressionLevel, compressAlgorithm: Settings.CompressAlgorithm);
+                AesCryptor = new CompressiveAesCryptor(password, compressionLevel: Settings.CompressionLevel, compressAlgorithm: Settings.CompressAlgorithm);
             }
             Results.Finished += Results_Finished;
             this.isCopyOnlyFileAttributes = isCopyOnlyFileAttributes;

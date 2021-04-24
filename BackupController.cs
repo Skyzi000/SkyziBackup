@@ -19,7 +19,7 @@ namespace SkyziBackup
     public class BackupController : IDisposable
     {
         public BackupResults Results { get; private set; }
-        public OpensslCompatibleAesCryptor? AesCryptor { get; private set; }
+        public CompressiveAesCryptor? AesCryptor { get; private set; }
         public BackupSettings Settings { get; set; }
         public BackupDatabase? Database { get; private set; } = null;
         public CancellationTokenSource? CTS { get; private set; } = null;
@@ -50,7 +50,7 @@ namespace SkyziBackup
             }
             if (!string.IsNullOrEmpty(password))
             {
-                AesCryptor = new OpensslCompatibleAesCryptor(password, compressionLevel: Settings.CompressionLevel, compressAlgorithm: Settings.CompressAlgorithm);
+                AesCryptor = new CompressiveAesCryptor(password, compressionLevel: Settings.CompressionLevel, compressAlgorithm: Settings.CompressAlgorithm);
             }
         }
 

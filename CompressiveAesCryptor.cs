@@ -1,10 +1,4 @@
-﻿/*
- * OpensslCompatibleAesCrypter.cs
- * 
- * Created by Skyzi000 on 2020/11/21.
- * 
- */
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
@@ -19,7 +13,7 @@ namespace Skyzi000.Cryptography
         Deflate,
         GZip,
     }
-    public class OpensslCompatibleAesCryptor : IDisposable
+    public class CompressiveAesCryptor : IDisposable
     {
         public HashAlgorithmName HashAlgorithm { get; set; } = HashAlgorithmName.SHA256;
         public CipherMode Mode { get; set; }
@@ -36,7 +30,7 @@ namespace Skyzi000.Cryptography
         private byte[]? key;
         private readonly SymmetricAlgorithm aes;
 
-        public OpensslCompatibleAesCryptor(string password,
+        public CompressiveAesCryptor(string password,
                                            int keySize = 256,
                                            int iterationCount = 10000,
                                            CipherMode cipherMode = CipherMode.CBC,
