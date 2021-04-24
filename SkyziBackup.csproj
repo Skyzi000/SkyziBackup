@@ -29,6 +29,7 @@
   <ItemGroup>
     <None Remove="NLog.config" />
     <None Remove="SkyziBackup.ico" />
+    <None Remove="SkyziBackup_128.png" />
   </ItemGroup>
 
   <ItemGroup>
@@ -48,6 +49,8 @@
     <Resource Include="NLog.config" />
 
     <Resource Include="SkyziBackup.ico" />
+
+    <Resource Include="SkyziBackup_128.png" />
   </ItemGroup>
 
   <ItemGroup>

@@ -289,7 +289,7 @@ namespace SkyziBackup
 
         private void AboutAppMenu_Click(object sender, RoutedEventArgs e)
         {
-            throw new NotImplementedException();
+            new AboutWindow().ShowDialog();
         }
 
         private void RepositoryLinkMenu_Click(object sender, RoutedEventArgs e)
