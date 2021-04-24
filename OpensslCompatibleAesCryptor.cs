@@ -14,15 +14,6 @@ using System.Text;
 
 namespace Skyzi000.Cryptography
 {
-    public enum CustomCipherMode
-    {
-        CBC = 1,
-        ECB = 2,
-        OFB = 3,
-        CFB = 4,
-        CTS = 5,
-        //CTR = 6,
-    }
     public enum CompressAlgorithm
     {
         Deflate,
@@ -31,7 +22,7 @@ namespace Skyzi000.Cryptography
     public class OpensslCompatibleAesCryptor : IDisposable
     {
         public HashAlgorithmName HashAlgorithm { get; set; } = HashAlgorithmName.SHA256;
-        public CustomCipherMode Mode { get; set; }
+        public CipherMode Mode { get; set; }
         public CompressionLevel CompressionLevel { get; set; }
         public CompressAlgorithm CompressAlgorithm { get; set; }
         public int IterationCount { get; set; }
@@ -48,7 +39,7 @@ namespace Skyzi000.Cryptography
         public OpensslCompatibleAesCryptor(string password,
                                            int keySize = 256,
                                            int iterationCount = 10000,
-                                           CustomCipherMode cipherMode = CustomCipherMode.CBC,
+                                           CipherMode cipherMode = CipherMode.CBC,
                                            CompressionLevel compressionLevel = CompressionLevel.NoCompression,
                                            CompressAlgorithm compressAlgorithm = CompressAlgorithm.Deflate)
         {
@@ -56,9 +47,7 @@ namespace Skyzi000.Cryptography
             this.keySize = (keySize == 128 || keySize == 192) ? keySize : 256;
             this.IterationCount = iterationCount;
             this.Mode = cipherMode;
-            CipherMode cm = (CipherMode)cipherMode;
-            PaddingMode pm = PaddingMode.PKCS7;
-            this.aes = new AesCng { Mode = cm, Padding = pm };
+            this.aes = new AesCng { Mode = this.Mode, Padding = PaddingMode.PKCS7 };
             this.blockSize = aes.BlockSize / 8;
             this.CompressionLevel = compressionLevel;
             this.CompressAlgorithm = compressAlgorithm;
