@@ -21,7 +21,7 @@ namespace Skyzi000.Cryptography
         OFB = 3,
         CFB = 4,
         CTS = 5,
-        CTR = 6,
+        //CTR = 6,
     }
     public enum CompressAlgorithm
     {
@@ -37,9 +37,9 @@ namespace Skyzi000.Cryptography
         public int IterationCount { get; set; }
         public byte[]? Salt { get; private set; }
         public byte[]? Iv { get; private set; }
+        public string prefix = "Salted__";
 
         public readonly int keySize;
-        public readonly string prefix = "Salted__";
         private readonly int blockSize;
         private byte[] password;
         private byte[]? key;
@@ -56,8 +56,8 @@ namespace Skyzi000.Cryptography
             this.keySize = (keySize == 128 || keySize == 192) ? keySize : 256;
             this.IterationCount = iterationCount;
             this.Mode = cipherMode;
-            CipherMode cm = (Mode == CustomCipherMode.CTR) ? CipherMode.ECB : (CipherMode)cipherMode;
-            PaddingMode pm = (Mode == CustomCipherMode.CTR) ? PaddingMode.None : PaddingMode.PKCS7;
+            CipherMode cm = (CipherMode)cipherMode;
+            PaddingMode pm = PaddingMode.PKCS7;
             this.aes = new AesCng { Mode = cm, Padding = pm };
             this.blockSize = aes.BlockSize / 8;
             this.CompressionLevel = compressionLevel;
@@ -84,34 +84,29 @@ namespace Skyzi000.Cryptography
             (key, Iv) = GetKeyAndIV(GenerateKIV(Salt, password, HashAlgorithm, 10000, keySize / 8 + blockSize));
             output.Write(Encoding.UTF8.GetBytes(prefix));
             output.Write(Salt);
-            if (Mode == CustomCipherMode.CTR)
-                AesCtrTransform(Iv, key, input, output);
+            ICryptoTransform cryptoTransform = aes.CreateEncryptor(key, Iv);
+            using CryptoStream cryptoStream = new CryptoStream(output, cryptoTransform, CryptoStreamMode.Write);
+            if (CompressionLevel != CompressionLevel.NoCompression)
+            {
+                switch (CompressAlgorithm)
+                {
+                    case CompressAlgorithm.Deflate:
+                        {
+                            using DeflateStream deflateStream = new DeflateStream(cryptoStream, CompressionLevel);
+                            input.CopyTo(deflateStream);
+                            break;
+                        }
+                    case CompressAlgorithm.GZip:
+                        {
+                            using GZipStream deflateStream = new GZipStream(cryptoStream, CompressionLevel);
+                            input.CopyTo(deflateStream);
+                            break;
+                        }
+                }
+            }
             else
             {
-                ICryptoTransform cryptoTransform = aes.CreateEncryptor(key, Iv);
-                using CryptoStream cryptoStream = new CryptoStream(output, cryptoTransform, CryptoStreamMode.Write);
-                if (CompressionLevel != CompressionLevel.NoCompression)
-                {
-                    switch (CompressAlgorithm)
-                    {
-                        case CompressAlgorithm.Deflate:
-                            {
-                                using DeflateStream deflateStream = new DeflateStream(cryptoStream, CompressionLevel);
-                                input.CopyTo(deflateStream);
-                                break;
-                            }
-                        case CompressAlgorithm.GZip:
-                            {
-                                using GZipStream deflateStream = new GZipStream(cryptoStream, CompressionLevel);
-                                input.CopyTo(deflateStream);
-                                break;
-                            }
-                    }
-                }
-                else
-                {
-                    input.CopyTo(cryptoStream);
-                }
+                input.CopyTo(cryptoStream);
             }
         }
 
@@ -122,36 +117,31 @@ namespace Skyzi000.Cryptography
             else
                 Salt = salt;
             (key, Iv) = GetKeyAndIV(GenerateKIV(Salt, password, HashAlgorithmName.SHA256, 10000, keySize / 8 + blockSize));
-            if (Mode == CustomCipherMode.CTR)
-                AesCtrTransform(Iv, key, input, output);
+            ICryptoTransform cryptoTransform = aes.CreateDecryptor(key, Iv);
+            if (CompressionLevel != CompressionLevel.NoCompression)
+            {
+                switch (CompressAlgorithm)
+                {
+                    case CompressAlgorithm.Deflate:
+                        {
+                            using CryptoStream cryptoStream = new CryptoStream(input, cryptoTransform, CryptoStreamMode.Read);
+                            using DeflateStream deflateStream = new DeflateStream(cryptoStream, CompressionMode.Decompress);
+                            deflateStream.CopyTo(output);
+                            break;
+                        }
+                    case CompressAlgorithm.GZip:
+                        {
+                            using CryptoStream cryptoStream = new CryptoStream(input, cryptoTransform, CryptoStreamMode.Read);
+                            using GZipStream deflateStream = new GZipStream(cryptoStream, CompressionMode.Decompress);
+                            deflateStream.CopyTo(output);
+                            break;
+                        }
+                }
+            }
             else
             {
-                ICryptoTransform cryptoTransform = aes.CreateDecryptor(key, Iv);
-                if (CompressionLevel != CompressionLevel.NoCompression)
-                {
-                    switch (CompressAlgorithm)
-                    {
-                        case CompressAlgorithm.Deflate:
-                            {
-                                using CryptoStream cryptoStream = new CryptoStream(input, cryptoTransform, CryptoStreamMode.Read);
-                                using DeflateStream deflateStream = new DeflateStream(cryptoStream, CompressionMode.Decompress);
-                                deflateStream.CopyTo(output);
-                                break;
-                            }
-                        case CompressAlgorithm.GZip:
-                            {
-                                using CryptoStream cryptoStream = new CryptoStream(input, cryptoTransform, CryptoStreamMode.Read);
-                                using GZipStream deflateStream = new GZipStream(cryptoStream, CompressionMode.Decompress);
-                                deflateStream.CopyTo(output);
-                                break;
-                            }
-                    }
-                }
-                else
-                {
-                    using CryptoStream cryptoStream = new CryptoStream(output, cryptoTransform, CryptoStreamMode.Write);
-                    input.CopyTo(cryptoStream);
-                }
+                using CryptoStream cryptoStream = new CryptoStream(output, cryptoTransform, CryptoStreamMode.Write);
+                input.CopyTo(cryptoStream);
             }
         }
 
@@ -177,10 +167,13 @@ namespace Skyzi000.Cryptography
             return (k, i);
         }
 
-        // 参考: https://qiita.com/c-yan/items/1e8f66f6b1019aad56bd
-        private byte[] GenerateSalt(int size)
+        // 以下 GenerateSalt(int saltLength) と GenerateKIV(byte[] salt, byte[] password, HashAlgorithmName hashAlgorithm, int iterationCount, int size) は
+        // c-yan さんの「OpenSSL で暗号化したデータを C# で復号する - Qiita」より一部を使わせていただきました。ありがとうございます。
+        // https://qiita.com/c-yan/items/1e8f66f6b1019aad56bd
+        // Qiita利用規約(2021年4月23日閲覧)：https://qiita.com/terms
+        private byte[] GenerateSalt(int saltLength)
         {
-            var result = new byte[size];
+            var result = new byte[saltLength];
             using (var csp = new RNGCryptoServiceProvider())
             {
                 csp.GetBytes(result);
@@ -190,116 +183,6 @@ namespace Skyzi000.Cryptography
         private byte[] GenerateKIV(byte[] salt, byte[] password, HashAlgorithmName hashAlgorithm, int iterationCount, int size)
         {
             return new Rfc2898DeriveBytes(password, salt, iterationCount, hashAlgorithm).GetBytes(size);
-        }
-
-        // 1バイトずつ処理するせいか、CBCモードなどと比べて遅い?
-        // 参考: https://stackoverflow.com/questions/6374437/can-i-use-aes-in-ctr-mode-in-net
-        private void AesCtrTransform(byte[] salt, byte[]key, Stream inputStream, Stream outputStream)
-        {
-            if (salt.Length != blockSize)
-            {
-                throw new ArgumentException(
-                    string.Format(
-                        "Salt size must be same as block size (actual: {0}, expected: {1})",
-                        salt.Length, blockSize));
-            }
-
-            byte[] counter = (byte[])salt.Clone();
-
-            Queue<byte> xorMask = new Queue<byte>();
-
-            var zeroIv = new byte[blockSize];
-            ICryptoTransform counterEncryptor = aes.CreateEncryptor(key, zeroIv);
-
-            int b;
-            while ((b = inputStream.ReadByte()) != -1)
-            {
-                if (xorMask.Count == 0)
-                {
-                    var counterModeBlock = new byte[blockSize];
-
-                    counterEncryptor.TransformBlock(
-                        counter, 0, counter.Length, counterModeBlock, 0);
-
-                    for (var i2 = counter.Length - 1; i2 >= 0; i2--)
-                    {
-                        if (++counter[i2] != 0)
-                        {
-                            break;
-                        }
-                    }
-
-                    foreach (var b2 in counterModeBlock)
-                    {
-                        xorMask.Enqueue(b2);
-                    }
-                }
-
-                var mask = xorMask.Dequeue();
-                outputStream.WriteByte((byte)(((byte)b) ^ mask));
-            }
-        }
-
-        // 恐らく古いバージョンのOpenSSLで使われていたと思われる、MD5を利用する方法
-        // 参考: https://qiita.com/h-ymmr/items/eb21378f5132400b3e80
-        private bool GetOpenSSLKey(byte[] baKey, byte[] baSalt)
-        {
-            bool blnIsOk = true;
-            MD5 objMd5 = MD5.Create();
-            byte[] baHash1 = new byte[16];
-            byte[] baHash2 = new byte[16];
-            byte[] baPreKey = new byte[baKey.Length + baSalt.Length];
-            byte[] baPreIV = new byte[16 + baPreKey.Length];
-            byte[] baPreHash2 = new byte[16 + baPreKey.Length];
-            // 128
-            //   Key   = MD5(暗号キー + SALT)
-            //   IV    = MD5(Key + 暗号キー + SALT)
-            // 192,256
-            //   Hash0 = ''
-            //   Hash1 = MD5(Hash0 + 暗号キー + SALT)
-            //   Hash2 = MD5(Hash1 + 暗号キー + SALT)
-            //   Hash3 = MD5(Hash2 + 暗号キー + SALT)
-            //   Key   = Hash1 + Hash2
-            //   IV    = Hash3
-            try
-            {
-                Buffer.BlockCopy(baKey, 0, baPreKey, 0, baKey.Length);
-                Buffer.BlockCopy(baSalt, 0, baPreKey, baKey.Length, baSalt.Length);
-                if (128 == keySize)
-                {
-                    key = objMd5.ComputeHash(baPreKey);
-                }
-                else
-                {
-                    baHash1 = objMd5.ComputeHash(baPreKey);
-                    Buffer.BlockCopy(baHash1, 0, baPreHash2, 0, baHash1.Length);
-                    Buffer.BlockCopy(baPreKey, 0, baPreHash2, baHash1.Length, baPreKey.Length);
-                    baHash2 = objMd5.ComputeHash(baPreHash2);
-                    key = new byte[32];
-                    Buffer.BlockCopy(baHash1, 0, key, 0, baHash1.Length);
-                    Buffer.BlockCopy(baHash2, 0, key, baHash1.Length, baHash2.Length);
-                }
-                if (128 == keySize)
-                {
-                    Buffer.BlockCopy(key, 0, baPreIV, 0, key.Length);
-                    Buffer.BlockCopy(baPreKey, 0, baPreIV, key.Length, baPreKey.Length);
-                }
-                else
-                {
-                    Buffer.BlockCopy(baHash2, 0, baPreIV, 0, baHash2.Length);
-                    Buffer.BlockCopy(baPreKey, 0, baPreIV, baHash2.Length, baPreKey.Length);
-                }
-                Iv = objMd5.ComputeHash(baPreIV);
-            }
-            catch (Exception)
-            {
-                return false;
-            }
-            finally
-            {
-                objMd5.Clear();
-            }
-            return blnIsOk;
         }
 
         public void Dispose()
