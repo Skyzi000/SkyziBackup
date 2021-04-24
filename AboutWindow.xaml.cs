@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -24,6 +25,17 @@ namespace SkyziBackup
             InitializeComponent();
             AppName.Content = App.AssemblyName.Name;
             VersionText.Text = $"Version {App.AssemblyName.Version}";
+            try
+            {
+                using StreamReader sr = new StreamReader(
+                    Application.GetResourceStream(new Uri("LICENS", UriKind.Relative)).Stream,
+                    Encoding.UTF8);
+                ThisLicenseBlock.Text = sr.ReadToEnd();
+            }
+            catch(IOException e)
+            {
+                NLog.LogManager.GetCurrentClassLogger().Error(e, "ライセンス情報が見つかりません。");
+            }
         }
 
         private void OKButton_Click(object sender, RoutedEventArgs e)
