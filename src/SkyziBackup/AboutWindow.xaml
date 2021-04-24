@@ -19,7 +19,7 @@
                 <ColumnDefinition Width="64"/>
                 <ColumnDefinition/>
             </Grid.ColumnDefinitions>
-            <Image Source="/SkyziBackup_128.png"/>
+            <Image Source="/images/SkyziBackup_128.png"/>
             <ui:SimpleStackPanel Margin="25,0" Orientation="Horizontal" Spacing="50" Grid.Column="1" HorizontalAlignment="Stretch">
                 <Label x:Name="AppName" Content="SkyziBackup" FontSize="24" VerticalAlignment="Center" HorizontalAlignment="Stretch"/>
                 <TextBlock x:Name="VersionText" VerticalAlignment="Center" HorizontalAlignment="Stretch"/>

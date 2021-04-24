@@ -50,7 +50,7 @@
 
     <Resource Include="SkyziBackup.ico" />
 
-    <Resource Include="SkyziBackup_128.png" />
+    <Resource Include="images\SkyziBackup_128.png" />
   </ItemGroup>
 
   <ItemGroup>

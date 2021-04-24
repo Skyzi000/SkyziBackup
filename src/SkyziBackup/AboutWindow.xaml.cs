@@ -28,7 +28,7 @@ namespace SkyziBackup
             try
             {
                 using StreamReader sr = new StreamReader(
-                    Application.GetResourceStream(new Uri("LICENS", UriKind.Relative)).Stream,
+                    Application.GetResourceStream(new Uri("LICENSE", UriKind.Relative)).Stream,
                     Encoding.UTF8);
                 ThisLicenseBlock.Text = sr.ReadToEnd();
             }
