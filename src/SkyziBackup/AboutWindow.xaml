@@ -1,0 +1,60 @@
+﻿<Window x:Class="SkyziBackup.AboutWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:SkyziBackup"
+        xmlns:ui="http://schemas.modernwpf.com/2019"
+        ui:WindowHelper.UseModernWindowStyle="True"
+        ResizeMode="NoResize"
+        mc:Ignorable="d"
+        Title="バージョン情報" Height="450" Width="800">
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="64"/>
+            <RowDefinition/>
+        </Grid.RowDefinitions>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="64"/>
+                <ColumnDefinition/>
+            </Grid.ColumnDefinitions>
+            <Image Source="/images/SkyziBackup_128.png"/>
+            <ui:SimpleStackPanel Margin="25,0" Orientation="Horizontal" Spacing="50" Grid.Column="1" HorizontalAlignment="Stretch">
+                <Label x:Name="AppName" Content="SkyziBackup" FontSize="24" VerticalAlignment="Center" HorizontalAlignment="Stretch"/>
+                <TextBlock x:Name="VersionText" VerticalAlignment="Center" HorizontalAlignment="Stretch"/>
+            </ui:SimpleStackPanel>
+        </Grid>
+        <TabControl Grid.Row="1" TabStripPlacement="Bottom" HorizontalAlignment="Stretch" >
+            <TabItem Header="このアプリのライセンス">
+                <ScrollViewer>
+                    <TextBlock x:Name="ThisLicenseBlock" HorizontalAlignment="Stretch" TextWrapping="Wrap" Margin="0,0,20,0">
+                        <Hyperlink>https://github.com/skyzi000/SkyziBackup/blob/develop/LICENSE</Hyperlink><LineBreak/>
+                        <LineBreak/>
+                    </TextBlock>
+                </ScrollViewer>
+            </TabItem>
+            <TabItem Header="ライブラリの情報">
+                <ScrollViewer>
+                    <TextBlock HorizontalAlignment="Stretch" TextWrapping="Wrap" Margin="0,0,20,0">
+                        このアプリケーションは下記のライブラリを使用しています。<LineBreak/>
+                        <LineBreak/>
+                        ModernWPF UI Library<LineBreak/>
+                        Copyright (c) 2019 Yimeng Wu<LineBreak/>
+                        <Hyperlink>https://github.com/Kinnara/ModernWpf/blob/master/LICENSE</Hyperlink><LineBreak/>
+                        <LineBreak/>
+                        Nerdbank.GitVersioning<LineBreak/>
+                        Copyright (c) .NET Foundation and Contributors<LineBreak/>
+                        <Hyperlink>https://github.com/dotnet/Nerdbank.GitVersioning/blob/master/LICENSE</Hyperlink><LineBreak/>
+                        <LineBreak/>
+                        NLog<LineBreak/>
+                        Copyright (c) 2004-2021 Jaroslaw Kowalski &lt;jaak@jkowalski.net&gt;, Kim Christensen, Julian Verdurmen<LineBreak/>
+                        <Hyperlink>https://github.com/NLog/NLog/blob/master/LICENSE.txt</Hyperlink><LineBreak/>
+                        <LineBreak/>
+                    </TextBlock>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
+        <Button Content="OK" Click="OKButton_Click" HorizontalAlignment="Right" VerticalAlignment="Bottom" Width="80" Height="30" Margin="5" Style="{ui:StaticResource AccentButtonStyle}" Grid.Row="1"/>
+    </Grid>
+</Window>
