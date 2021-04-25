@@ -1,8 +1,8 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <TargetFramework>net5.0-windows10.0.18362.0</TargetFramework>
     <UseWPF>true</UseWPF>
     <Authors>Skyzi000</Authors>
     <Copyright>Copyright (c) 2020 Skyzi000</Copyright>
@@ -10,6 +10,8 @@
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationIcon>SkyziBackup.ico</ApplicationIcon>
     <Platforms>AnyCPU;x64;x86</Platforms>
+    <RepositoryUrl>https://github.com/skyzi000/SkyziBackup</RepositoryUrl>
+    <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -27,24 +29,28 @@
   <ItemGroup>
     <None Remove="NLog.config" />
     <None Remove="SkyziBackup.ico" />
+    <None Remove="SkyziBackup_128.png" />
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="LICENSE">
+    <Resource Include="LICENSE">
       <Pack>True</Pack>
       <PackagePath></PackagePath>
-    </None>
+    </Resource>
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="NLog" Version="4.7.7" />
-    <PackageReference Include="NLog.Config" Version="4.7.7" />
+    <PackageReference Include="ModernWpfUI" Version="0.9.4" />
+    <PackageReference Include="NLog" Version="4.7.9" />
+    <PackageReference Include="NLog.Config" Version="4.7.9" />
   </ItemGroup>
 
   <ItemGroup>
     <Resource Include="NLog.config" />
 
     <Resource Include="SkyziBackup.ico" />
+
+    <Resource Include="images\SkyziBackup_128.png" />
   </ItemGroup>
 
   <ItemGroup>
@@ -59,6 +65,9 @@
     <None Update="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+    </None>
+    <None Update="README.md">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
 

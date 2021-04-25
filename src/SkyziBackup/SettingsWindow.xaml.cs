@@ -1,16 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Text;
+﻿using System.IO;
 using System.Text.RegularExpressions;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
 using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Shapes;
 
 namespace SkyziBackup
 {
@@ -25,13 +16,19 @@ namespace SkyziBackup
         {
             InitializeComponent();
             dataPath.Text = Properties.Settings.Default.AppDataPath;
+            settings = BackupSettings.Default;
             ContentRendered += (s, e) =>
             {
                 NoComparisonLBI.Selected += (s, e) => ComparisonMethodListBox.SelectedIndex = 0;
                 VersioningPanel.IsEnabled = (int)settings.Versioning >= (int)VersioningMethod.Replace;
+                if ((SymbolicLinkHandling)SymbolicLinkHandlingBox.SelectedIndex == SymbolicLinkHandling.Direct)
+                    SymbolicLinkHandlingBox.IsEnabled = false;
             };
         }
-        public SettingsWindow(ref BackupSettings settings) : this()
+        /// <summary>
+        /// 受け取った設定をもとに設定画面を開く。設定画面を閉じた後にリロードする必要がある。
+        /// </summary>
+        public SettingsWindow(BackupSettings settings) : this()
         {
             this.settings = settings;
             DisplaySettings();
@@ -41,14 +38,11 @@ namespace SkyziBackup
         /// </summary>
         public SettingsWindow(string originBaseDirPath, string destBaseDirPath) : this()
         {
-            if (BackupSettings.TryLoadLocalSettings(originBaseDirPath, destBaseDirPath, out var settings))
-            {
-                this.settings = settings;
-            }
-            else
-            {
-                this.settings = BackupSettings.GetGlobalSettings().ConvertToLocalSettings(originBaseDirPath, destBaseDirPath);
-            }
+            this.settings = BackupSettings.TryLoadLocalSettings(originBaseDirPath, destBaseDirPath, out BackupSettings? settings)
+                ? settings
+                : BackupSettings.Default.ConvertToLocalSettings(originBaseDirPath, destBaseDirPath);
+            this.settings.OriginBaseDirPath = originBaseDirPath;
+            this.settings.DestBaseDirPath = destBaseDirPath;
             DisplaySettings();
         }
 
@@ -75,7 +69,7 @@ namespace SkyziBackup
             RetryCountTextBox.Text = settings.RetryCount.ToString();
             RetryWaitTimeTextBox.Text = settings.RetryWaitMilliSec.ToString();
             CompressAlgorithmComboBox.SelectedIndex = (int)settings.CompressAlgorithm;
-            CompressionLevelSlider.Value = (double)settings.CompressionLevel;
+            CompressionLevelSlider.Value = -((int)settings.CompressionLevel - 2); // 最大値で引いてから符号を反転することでSliderの表示に合わせている
             PasswordScopeComboBox.SelectedIndex = (int)settings.PasswordProtectionScope;
             NoComparisonLBI.IsSelected = settings.ComparisonMethod == ComparisonMethod.NoComparison;
             ArchiveAttributeLBI.IsSelected = settings.ComparisonMethod.HasFlag(ComparisonMethod.ArchiveAttribute);
@@ -83,12 +77,11 @@ namespace SkyziBackup
             SizeLBI.IsSelected = settings.ComparisonMethod.HasFlag(ComparisonMethod.Size);
             SHA1LBI.IsSelected = settings.ComparisonMethod.HasFlag(ComparisonMethod.FileContentsSHA1);
             BynaryLBI.IsSelected = settings.ComparisonMethod.HasFlag(ComparisonMethod.FileContentsBynary);
+            SymbolicLinkHandlingBox.SelectedIndex = (int)settings.SymbolicLink;
+            IsCancelableBox.IsChecked = settings.IsCancelable;
         }
 
-        private void TextBox_PreviewTextInput(object sender, TextCompositionEventArgs e)
-        {
-            e.Handled = NonNumber.IsMatch(e.Text);
-        }
+        private void TextBox_PreviewTextInput(object sender, TextCompositionEventArgs e) => e.Handled = NonNumber.IsMatch(e.Text);
 
         private void TextBox_PreviewExecuted(object sender, ExecutedRoutedEventArgs e)
         {
@@ -98,40 +91,9 @@ namespace SkyziBackup
             }
         }
 
-        private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
-        {
-            BackupSettings newSettings = GetNewSettings();
-            if (!File.Exists(DataFileWriter.GetPath(newSettings)) || settings.ToString() != newSettings.ToString()) // TODO: できればもうちょっとましな比較方法にしたい
-            {
-                var r = MessageBox.Show("設定を保存しますか？", "設定変更の確認", MessageBoxButton.YesNoCancel);
-                if (r == MessageBoxResult.Yes)
-                {
-                    if ((int)newSettings.Versioning >= (int)VersioningMethod.Replace && !Directory.Exists(newSettings.RevisionsDirPath))
-                    {
-                        MessageBox.Show("バージョン管理の移動先ディレクトリが存在しません。\n正しいパスを入力してください。", $"{App.AssemblyName.Name} - 警告", MessageBoxButton.OK, MessageBoxImage.Warning);
-                        e.Cancel = true;
-                        return;
-                    }
-                    if (Properties.Settings.Default.AppDataPath != dataPath.Text && System.IO.Directory.Exists(dataPath.Text))
-                    {
-                        Properties.Settings.Default.AppDataPath = dataPath.Text;
-                        Properties.Settings.Default.Save();
-                        dataPath.Text = Properties.Settings.Default.AppDataPath;
-                        NLog.GlobalDiagnosticsContext.Set("AppDataPath", dataPath.Text);
-                    }
-                    settings = newSettings;
-                    DataFileWriter.Write(settings);
-                }
-                else if (r == MessageBoxResult.Cancel)
-                {
-                    e.Cancel = true;
-                }
-            }
-        }
-
         private BackupSettings GetNewSettings()
         {
-            BackupSettings newSettings = settings.IsGlobal ? new BackupSettings() : new BackupSettings(settings.SaveFileName);
+            BackupSettings newSettings = settings.OriginBaseDirPath is null || settings.DestBaseDirPath is null ? new BackupSettings() : new BackupSettings(settings.OriginBaseDirPath, settings.DestBaseDirPath);
             newSettings.IgnorePattern = ignorePatternBox.Text;
             newSettings.IsUseDatabase = isUseDatabaseCheckBox.IsChecked ?? settings.IsUseDatabase;
             newSettings.IsRecordPassword = isRecordPasswordCheckBox.IsChecked ?? settings.IsRecordPassword;
@@ -143,25 +105,25 @@ namespace SkyziBackup
                 newSettings.Versioning = VersioningMethod.PermanentDeletion;
             else if (VersioningButton.IsChecked ?? false)
             {
-                newSettings.Versioning = (VersioningMethod)int.Parse(VersioningMethodBox.SelectedValue.ToString());
+                newSettings.Versioning = (VersioningMethod)int.Parse(VersioningMethodBox.SelectedValue.ToString() ?? "0");
             }
-            else 
+            else
                 newSettings.Versioning = settings.Versioning;
             newSettings.RevisionsDirPath = RevisionDirectory.Text;
             newSettings.IsCopyAttributes = isCopyAttributesCheckBox.IsChecked ?? settings.IsCopyAttributes;
-            newSettings.RetryCount = int.TryParse(RetryCountTextBox.Text, out int rcount) ? rcount : settings.RetryCount;
-            newSettings.RetryWaitMilliSec = int.TryParse(RetryWaitTimeTextBox.Text, out int wait) ? wait : settings.RetryWaitMilliSec;
+            newSettings.RetryCount = int.TryParse(RetryCountTextBox.Text, out var rcount) ? rcount : settings.RetryCount;
+            newSettings.RetryWaitMilliSec = int.TryParse(RetryWaitTimeTextBox.Text, out var wait) ? wait : settings.RetryWaitMilliSec;
             newSettings.CompressAlgorithm = (Skyzi000.Cryptography.CompressAlgorithm)CompressAlgorithmComboBox.SelectedIndex;
-            newSettings.CompressionLevel = (System.IO.Compression.CompressionLevel)CompressionLevelSlider.Value;
+            newSettings.CompressionLevel = (System.IO.Compression.CompressionLevel)(-(CompressionLevelSlider.Value - 2));
             newSettings.PasswordProtectionScope = (System.Security.Cryptography.DataProtectionScope)PasswordScopeComboBox.SelectedIndex;
             if (newSettings.IsRecordPassword)
             {
-                newSettings.ProtectedPassword = settings.GetRawPassword();
+                newSettings.ProtectedPassword = settings.ProtectedPassword;
             }
             newSettings.ComparisonMethod = 0;
             foreach (var item in ComparisonMethodListBox.SelectedItems)
             {
-                int i = ComparisonMethodListBox.Items.IndexOf(item);
+                var i = ComparisonMethodListBox.Items.IndexOf(item);
                 if (i == 0)
                 {
                     newSettings.ComparisonMethod = ComparisonMethod.NoComparison;
@@ -169,7 +131,8 @@ namespace SkyziBackup
                 }
                 newSettings.ComparisonMethod |= (ComparisonMethod)(1 << (i - 1));
             }
-
+            newSettings.SymbolicLink = (SymbolicLinkHandling)SymbolicLinkHandlingBox.SelectedIndex;
+            newSettings.IsCancelable = IsCancelableBox.IsChecked ?? newSettings.IsCancelable;
             return newSettings;
         }
 
@@ -177,7 +140,7 @@ namespace SkyziBackup
         {
             if (MessageBox.Show("設定を初期値にリセットします。よろしいですか？", "設定リセットの確認", MessageBoxButton.OKCancel) == MessageBoxResult.OK)
             {
-                settings = settings.IsGlobal ? new BackupSettings() : new BackupSettings(settings.SaveFileName);
+                settings = settings.IsDefault || settings.OriginBaseDirPath is null || settings.DestBaseDirPath is null ? new BackupSettings() : new BackupSettings(settings.OriginBaseDirPath, settings.DestBaseDirPath);
                 DataFileWriter.Write(settings);
                 DisplaySettings();
             }
@@ -194,29 +157,73 @@ namespace SkyziBackup
             if (VersioningPanel != null)
                 VersioningPanel.IsEnabled = false;
         }
-
+        private void SaveNewSettings(BackupSettings newSettings)
+        {
+            if (Properties.Settings.Default.AppDataPath != dataPath.Text && Directory.Exists(dataPath.Text))
+            {
+                Properties.Settings.Default.AppDataPath = dataPath.Text;
+                Properties.Settings.Default.Save();
+                dataPath.Text = Properties.Settings.Default.AppDataPath;
+                NLog.GlobalDiagnosticsContext.Set("AppDataPath", dataPath.Text);
+            }
+            settings = newSettings;
+            settings.Save();
+        }
         private void OkButton_Click(object sender, RoutedEventArgs e)
+        {
+            BackupSettings newSettings = GetNewSettings();
+            if ((int)newSettings.Versioning >= (int)VersioningMethod.Replace && !Directory.Exists(newSettings.RevisionsDirPath))
+            {
+                MessageBox.Show("バージョン管理の移動先ディレクトリが存在しません。\n正しいパスを入力してください。", $"{App.AssemblyName.Name} - 警告", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            if (settings.SymbolicLink != newSettings.SymbolicLink && newSettings.SymbolicLink == SymbolicLinkHandling.Direct)
+            {
+                if (MessageBoxResult.OK != MessageBox.Show(
+                    "リパースポイント(シンボリックリンク/ジャンクション)を直接コピーするモードを本当に有効にしますか？\n" +
+                    "※設定や操作次第ではリンクターゲットを意図せず削除してしまう場合があります。\n" +
+                    "　そういった危険を減らすために、これ以降この設定を変更できないようになります。",
+                    $"{App.AssemblyName.Name} - 確認", MessageBoxButton.OKCancel, MessageBoxImage.None, MessageBoxResult.Cancel))
+                    return;
+            }
+            SaveNewSettings(newSettings);
+            DisplaySettings();
+            Close();
+        }
+
+        private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
             BackupSettings newSettings = GetNewSettings();
             if (!File.Exists(DataFileWriter.GetPath(newSettings)) || settings.ToString() != newSettings.ToString()) // TODO: できればもうちょっとましな比較方法にしたい
             {
-                if ((int)newSettings.Versioning >= (int)VersioningMethod.Replace && !Directory.Exists(newSettings.RevisionsDirPath))
+                MessageBoxResult r = MessageBox.Show("設定を保存しますか？", "設定変更の確認", MessageBoxButton.YesNoCancel);
+                if (r == MessageBoxResult.Yes)
                 {
-                    MessageBox.Show("バージョン管理の移動先ディレクトリが存在しません。\n正しいパスを入力してください。", $"{App.AssemblyName.Name} - 警告", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    return;
+                    if ((int)newSettings.Versioning >= (int)VersioningMethod.Replace && !Directory.Exists(newSettings.RevisionsDirPath))
+                    {
+                        MessageBox.Show("バージョン管理の移動先ディレクトリが存在しません。\n正しいパスを入力してください。", $"{App.AssemblyName.Name} - 警告", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        e.Cancel = true;
+                        return;
+                    }
+                    if (settings.SymbolicLink != newSettings.SymbolicLink && newSettings.SymbolicLink == SymbolicLinkHandling.Direct)
+                    {
+                        if (MessageBoxResult.OK != MessageBox.Show(
+                            "リパースポイント(シンボリックリンク/ジャンクション)を直接コピーするモードを本当に有効にしますか？\n" +
+                            "※設定や操作次第ではリンクターゲットを意図せず削除してしまう場合があります。\n" +
+                            "　そういった危険を減らすために、これ以降この設定を変更できないようになります。",
+                            $"{App.AssemblyName.Name} - 確認", MessageBoxButton.OKCancel, MessageBoxImage.Information, MessageBoxResult.Cancel))
+                        {
+                            e.Cancel = true;
+                            return;
+                        }
+                    }
+                    SaveNewSettings(newSettings);
                 }
-                if (Properties.Settings.Default.AppDataPath != dataPath.Text && System.IO.Directory.Exists(dataPath.Text))
+                else if (r == MessageBoxResult.Cancel)
                 {
-                    Properties.Settings.Default.AppDataPath = dataPath.Text;
-                    Properties.Settings.Default.Save();
-                    dataPath.Text = Properties.Settings.Default.AppDataPath;
-                    NLog.GlobalDiagnosticsContext.Set("AppDataPath", dataPath.Text);
+                    e.Cancel = true;
                 }
-                settings = newSettings;
-                DataFileWriter.Write(settings);
             }
-            DisplaySettings();
-            Close();
         }
 
         private void CancelButton_Click(object sender, RoutedEventArgs e)
