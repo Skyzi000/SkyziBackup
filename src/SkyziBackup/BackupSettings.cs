@@ -1,14 +1,14 @@
 ﻿using Skyzi000.Cryptography;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.IO.Compression;
-using System.Security.Cryptography;
-using System.Text.RegularExpressions;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Serialization;
-using System.Diagnostics.CodeAnalysis;
+using System.Text.RegularExpressions;
 
 namespace SkyziBackup
 {
@@ -223,10 +223,7 @@ namespace SkyziBackup
         /// <summary>
         /// パスワードを暗号化して記録する
         /// </summary>
-        public void SetProtectedPassword(string value)
-        {
-            ProtectedPassword = string.IsNullOrEmpty(value) ? null : PasswordManager.Encrypt(value, PasswordProtectionScope);
-        }
+        public void SetProtectedPassword(string value) => ProtectedPassword = string.IsNullOrEmpty(value) ? null : PasswordManager.Encrypt(value, PasswordProtectionScope);
 
         public BackupSettings()
         {
@@ -302,10 +299,7 @@ namespace SkyziBackup
             sb.AppendFormat("除外パターン---------------------: \n{0}\n", IgnorePattern);
             return sb.ToString();
         }
-        public static string GetLocalSettingsFileName(string originBaseDirPath, string destBaseDirPath)
-        {
-            return Path.Combine(DataFileWriter.GetDatabaseDirectoryName(originBaseDirPath, destBaseDirPath), FileName);
-        }
+        public static string GetLocalSettingsFileName(string originBaseDirPath, string destBaseDirPath) => Path.Combine(DataFileWriter.GetDatabaseDirectoryName(originBaseDirPath, destBaseDirPath), FileName);
         /// <summary>
         /// デフォルト設定をファイルから読み込み直す。読み込めない場合は何もしない。
         /// </summary>
@@ -354,7 +348,7 @@ namespace SkyziBackup
         }
         public HashSet<Regex> PatternToRegices(string pattern)
         {
-            string[] patStrArr = pattern.Split(new[] { "\r\n", "\n", "\r", "|" }, StringSplitOptions.None);
+            var patStrArr = pattern.Split(new[] { "\r\n", "\n", "\r", "|" }, StringSplitOptions.None);
             return new HashSet<Regex>(patStrArr.Select(s => ConvertToRegex(s)));
         }
         internal string GetRawPassword()
@@ -362,10 +356,7 @@ namespace SkyziBackup
             if (!IsRecordPassword || string.IsNullOrEmpty(ProtectedPassword)) return string.Empty;
             return PasswordManager.Decrypt(ProtectedPassword, PasswordProtectionScope);
         }
-        public bool IsDifferentPassword(string newPassword)
-        {
-            return GetRawPassword() != newPassword;
-        }
+        public bool IsDifferentPassword(string newPassword) => GetRawPassword() != newPassword;
         private Regex ConvertToRegex(string strPattern)
         {
             var sb = new StringBuilder("^");

@@ -1,19 +1,10 @@
 ﻿using NLog;
 using Skyzi000.Cryptography;
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Shapes;
 using Path = System.IO.Path;
 
 namespace SkyziBackup
@@ -56,7 +47,7 @@ namespace SkyziBackup
             BackupSettings settings = LoadCurrentSettings;
             if (settings.IsRecordPassword && settings.IsDifferentPassword(password.Password))
             {
-                var changePassword = MessageBox.Show("入力されたパスワードが保存されているパスワードと異なります。\nこのまま続行しますか？",
+                MessageBoxResult changePassword = MessageBox.Show("入力されたパスワードが保存されているパスワードと異なります。\nこのまま続行しますか？",
                                                      $"{App.AssemblyName.Name} - パスワードの確認",
                                                      MessageBoxButton.YesNo,
                                                      MessageBoxImage.Information);
@@ -74,14 +65,14 @@ namespace SkyziBackup
             }
             Message.Text = $"'{originPath.Text.Trim()}' => '{destPath.Text.Trim()}'";
             Message.Text += $"\nリストア開始: {DateTime.Now}\n";
-            RestoreController restore = new RestoreController(originPath.Text.Trim(),
+            var restore = new RestoreController(originPath.Text.Trim(),
                                                             destPath.Text.Trim(),
                                                             password.Password,
                                                             settings,
                                                             copyAttributesOnDatabaseCheck.IsChecked,
                                                             copyOnlyAttributesCheck.IsChecked,
                                                             isEnableWriteDatabaseCheck.IsChecked);
-            string m = Message.Text;
+            var m = Message.Text;
             restore.Results.MessageChanged += (_s, _e) =>
             {
                 _ = Dispatcher.InvokeAsync(() =>
@@ -95,10 +86,7 @@ namespace SkyziBackup
             progressBar.Visibility = Visibility.Collapsed;
         }
 
-        private void CloseButton_Click(object sender, RoutedEventArgs e)
-        {
-            this.Close();
-        }
+        private void CloseButton_Click(object sender, RoutedEventArgs e) => this.Close();
         private void GlobalSettingsMenu_Click(object sender, RoutedEventArgs e)
         {
             new SettingsWindow(BackupSettings.Default).ShowDialog();
@@ -170,10 +158,7 @@ namespace SkyziBackup
                 DiscardImportedSettings.IsEnabled = importedSettings is not null;
             }
         }
-        private void ShowCurrentSettings_Click(object sender, RoutedEventArgs e)
-        {
-            MessageBox.Show(LoadCurrentSettings.ToString(), $"{App.AssemblyName.Name} - 現在の設定");
-        }
+        private void ShowCurrentSettings_Click(object sender, RoutedEventArgs e) => MessageBox.Show(LoadCurrentSettings.ToString(), $"{App.AssemblyName.Name} - 現在の設定");
         private void DiscardImportedSettings_Click(object sender, RoutedEventArgs e)
         {
             importedSettings = null;

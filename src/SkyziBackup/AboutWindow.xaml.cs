@@ -1,17 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Shapes;
 
 namespace SkyziBackup
 {
@@ -27,20 +17,17 @@ namespace SkyziBackup
             VersionText.Text = $"Version {App.AssemblyName.Version}";
             try
             {
-                using StreamReader sr = new StreamReader(
+                using var sr = new StreamReader(
                     Application.GetResourceStream(new Uri("LICENSE", UriKind.Relative)).Stream,
                     Encoding.UTF8);
                 ThisLicenseBlock.Text = sr.ReadToEnd();
             }
-            catch(IOException e)
+            catch (IOException e)
             {
                 NLog.LogManager.GetCurrentClassLogger().Error(e, "ライセンス情報が見つかりません。");
             }
         }
 
-        private void OKButton_Click(object sender, RoutedEventArgs e)
-        {
-            Close();
-        }
+        private void OKButton_Click(object sender, RoutedEventArgs e) => Close();
     }
 }

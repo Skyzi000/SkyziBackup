@@ -25,7 +25,7 @@ namespace SkyziBackup
             saveTimer?.Dispose();
             saveTimer = null;
             SaveTimer.Interval = intervalMilliSeconds;
-            SaveTimer.Elapsed += (s, e) => 
+            SaveTimer.Elapsed += (s, e) =>
             {
                 if (Semaphore.CurrentCount != 0)
                     AutoSave();
@@ -139,9 +139,9 @@ namespace SkyziBackup
                     BackedUpDirectoriesDict = new Dictionary<string, BackedUpDirectoryData>(this.BackedUpDirectoriesDict),
                     BackedUpFilesDict = new Dictionary<string, BackedUpFileData>(this.BackedUpFilesDict)
                 };
-                string path = DataFileWriter.GetPath(temp);
-                string tempDirPath = Path.Combine(Path.GetDirectoryName(path) ?? throw new InvalidOperationException($"Path.GetDirectoryName(path) is null. (path: {path})"), "Temp");
-                string tempPath = Path.Combine(tempDirPath, $"Database{tempCount}{DataFileWriter.TempFileExtension}");
+                var path = DataFileWriter.GetPath(temp);
+                var tempDirPath = Path.Combine(Path.GetDirectoryName(path) ?? throw new InvalidOperationException($"Path.GetDirectoryName(path) is null. (path: {path})"), "Temp");
+                var tempPath = Path.Combine(tempDirPath, $"Database{tempCount}{DataFileWriter.TempFileExtension}");
                 DataFileWriter.Write(temp, tempPath);
                 DataFileWriter.Replace(tempPath, path, true);
             }
@@ -167,7 +167,7 @@ namespace SkyziBackup
         public FileAttributes? FileAttributes { get; set; } = null;
         [JsonPropertyName("s")]
         public string? Sha1 { get; set; } = null;
-        
+
         public const long DefaultSize = -1;
 
         public BackedUpFileData() { }
@@ -219,21 +219,18 @@ namespace SkyziBackup
         };
         public static string GetPath(SaveableData obj) => GetPath(obj.SaveFileName ?? throw new ArgumentException(nameof(obj.SaveFileName)));
         public static string GetPath(string fileName) => Path.Combine(Properties.Settings.Default.AppDataPath, fileName);
-        
+
         /// <summary>
         /// <see cref="ParentDirectoryName"/>とSHA1ハッシュ値でAppDataPathからの相対ディレクトリパスを求める。
         /// </summary>
         /// <remarks>GetQualifiedもついでに呼んでるので予めTrim()したりする必要はないよ♡</remarks>
         /// <returns>AppDataPathからの相対パス</returns>
-        public static string GetDatabaseDirectoryName(string originBaseDirPath, string destBaseDirPath)
-        {
-            return Path.Combine(ParentDirectoryName,
+        public static string GetDatabaseDirectoryName(string originBaseDirPath, string destBaseDirPath) => Path.Combine(ParentDirectoryName,
                 BackupManager.ComputeStringSHA1(
                     BackupController.GetQualifiedDirectoryPath(originBaseDirPath) +
                     BackupController.GetQualifiedDirectoryPath(destBaseDirPath)
                     )
                 );
-        }
 
         // TODO: ここ以下のデータベース関連メソッドはBackupDatabaseクラスの方に移動させる
         /// <summary>
@@ -254,7 +251,7 @@ namespace SkyziBackup
             if (filePath is null && obj.SaveFileName is null)
                 throw new ArgumentNullException(nameof(filePath));
             filePath ??= GetPath(obj);
-            string tmpPath = filePath + TempFileExtension;
+            var tmpPath = filePath + TempFileExtension;
             Directory.CreateDirectory(Path.GetDirectoryName(filePath) ?? throw new ArgumentException(nameof(filePath)));
             using (var fs = new FileStream(tmpPath, FileMode.Create, FileAccess.Write, FileShare.None))
                 await JsonSerializer.SerializeAsync(fs, obj, obj.GetType(), SerializerOptions, cancellationToken).ConfigureAwait(false);
@@ -274,13 +271,10 @@ namespace SkyziBackup
                 File.Move(sourceFileName, destinationFileName, true);
             }
         }
-        public static void Write(SaveableData obj, string? filePath = null, bool makeBackup = false)
-        {
-            WriteAsync(obj, filePath, makeBackup).Wait();
-        }
+        public static void Write(SaveableData obj, string? filePath = null, bool makeBackup = false) => WriteAsync(obj, filePath, makeBackup).Wait();
         public static async Task<T?> ReadAsync<T>(string fileName, CancellationToken cancellationToken = default) where T : SaveableData
         {
-            string filePath = GetPath(fileName);
+            var filePath = GetPath(fileName);
             try
             {
                 using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
@@ -289,25 +283,16 @@ namespace SkyziBackup
             catch (Exception)
             {
                 // デシリアライズに失敗した場合、バックアップがあればそっちを読みに行く
-                string bacFilePath = filePath + BackupFileExtension;
+                var bacFilePath = filePath + BackupFileExtension;
                 if (!File.Exists(bacFilePath))
                     throw;
                 using var bfs = new FileStream(bacFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
                 return await JsonSerializer.DeserializeAsync<T>(bfs, SerializerOptions, cancellationToken).ConfigureAwait(false);
             }
         }
-        public static T? Read<T>(string fileName) where T : SaveableData
-        {
-            return ReadAsync<T>(fileName).Result;
-        }
-        public static void Delete(SaveableData obj)
-        {
-            File.Delete(GetPath(obj));
-        }
-        public static void Delete<T>(string fileName) where T : SaveableData
-        {
-            File.Delete(GetPath(fileName));
-        }
+        public static T? Read<T>(string fileName) where T : SaveableData => ReadAsync<T>(fileName).Result;
+        public static void Delete(SaveableData obj) => File.Delete(GetPath(obj));
+        public static void Delete<T>(string fileName) where T : SaveableData => File.Delete(GetPath(fileName));
         public static void DeleteDatabase(string originBaseDirPath, string destBaseDirPath) => Delete<BackupDatabase>(GetDatabaseFileName(originBaseDirPath, destBaseDirPath));
     }
 }

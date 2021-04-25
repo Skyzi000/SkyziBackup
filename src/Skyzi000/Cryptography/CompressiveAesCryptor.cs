@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.IO.Compression;
@@ -49,15 +48,15 @@ namespace Skyzi000.Cryptography
 
         public void EncryptFile(string inputPath, string outputPath)
         {
-            using FileStream infs = new FileStream(inputPath, FileMode.Open, FileAccess.Read);
-            using FileStream outfs = new FileStream(outputPath, FileMode.Create, FileAccess.ReadWrite);
+            using var infs = new FileStream(inputPath, FileMode.Open, FileAccess.Read);
+            using var outfs = new FileStream(outputPath, FileMode.Create, FileAccess.ReadWrite);
             EncryptStream(infs, outfs);
         }
 
         public void DecryptFile(string inputPath, string outputPath)
         {
-            using FileStream infs = new FileStream(inputPath, FileMode.Open, FileAccess.Read);
-            using FileStream outfs = new FileStream(outputPath, FileMode.Create, FileAccess.ReadWrite);
+            using var infs = new FileStream(inputPath, FileMode.Open, FileAccess.Read);
+            using var outfs = new FileStream(outputPath, FileMode.Create, FileAccess.ReadWrite);
             DecryptStream(infs, outfs);
         }
 
@@ -68,20 +67,20 @@ namespace Skyzi000.Cryptography
             output.Write(Encoding.UTF8.GetBytes(prefix));
             output.Write(Salt);
             ICryptoTransform cryptoTransform = aes.CreateEncryptor(key, Iv);
-            using CryptoStream cryptoStream = new CryptoStream(output, cryptoTransform, CryptoStreamMode.Write);
+            using var cryptoStream = new CryptoStream(output, cryptoTransform, CryptoStreamMode.Write);
             if (CompressionLevel != CompressionLevel.NoCompression)
             {
                 switch (CompressAlgorithm)
                 {
                     case CompressAlgorithm.Deflate:
                         {
-                            using DeflateStream deflateStream = new DeflateStream(cryptoStream, CompressionLevel);
+                            using var deflateStream = new DeflateStream(cryptoStream, CompressionLevel);
                             input.CopyTo(deflateStream);
                             break;
                         }
                     case CompressAlgorithm.GZip:
                         {
-                            using GZipStream deflateStream = new GZipStream(cryptoStream, CompressionLevel);
+                            using var deflateStream = new GZipStream(cryptoStream, CompressionLevel);
                             input.CopyTo(deflateStream);
                             break;
                         }
@@ -107,15 +106,15 @@ namespace Skyzi000.Cryptography
                 {
                     case CompressAlgorithm.Deflate:
                         {
-                            using CryptoStream cryptoStream = new CryptoStream(input, cryptoTransform, CryptoStreamMode.Read);
-                            using DeflateStream deflateStream = new DeflateStream(cryptoStream, CompressionMode.Decompress);
+                            using var cryptoStream = new CryptoStream(input, cryptoTransform, CryptoStreamMode.Read);
+                            using var deflateStream = new DeflateStream(cryptoStream, CompressionMode.Decompress);
                             deflateStream.CopyTo(output);
                             break;
                         }
                     case CompressAlgorithm.GZip:
                         {
-                            using CryptoStream cryptoStream = new CryptoStream(input, cryptoTransform, CryptoStreamMode.Read);
-                            using GZipStream deflateStream = new GZipStream(cryptoStream, CompressionMode.Decompress);
+                            using var cryptoStream = new CryptoStream(input, cryptoTransform, CryptoStreamMode.Read);
+                            using var deflateStream = new GZipStream(cryptoStream, CompressionMode.Decompress);
                             deflateStream.CopyTo(output);
                             break;
                         }
@@ -123,14 +122,14 @@ namespace Skyzi000.Cryptography
             }
             else
             {
-                using CryptoStream cryptoStream = new CryptoStream(output, cryptoTransform, CryptoStreamMode.Write);
+                using var cryptoStream = new CryptoStream(output, cryptoTransform, CryptoStreamMode.Write);
                 input.CopyTo(cryptoStream);
             }
         }
 
         private bool TryExtractSalt(Stream encrypted, [NotNullWhen(true)] out byte[]? salt)
         {
-            byte[] pre = new byte[8];
+            var pre = new byte[8];
             encrypted.Read(pre, 0, 8);
             if (Encoding.ASCII.GetString(pre) == prefix)
             {
@@ -143,8 +142,8 @@ namespace Skyzi000.Cryptography
         }
         private (byte[] key, byte[] iv) GetKeyAndIV(byte[] kiv)
         {
-            byte[] k = new byte[keySize / 8];
-            byte[] i = new byte[blockSize];
+            var k = new byte[keySize / 8];
+            var i = new byte[blockSize];
             Array.Copy(kiv, 0, k, 0, k.Length);
             Array.Copy(kiv, k.Length, i, 0, blockSize);
             return (k, i);
@@ -163,14 +162,8 @@ namespace Skyzi000.Cryptography
                 return result;
             }
         }
-        private byte[] GenerateKIV(byte[] salt, byte[] password, HashAlgorithmName hashAlgorithm, int iterationCount, int size)
-        {
-            return new Rfc2898DeriveBytes(password, salt, iterationCount, hashAlgorithm).GetBytes(size);
-        }
+        private byte[] GenerateKIV(byte[] salt, byte[] password, HashAlgorithmName hashAlgorithm, int iterationCount, int size) => new Rfc2898DeriveBytes(password, salt, iterationCount, hashAlgorithm).GetBytes(size);
 
-        public void Dispose()
-        {
-            ((IDisposable)aes).Dispose();
-        }
+        public void Dispose() => ((IDisposable)aes).Dispose();
     }
 }

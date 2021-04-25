@@ -78,7 +78,7 @@ namespace SkyziBackup
         [JsonIgnore]
         public override string? SaveFileName => OriginBaseDirPath is null || DestBaseDirPath is null ? null : GetFileName(OriginBaseDirPath, DestBaseDirPath);
 
-        
+
 
         public static readonly string FileName = nameof(BackupResults) + DataFileWriter.DefaultExtension;
 

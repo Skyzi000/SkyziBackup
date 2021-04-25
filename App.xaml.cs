@@ -1,7 +1,5 @@
 ﻿using NLog;
 using System;
-using System.Collections.Generic;
-using System.Configuration;
 using System.Data;
 using System.Diagnostics;
 using System.IO;
@@ -41,7 +39,7 @@ namespace SkyziBackup
             }
 
             // NLog.configの読み取り
-            using (var nlogConfigStream = GetResourceStream(new Uri("NLog.config", UriKind.Relative)).Stream)
+            using (Stream? nlogConfigStream = GetResourceStream(new Uri("NLog.config", UriKind.Relative)).Stream)
             {
                 using var xmlReader = System.Xml.XmlReader.Create(nlogConfigStream);
                 LogManager.Configuration = new NLog.Config.XmlLoggingConfiguration(xmlReader);
@@ -52,7 +50,7 @@ namespace SkyziBackup
             menu.Items.Add("メイン画面を表示する", null, MainShow_Click);
             menu.Items.Add("最新のログファイルを開く", null, OpenLog_Click);
             menu.Items.Add("終了する", null, Exit_Click);
-            using (var icon = GetResourceStream(new Uri("SkyziBackup.ico", UriKind.Relative)).Stream)
+            using (Stream? icon = GetResourceStream(new Uri("SkyziBackup.ico", UriKind.Relative)).Stream)
                 NotifyIcon = new NotifyIcon
                 {
                     Visible = true,
@@ -78,7 +76,7 @@ namespace SkyziBackup
                 var destPath = e.Args[1];
                 if (Directory.Exists(originPath))
                 {
-                    var settings = BackupSettings.LoadLocalSettings(originPath, destPath) ?? BackupSettings.Default;
+                    BackupSettings? settings = BackupSettings.LoadLocalSettings(originPath, destPath) ?? BackupSettings.Default;
                     _ = await BackupManager.StartBackupAsync(originPath, destPath, settings.IsRecordPassword ? settings.GetRawPassword() : null, settings);
                 }
                 else

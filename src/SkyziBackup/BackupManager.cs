@@ -1,7 +1,6 @@
 ﻿using NLog;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Runtime;
@@ -30,7 +29,7 @@ namespace SkyziBackup
             Semaphore? semaphore = null;
             try
             {
-                semaphore = new Semaphore(1, 1, App.AssemblyName.Name + ComputeStringSHA1(backup.originBaseDirPath + backup.destBaseDirPath), out bool createdNew);
+                semaphore = new Semaphore(1, 1, App.AssemblyName.Name + ComputeStringSHA1(backup.originBaseDirPath + backup.destBaseDirPath), out var createdNew);
                 if (!createdNew)
                 {
                     string m;
@@ -61,11 +60,8 @@ namespace SkyziBackup
             runningBackups.Values.ToList().ForEach(b => b.Dispose());
             runningBackups.Clear();
         }
-        
-        public static BackupController? GetBackupIfRunning(string originPath, string destPath)
-        {
-            return runningBackups.TryGetValue((originPath, destPath), out var backupDirectory) ? backupDirectory : null;
-        }
+
+        public static BackupController? GetBackupIfRunning(string originPath, string destPath) => runningBackups.TryGetValue((originPath, destPath), out BackupController? backupDirectory) ? backupDirectory : null;
         public static BackupController[] GetRunningBackups() => runningBackups.Values.ToArray();
         public static string ComputeFileSHA1(string filePath)
         {

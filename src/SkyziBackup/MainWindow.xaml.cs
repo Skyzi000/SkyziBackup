@@ -1,25 +1,11 @@
-﻿using System;
+﻿using NLog;
+using Skyzi000.Cryptography;
+using System;
+using System.Diagnostics;
 using System.IO;
-using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
-using System.Security.Cryptography;
-using NLog;
-using Skyzi000.Cryptography;
-using System.Diagnostics;
 using Path = System.IO.Path;
 
 namespace SkyziBackup
@@ -76,7 +62,7 @@ namespace SkyziBackup
                 progressBar.Visibility = Visibility.Visible;
                 originPath.Text = running.originBaseDirPath;
                 destPath.Text = running.destBaseDirPath;
-                string m = message.Text = $"\n'{originPath.Text}' => '{destPath.Text}'\nバックアップ実行中 ({running.StartTime}開始)\n";
+                var m = message.Text = $"\n'{originPath.Text}' => '{destPath.Text}'\nバックアップ実行中 ({running.StartTime}開始)\n";
                 running.Results.MessageChanged += (_s, _e) =>
                 {
                     _ = Dispatcher.InvokeAsync(() =>
@@ -97,7 +83,7 @@ namespace SkyziBackup
             }
         }
 
-       
+
 
         private async void StartBackupButton_ClickAsync(object sender, RoutedEventArgs e)
         {
@@ -113,10 +99,10 @@ namespace SkyziBackup
                 return;
             }
             ButtonsIsEnabled = false;
-            var settings = LoadCurrentSettings;
+            BackupSettings? settings = LoadCurrentSettings;
             if (settings.IsRecordPassword && settings.IsDifferentPassword(password.Password) && settings.ProtectedPassword != null)
             {
-                var changePassword = MessageBox.Show("前回のパスワードと異なります。\nパスワードを変更しますか？\n\n※パスワードを変更する場合、既存のバックアップやデータベースを削除し、\n　再度初めからバックアップし直すことをおすすめします。\n　異なるパスワードでバックアップされたファイルが共存する場合、\n　復元が難しくなります。", $"{App.AssemblyName.Name} - パスワード変更の確認", MessageBoxButton.YesNoCancel);
+                MessageBoxResult changePassword = MessageBox.Show("前回のパスワードと異なります。\nパスワードを変更しますか？\n\n※パスワードを変更する場合、既存のバックアップやデータベースを削除し、\n　再度初めからバックアップし直すことをおすすめします。\n　異なるパスワードでバックアップされたファイルが共存する場合、\n　復元が難しくなります。", $"{App.AssemblyName.Name} - パスワード変更の確認", MessageBoxButton.YesNoCancel);
                 switch (changePassword)
                 {
                     case MessageBoxResult.Yes:
@@ -126,7 +112,7 @@ namespace SkyziBackup
                         DeleteDatabase();
                         break;
                     case MessageBoxResult.No:
-                        if (MessageBox.Show("前回のパスワードを使用します。", App.AssemblyName.Name, MessageBoxButton.OKCancel, MessageBoxImage.Information) == MessageBoxResult.OK && PasswordManager.TryLoadPassword(settings, out string? pass))
+                        if (MessageBox.Show("前回のパスワードを使用します。", App.AssemblyName.Name, MessageBoxButton.OKCancel, MessageBoxImage.Information) == MessageBoxResult.OK && PasswordManager.TryLoadPassword(settings, out var pass))
                             password.Password = pass;
                         else
                             goto case MessageBoxResult.Cancel;
@@ -144,8 +130,8 @@ namespace SkyziBackup
             message.Text += $"\nバックアップ開始: {DateTime.Now}\n";
             progressBar.Visibility = Visibility.Visible;
             var bc = new BackupController(originPath.Text.Trim(), destPath.Text.Trim(), password.Password, settings);
-            string m = message.Text;
-            bc.Results.MessageChanged += (_s, _e) => 
+            var m = message.Text;
+            bc.Results.MessageChanged += (_s, _e) =>
             {
                 _ = Dispatcher.InvokeAsync(() =>
                   {
@@ -155,7 +141,7 @@ namespace SkyziBackup
             };
             try
             {
-                using var results = await BackupManager.StartBackupAsync(bc);
+                using BackupResults? results = await BackupManager.StartBackupAsync(bc);
                 if (results != null)
                     message.Text = m + results.Message + "\n";
             }
@@ -179,7 +165,7 @@ namespace SkyziBackup
             string databasePath;
             if (LoadCurrentSettings.IsUseDatabase && File.Exists(databasePath = DataFileWriter.GetDatabasePath(originPath.Text, destPath.Text)))
             {
-                var deleteDatabase = MessageBox.Show($"{databasePath}\n上記データベースを削除しますか？", $"{App.AssemblyName.Name} - 確認", MessageBoxButton.YesNo);
+                MessageBoxResult deleteDatabase = MessageBox.Show($"{databasePath}\n上記データベースを削除しますか？", $"{App.AssemblyName.Name} - 確認", MessageBoxButton.YesNo);
                 switch (deleteDatabase)
                 {
                     case MessageBoxResult.Yes:
@@ -201,10 +187,7 @@ namespace SkyziBackup
             restoreWindow.Show();
         }
 
-        private void CloseButton_Click(object sender, RoutedEventArgs e)
-        {
-            Close();
-        }
+        private void CloseButton_Click(object sender, RoutedEventArgs e) => Close();
 
         private void GlobalSettingsMenu_Click(object sender, RoutedEventArgs e)
         {
@@ -219,14 +202,11 @@ namespace SkyziBackup
             new SettingsWindow(originPath.Text, destPath.Text).ShowDialog();
         }
 
-        private void ShowCurrentSettings_Click(object sender, RoutedEventArgs e)
-        {
-            MessageBox.Show(LoadCurrentSettings.ToString(), $"{App.AssemblyName.Name} - 現在の設定");
-        }
+        private void ShowCurrentSettings_Click(object sender, RoutedEventArgs e) => MessageBox.Show(LoadCurrentSettings.ToString(), $"{App.AssemblyName.Name} - 現在の設定");
 
         private void DeleteLocalSettings_Click(object sender, RoutedEventArgs e)
         {
-            var currentSettings = LoadCurrentSettings;
+            BackupSettings? currentSettings = LoadCurrentSettings;
             if (currentSettings.IsDefault)
             {
                 MessageBox.Show("現在のバックアップペアに対応するローカル設定は存在しません。", App.AssemblyName.Name, MessageBoxButton.OK, MessageBoxImage.Information);
@@ -243,10 +223,7 @@ namespace SkyziBackup
 
         private void Exit_Click(object sender, RoutedEventArgs e) => ((App)Application.Current).Quit();
 
-        private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
-        {
-            SaveStates();
-        }
+        private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e) => SaveStates();
         private void SaveStates()
         {
             Properties.Settings.Default.OriginPath = originPath.Text;
@@ -271,15 +248,9 @@ namespace SkyziBackup
             }
         }
 
-        private void OpenAppDataButton_Click(object sender, RoutedEventArgs e)
-        {
-            Process.Start("explorer.exe", Properties.Settings.Default.AppDataPath);
-        }
+        private void OpenAppDataButton_Click(object sender, RoutedEventArgs e) => Process.Start("explorer.exe", Properties.Settings.Default.AppDataPath);
 
-        private void DeleteDatabaseMenu_Click(object sender, RoutedEventArgs e)
-        {
-            DeleteDatabase();
-        }
+        private void DeleteDatabaseMenu_Click(object sender, RoutedEventArgs e) => DeleteDatabase();
 
         private async void CancelBackupMenu_Click(object sender, RoutedEventArgs e)
         {
@@ -287,15 +258,9 @@ namespace SkyziBackup
                 await BackupManager.CancelAllAsync();
         }
 
-        private void AboutAppMenu_Click(object sender, RoutedEventArgs e)
-        {
-            new AboutWindow().ShowDialog();
-        }
+        private void AboutAppMenu_Click(object sender, RoutedEventArgs e) => new AboutWindow().ShowDialog();
 
-        private void RepositoryLinkMenu_Click(object sender, RoutedEventArgs e)
-        {
-            Process.Start("explorer.exe", @"https://github.com/skyzi000/SkyziBackup");
-        }
+        private void RepositoryLinkMenu_Click(object sender, RoutedEventArgs e) => Process.Start("explorer.exe", @"https://github.com/skyzi000/SkyziBackup");
     }
 }
 

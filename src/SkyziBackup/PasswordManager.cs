@@ -1,15 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Security.Cryptography;
+﻿using NLog;
 using SkyziBackup;
-using NLog;
-using System.Windows;
+using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Security.Cryptography;
+using System.Text;
+using System.Windows;
 
 namespace Skyzi000.Cryptography
 {
-    class PasswordManager
+    internal class PasswordManager
     {
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         private static readonly byte[] additionalEntropy = new byte[] { 53, 249, 144, 108, 147, 203, 197, 218, 73, 200 };
@@ -31,7 +30,7 @@ namespace Skyzi000.Cryptography
                 Logger.Error(ex, "パスワードの保存に失敗");
             }
         }
-        public static bool TryLoadPassword(BackupSettings settings,[NotNullWhen(true)] out string? password)
+        public static bool TryLoadPassword(BackupSettings settings, [NotNullWhen(true)] out string? password)
         {
             if (settings.IsRecordPassword && !string.IsNullOrEmpty(settings.ProtectedPassword))
             {
@@ -54,6 +53,6 @@ namespace Skyzi000.Cryptography
                 return false;
             }
         }
-        public static string? LoadPassword(BackupSettings settings) => TryLoadPassword(settings, out string? password) ? password : null;
+        public static string? LoadPassword(BackupSettings settings) => TryLoadPassword(settings, out var password) ? password : null;
     }
 }

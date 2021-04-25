@@ -1,16 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Text;
+﻿using System.IO;
 using System.Text.RegularExpressions;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
 using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Shapes;
 
 namespace SkyziBackup
 {
@@ -47,7 +38,7 @@ namespace SkyziBackup
         /// </summary>
         public SettingsWindow(string originBaseDirPath, string destBaseDirPath) : this()
         {
-            this.settings = BackupSettings.TryLoadLocalSettings(originBaseDirPath, destBaseDirPath, out var settings)
+            this.settings = BackupSettings.TryLoadLocalSettings(originBaseDirPath, destBaseDirPath, out BackupSettings? settings)
                 ? settings
                 : BackupSettings.Default.ConvertToLocalSettings(originBaseDirPath, destBaseDirPath);
             this.settings.OriginBaseDirPath = originBaseDirPath;
@@ -90,10 +81,7 @@ namespace SkyziBackup
             IsCancelableBox.IsChecked = settings.IsCancelable;
         }
 
-        private void TextBox_PreviewTextInput(object sender, TextCompositionEventArgs e)
-        {
-            e.Handled = NonNumber.IsMatch(e.Text);
-        }
+        private void TextBox_PreviewTextInput(object sender, TextCompositionEventArgs e) => e.Handled = NonNumber.IsMatch(e.Text);
 
         private void TextBox_PreviewExecuted(object sender, ExecutedRoutedEventArgs e)
         {
@@ -119,12 +107,12 @@ namespace SkyziBackup
             {
                 newSettings.Versioning = (VersioningMethod)int.Parse(VersioningMethodBox.SelectedValue.ToString() ?? "0");
             }
-            else 
+            else
                 newSettings.Versioning = settings.Versioning;
             newSettings.RevisionsDirPath = RevisionDirectory.Text;
             newSettings.IsCopyAttributes = isCopyAttributesCheckBox.IsChecked ?? settings.IsCopyAttributes;
-            newSettings.RetryCount = int.TryParse(RetryCountTextBox.Text, out int rcount) ? rcount : settings.RetryCount;
-            newSettings.RetryWaitMilliSec = int.TryParse(RetryWaitTimeTextBox.Text, out int wait) ? wait : settings.RetryWaitMilliSec;
+            newSettings.RetryCount = int.TryParse(RetryCountTextBox.Text, out var rcount) ? rcount : settings.RetryCount;
+            newSettings.RetryWaitMilliSec = int.TryParse(RetryWaitTimeTextBox.Text, out var wait) ? wait : settings.RetryWaitMilliSec;
             newSettings.CompressAlgorithm = (Skyzi000.Cryptography.CompressAlgorithm)CompressAlgorithmComboBox.SelectedIndex;
             newSettings.CompressionLevel = (System.IO.Compression.CompressionLevel)(-(CompressionLevelSlider.Value - 2));
             newSettings.PasswordProtectionScope = (System.Security.Cryptography.DataProtectionScope)PasswordScopeComboBox.SelectedIndex;
@@ -135,7 +123,7 @@ namespace SkyziBackup
             newSettings.ComparisonMethod = 0;
             foreach (var item in ComparisonMethodListBox.SelectedItems)
             {
-                int i = ComparisonMethodListBox.Items.IndexOf(item);
+                var i = ComparisonMethodListBox.Items.IndexOf(item);
                 if (i == 0)
                 {
                     newSettings.ComparisonMethod = ComparisonMethod.NoComparison;
@@ -208,7 +196,7 @@ namespace SkyziBackup
             BackupSettings newSettings = GetNewSettings();
             if (!File.Exists(DataFileWriter.GetPath(newSettings)) || settings.ToString() != newSettings.ToString()) // TODO: できればもうちょっとましな比較方法にしたい
             {
-                var r = MessageBox.Show("設定を保存しますか？", "設定変更の確認", MessageBoxButton.YesNoCancel);
+                MessageBoxResult r = MessageBox.Show("設定を保存しますか？", "設定変更の確認", MessageBoxButton.YesNoCancel);
                 if (r == MessageBoxResult.Yes)
                 {
                     if ((int)newSettings.Versioning >= (int)VersioningMethod.Replace && !Directory.Exists(newSettings.RevisionsDirPath))
