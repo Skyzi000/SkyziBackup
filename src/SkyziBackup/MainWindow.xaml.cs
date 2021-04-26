@@ -100,31 +100,35 @@ namespace SkyziBackup
             }
             ButtonsIsEnabled = false;
             BackupSettings? settings = LoadCurrentSettings;
-            if (settings.IsRecordPassword && settings.IsDifferentPassword(password.Password) && settings.ProtectedPassword != null)
+            if (settings.IsRecordPassword)
             {
-                MessageBoxResult changePassword = MessageBox.Show("前回のパスワードと異なります。\nパスワードを変更しますか？\n\n※パスワードを変更する場合、既存のバックアップやデータベースを削除し、\n　再度初めからバックアップし直すことをおすすめします。\n　異なるパスワードでバックアップされたファイルが共存する場合、\n　復元が難しくなります。", $"{App.AssemblyName.Name} - パスワード変更の確認", MessageBoxButton.YesNoCancel);
-                switch (changePassword)
+                if (settings.IsDifferentPassword(password.Password) && settings.ProtectedPassword != null)
                 {
-                    case MessageBoxResult.Yes:
-                        // TODO: パスワード確認入力ウィンドウを出す
-                        Logger.Info("パスワードを更新");
-                        PasswordManager.SavePassword(settings, password.Password);
-                        DeleteDatabase();
-                        break;
-                    case MessageBoxResult.No:
-                        if (MessageBox.Show("前回のパスワードを使用します。", App.AssemblyName.Name, MessageBoxButton.OKCancel, MessageBoxImage.Information) == MessageBoxResult.OK && PasswordManager.TryLoadPassword(settings, out var pass))
-                            password.Password = pass;
-                        else
-                            goto case MessageBoxResult.Cancel;
-                        break;
-                    case MessageBoxResult.Cancel:
-                        ButtonsIsEnabled = true;
-                        return;
+                    MessageBoxResult changePassword = MessageBox.Show("前回のパスワードと異なります。\nパスワードを変更しますか？\n\n※パスワードを変更する場合、既存のバックアップやデータベースを削除し、\n　再度初めからバックアップし直すことをおすすめします。\n　異なるパスワードでバックアップされたファイルが共存する場合、\n　復元が難しくなります。", $"{App.AssemblyName.Name} - パスワード変更の確認", MessageBoxButton.YesNoCancel);
+                    switch (changePassword)
+                    {
+                        case MessageBoxResult.Yes:
+                            // TODO: パスワード確認入力ウィンドウを出す
+                            Logger.Info("パスワードを更新");
+                            PasswordManager.SavePassword(settings, password.Password);
+                            DeleteDatabase();
+                            break;
+                        case MessageBoxResult.No:
+                            if (MessageBox.Show("前回のパスワードを使用します。", App.AssemblyName.Name, MessageBoxButton.OKCancel, MessageBoxImage.Information) == MessageBoxResult.OK && PasswordManager.TryLoadPassword(settings, out var pass))
+                                password.Password = pass;
+                            else
+                                goto case MessageBoxResult.Cancel;
+                            break;
+                        case MessageBoxResult.Cancel:
+                            ButtonsIsEnabled = true;
+                            return;
+                    }
                 }
-            }
-            else if (!string.IsNullOrWhiteSpace(password.Password))
-            {
-                // TODO: パスワード確認入力ウィンドウを出す
+                else if (!string.IsNullOrWhiteSpace(password.Password))
+                {
+                    // TODO: パスワード確認入力ウィンドウを出す
+                    PasswordManager.SavePassword(settings, password.Password);
+                }
             }
             message.Text = $"'{originPath.Text.Trim()}' => '{destPath.Text.Trim()}'";
             message.Text += $"\nバックアップ開始: {DateTime.Now}\n";
