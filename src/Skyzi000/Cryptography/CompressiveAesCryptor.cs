@@ -48,14 +48,14 @@ namespace Skyzi000.Cryptography
 
         public void EncryptFile(string inputPath, string outputPath)
         {
-            using var infs = new FileStream(inputPath, FileMode.Open, FileAccess.Read);
+            using var infs = new FileStream(inputPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
             using var outfs = new FileStream(outputPath, FileMode.Create, FileAccess.ReadWrite);
             EncryptStream(infs, outfs);
         }
 
         public void DecryptFile(string inputPath, string outputPath)
         {
-            using var infs = new FileStream(inputPath, FileMode.Open, FileAccess.Read);
+            using var infs = new FileStream(inputPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
             using var outfs = new FileStream(outputPath, FileMode.Create, FileAccess.ReadWrite);
             DecryptStream(infs, outfs);
         }
