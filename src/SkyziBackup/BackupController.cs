@@ -942,7 +942,7 @@ namespace SkyziBackup
                 Logger.Warn(Results.Message = $"生データの比較にはデータベースを利用できません。直接比較します。'{originFilePath}' = '{destFilePath}'");
                 int originByte;
                 int destByte;
-                using FileStream? originStream = originFileInfo?.OpenRead() ?? new FileStream(originFilePath, FileMode.Open, FileAccess.Read);
+                using FileStream? originStream = originFileInfo?.OpenRead() ?? new FileStream(originFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
                 using var destStream = new FileStream(destFilePath, FileMode.Open, FileAccess.Read);
                 do
                 {
@@ -1046,7 +1046,7 @@ namespace SkyziBackup
                 Logger.Debug(Results.Message = $"生データの比較: '{originFilePath}' = '{destFilePath}'");
                 int originByte;
                 int destByte;
-                using FileStream? originStream = originFileInfo?.OpenRead() ?? new FileStream(originFilePath, FileMode.Open, FileAccess.Read);
+                using FileStream? originStream = originFileInfo?.OpenRead() ?? new FileStream(originFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
                 using FileStream? destStream = destFileInfo?.OpenRead() ?? new FileStream(destFilePath, FileMode.Open, FileAccess.Read);
                 do
                 {
@@ -1109,7 +1109,7 @@ namespace SkyziBackup
                 else
                 {
                     // 暗号化しないでバックアップ
-                    using (var origin = new FileStream(originFilePath, FileMode.Open, FileAccess.Read))
+                    using (var origin = new FileStream(originFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
                     using (var dest = new FileStream(destFilePath, FileMode.Create, FileAccess.ReadWrite))
                     {
                         origin.CopyWithCompressionTo(dest, Settings.CompressionLevel, CompressionMode.Compress, Settings.CompressAlgorithm);
@@ -1283,7 +1283,6 @@ namespace SkyziBackup
             {
                 if (disposing)
                 {
-                    CTS?.Cancel();
                     CTS?.Dispose();
                     AesCryptor?.Dispose();
                     Database?.Dispose();
