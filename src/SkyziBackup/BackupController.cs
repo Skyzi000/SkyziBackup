@@ -1283,7 +1283,6 @@ namespace SkyziBackup
             {
                 if (disposing)
                 {
-                    CTS?.Cancel();
                     CTS?.Dispose();
                     AesCryptor?.Dispose();
                     Database?.Dispose();
