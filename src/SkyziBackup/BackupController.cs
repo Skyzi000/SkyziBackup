@@ -166,18 +166,32 @@ namespace SkyziBackup
 
             try
             {
+                // ディレクトリの処理
                 if (Settings.IsUseDatabase && Database != null)
-                    Database.BackedUpDirectoriesDict = await Task.Run(() => CopyDirectoryStructure(originBaseDirPath, destBaseDirPath, Results, Settings.IsCopyAttributes, Settings.Regices, Database.BackedUpDirectoriesDict), cToken).ConfigureAwait(false);
+                    Database.BackedUpDirectoriesDict = await Task
+                        .Run(
+                            () => CopyDirectoryStructure(originBaseDirPath, destBaseDirPath, Results,
+                                Settings.IsCopyAttributes, Settings.Regices, Database.BackedUpDirectoriesDict), cToken)
+                        .ConfigureAwait(false) ?? throw new InvalidOperationException();
                 else
-                    _ = await Task.Run(() => CopyDirectoryStructure(originBaseDirPath, destBaseDirPath, Results, Settings.IsCopyAttributes, Settings.Regices), cToken).ConfigureAwait(false);
+                    _ = await Task
+                        .Run(
+                            () => CopyDirectoryStructure(originBaseDirPath, destBaseDirPath, Results,
+                                Settings.IsCopyAttributes, Settings.Regices), cToken)
+                        .ConfigureAwait(false);
+
                 // ファイルの処理
                 await Task.Run(async () =>
                 {
-                    foreach (var originFilePath in EnumerateAllFilesIgnoreReparsePoints(originBaseDirPath, Settings.Regices))
+                    foreach (var originFilePath in Settings.SymbolicLink == SymbolicLinkHandling.IgnoreAll
+                        ? EnumerateAllFilesIgnoreReparsePoints(originBaseDirPath, Settings.Regices)
+                        : EnumerateAllFiles(originBaseDirPath, Settings.Regices))
                     {
                         var destFilePath = originFilePath.Replace(originBaseDirPath, destBaseDirPath);
                         // 除外パターンと一致せず、バックアップ済みファイルと一致しないファイルをバックアップする
-                        if (!IsIgnoredFile(originFilePath) && !(Settings.IsUseDatabase ? IsUnchangedFileOnDatabase(originFilePath, destFilePath) : IsUnchangedFileWithoutDatabase(originFilePath, destFilePath)))
+                        if (!IsIgnoredFile(originFilePath) && !(Settings.IsUseDatabase
+                            ? IsUnchangedFileOnDatabase(originFilePath, destFilePath)
+                            : IsUnchangedFileWithoutDatabase(originFilePath, destFilePath)))
                             await Task.Run(() => BackupFile(originFilePath, destFilePath), cToken).ConfigureAwait(false);
                     }
                 }, cToken).ConfigureAwait(false);
@@ -252,7 +266,7 @@ namespace SkyziBackup
             }
             else // データベースを使わない
             {
-                foreach (var destDirPath in Settings.SymbolicLink == SymbolicLinkHandling.IgnoreOnlyDirectories || Settings.SymbolicLink == SymbolicLinkHandling.IgnoreAll
+                foreach (var destDirPath in Settings.SymbolicLink is SymbolicLinkHandling.IgnoreOnlyDirectories or SymbolicLinkHandling.IgnoreAll
                     ? EnumerateAllDirectoriesIgnoreReparsePoints(destBaseDirPath, Settings.Regices)
                     : EnumerateAllDirectories(destBaseDirPath, Settings.Regices))
                 {
@@ -341,7 +355,7 @@ namespace SkyziBackup
             }
             else // データベースを使わない
             {
-                foreach (var destFilePath in Settings.SymbolicLink == SymbolicLinkHandling.IgnoreOnlyDirectories || Settings.SymbolicLink == SymbolicLinkHandling.IgnoreAll
+                foreach (var destFilePath in Settings.SymbolicLink is SymbolicLinkHandling.IgnoreOnlyDirectories or SymbolicLinkHandling.IgnoreAll
                     ? EnumerateAllFilesIgnoreReparsePoints(destBaseDirPath, Settings.Regices)
                     : EnumerateAllFiles(destBaseDirPath, Settings.Regices))
                 {
@@ -415,7 +429,7 @@ namespace SkyziBackup
                  {
                      return EnumerateAllFilesIgnoreReparsePoints(s);
                  }
-                 catch (Exception e) when (e is UnauthorizedAccessException || e is DirectoryNotFoundException)
+                 catch (Exception e) when (e is UnauthorizedAccessException or DirectoryNotFoundException)
                  {
                      Logger.Error(e, "'{0}'の列挙に失敗", s);
                      return Enumerable.Empty<string>();
@@ -433,7 +447,7 @@ namespace SkyziBackup
                      {
                          return EnumerateAllFilesIgnoreReparsePoints(s);
                      }
-                     catch (Exception e) when (e is UnauthorizedAccessException || e is DirectoryNotFoundException)
+                     catch (Exception e) when (e is UnauthorizedAccessException or DirectoryNotFoundException)
                      {
                          Logger.Error(e, "'{0}'の列挙に失敗", s);
                          return Enumerable.Empty<string>();
@@ -454,7 +468,7 @@ namespace SkyziBackup
                     {
                         return EnumerateAllFilesIgnoreReparsePoints(s, ignoreDirectoryRegices, matchingStartIndex);
                     }
-                    catch (Exception e) when (e is UnauthorizedAccessException || e is DirectoryNotFoundException)
+                    catch (Exception e) when (e is UnauthorizedAccessException or DirectoryNotFoundException)
                     {
                         Logger.Error(e, "'{0}'の列挙に失敗", s);
                         return Enumerable.Empty<string>();
@@ -471,7 +485,7 @@ namespace SkyziBackup
                     {
                         return EnumerateAllDirectoriesIgnoreReparsePoints(s);
                     }
-                    catch (Exception e) when (e is UnauthorizedAccessException || e is DirectoryNotFoundException)
+                    catch (Exception e) when (e is UnauthorizedAccessException or DirectoryNotFoundException)
                     {
                         Logger.Error(e, "'{0}'の列挙に失敗", s);
                         return Enumerable.Empty<string>();
@@ -490,7 +504,7 @@ namespace SkyziBackup
                         {
                             return EnumerateAllDirectoriesIgnoreReparsePoints(s);
                         }
-                        catch (Exception e) when (e is UnauthorizedAccessException || e is DirectoryNotFoundException)
+                        catch (Exception e) when (e is UnauthorizedAccessException or DirectoryNotFoundException)
                         {
                             Logger.Error(e, "'{0}'の列挙に失敗", s);
                             return Enumerable.Empty<string>();
@@ -512,7 +526,7 @@ namespace SkyziBackup
                     {
                         return EnumerateAllDirectoriesIgnoreReparsePoints(s, ignoreDirectoryRegices, matchingStartIndex);
                     }
-                    catch (Exception e) when (e is UnauthorizedAccessException || e is DirectoryNotFoundException)
+                    catch (Exception e) when (e is UnauthorizedAccessException or DirectoryNotFoundException)
                     {
                         Logger.Error(e, "'{0}'の列挙に失敗", s);
                         return Enumerable.Empty<string>();
@@ -533,7 +547,7 @@ namespace SkyziBackup
                      Logger.Error(e, "シンボリックリンク(リパースポイント)がループしている可能性があります。");
                      throw;
                  }
-                 catch (Exception e) when (e is UnauthorizedAccessException || e is DirectoryNotFoundException)
+                 catch (Exception e) when (e is UnauthorizedAccessException or DirectoryNotFoundException)
                  {
                      Logger.Error(e, "'{0}'の列挙に失敗", s);
                      return Enumerable.Empty<string>();
@@ -556,7 +570,7 @@ namespace SkyziBackup
                          Logger.Error(e, "シンボリックリンク(リパースポイント)がループしている可能性があります。");
                          throw;
                      }
-                     catch (Exception e) when (e is UnauthorizedAccessException || e is DirectoryNotFoundException)
+                     catch (Exception e) when (e is UnauthorizedAccessException or DirectoryNotFoundException)
                      {
                          Logger.Error(e, "'{0}'の列挙に失敗", s);
                          return Enumerable.Empty<string>();
@@ -582,7 +596,7 @@ namespace SkyziBackup
                         Logger.Error(e, "シンボリックリンク(リパースポイント)がループしている可能性があります。");
                         throw;
                     }
-                    catch (Exception e) when (e is UnauthorizedAccessException || e is DirectoryNotFoundException)
+                    catch (Exception e) when (e is UnauthorizedAccessException or DirectoryNotFoundException)
                     {
                         Logger.Error(e, "'{0}'の列挙に失敗", s);
                         return Enumerable.Empty<string>();
@@ -604,7 +618,7 @@ namespace SkyziBackup
                         Logger.Error(e, "シンボリックリンク(リパースポイント)がループしている可能性があります。");
                         throw;
                     }
-                    catch (Exception e) when (e is UnauthorizedAccessException || e is DirectoryNotFoundException)
+                    catch (Exception e) when (e is UnauthorizedAccessException or DirectoryNotFoundException)
                     {
                         Logger.Error(e, "'{0}'の列挙に失敗", s);
                         return Enumerable.Empty<string>();
@@ -628,7 +642,7 @@ namespace SkyziBackup
                             Logger.Error(e, "シンボリックリンク(リパースポイント)がループしている可能性があります。");
                             throw;
                         }
-                        catch (Exception e) when (e is UnauthorizedAccessException || e is DirectoryNotFoundException)
+                        catch (Exception e) when (e is UnauthorizedAccessException or DirectoryNotFoundException)
                         {
                             Logger.Error(e, "'{0}'の列挙に失敗", s);
                             return Enumerable.Empty<string>();
@@ -655,7 +669,7 @@ namespace SkyziBackup
                         Logger.Error(e, "シンボリックリンク(リパースポイント)がループしている可能性があります。");
                         throw;
                     }
-                    catch (Exception e) when (e is UnauthorizedAccessException || e is DirectoryNotFoundException)
+                    catch (Exception e) when (e is UnauthorizedAccessException or DirectoryNotFoundException)
                     {
                         Logger.Error(e, "'{0}'の列挙に失敗", s);
                         return Enumerable.Empty<string>();
@@ -663,7 +677,7 @@ namespace SkyziBackup
                 }));
         }
 
-        // TODO: これをstaticにしたのは完全に失敗。RestoreControllerのも共にインスタンスメソッドに書き直す。
+        // TODO: これをstaticにしたのは失敗と思われる。RestoreControllerのとは共通化せず、それぞれインスタンスメソッドに書き直す。
         [return: NotNullIfNotNull("backedUpDirectoriesDict")]
         public Dictionary<string, BackedUpDirectoryData>? CopyDirectoryStructure(string sourceBaseDirPath,
                                                                                  string destBaseDirPath,
@@ -681,27 +695,21 @@ namespace SkyziBackup
                 throw new ArgumentNullException(nameof(backedUpDirectoriesDict));
             }
             Logger.Info(results.Message = $"ディレクトリ構造をコピー");
-            foreach (var originDirPath in symbolicLink == SymbolicLinkHandling.IgnoreOnlyDirectories || symbolicLink == SymbolicLinkHandling.IgnoreAll
+            return (symbolicLink is SymbolicLinkHandling.IgnoreOnlyDirectories or SymbolicLinkHandling.IgnoreAll
                 ? EnumerateAllDirectoriesIgnoreReparsePoints(sourceBaseDirPath, regices)
-                : EnumerateAllDirectories(sourceBaseDirPath, regices))
-            {
-                backedUpDirectoriesDict = CopyDirectory(originDirPath: originDirPath,
-                                                        sourceBaseDirPath: sourceBaseDirPath,
-                                                        destBaseDirPath: destBaseDirPath,
-                                                        results: results,
-                                                        isCopyAttributes: isCopyAttributes,
-                                                        backedUpDirectoriesDict: backedUpDirectoriesDict,
-                                                        isForceCreateDirectoryAndReturnDictionary: isForceCreateDirectoryAndReturnDictionary,
-                                                        isRestoreAttributesFromDatabase: isRestoreAttributesFromDatabase,
-                                                        versioning: versioning);
-            }
-            return backedUpDirectoriesDict;
+                : EnumerateAllDirectories(sourceBaseDirPath, regices)).Aggregate(backedUpDirectoriesDict,
+                (current, originDirPath) => CopyDirectory(originDirPath: originDirPath,
+                    sourceBaseDirPath: sourceBaseDirPath, destBaseDirPath: destBaseDirPath, results: results,
+                    isCopyAttributes: isCopyAttributes, backedUpDirectoriesDict: current,
+                    isForceCreateDirectoryAndReturnDictionary: isForceCreateDirectoryAndReturnDictionary,
+                    isRestoreAttributesFromDatabase: isRestoreAttributesFromDatabase,
+                    symbolicLinkHandling: symbolicLink, versioning: versioning));
         }
         public static void CopyReparsePoint(string sourcePath, string destPath, bool overwrite = false)
         {
             // TODO: ネイティブAPIを利用するようにする
-            const string JUNCTION = "Junction";
-            const string SYMBOLICLINK = "SymbolicLink";
+            const string junction = "Junction";
+            const string symbolicLink = "SymbolicLink";
             var powershell = "powershell.exe";
             var getItemArg = "Get-ItemProperty ";
             var startInfo = new ProcessStartInfo(powershell, getItemArg + sourcePath + @" | Select-Object -ExpandProperty LinkType")
@@ -714,7 +722,7 @@ namespace SkyziBackup
             };
             var linkType = RunProcess(startInfo);
             startInfo.Arguments = getItemArg + sourcePath + @" | Select-Object -ExpandProperty Target";
-            if (linkType == JUNCTION || linkType == SYMBOLICLINK)
+            if (linkType is junction or symbolicLink)
             {
                 var target = RunProcess(startInfo);
                 if (string.IsNullOrEmpty(target)) throw new IOException($"'{sourcePath}'のTargetを取得できません。");
@@ -1090,7 +1098,7 @@ namespace SkyziBackup
                     {
                         DeleteFile(destFilePath);
                     }
-                    catch (Exception e) when (e is NullReferenceException || e is InvalidOperationException)
+                    catch (Exception e) when (e is NullReferenceException or InvalidOperationException)
                     {
                         Logger.Warn(e, Results.Message = $"バージョン管理設定が正しくありません。");
                         throw;
