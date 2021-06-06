@@ -184,7 +184,7 @@ namespace SkyziBackup
                 // ファイルの処理
                 await Task.Run(async () =>
                 {
-                    foreach (var originFilePath in Settings.SymbolicLink == SymbolicLinkHandling.IgnoreAll
+                    foreach (var originFilePath in Settings.SymbolicLink is SymbolicLinkHandling.IgnoreAll or SymbolicLinkHandling.IgnoreOnlyDirectories
                         ? EnumerateAllFilesIgnoreReparsePoints(originBaseDirPath, Settings.Regices)
                         : EnumerateAllFiles(originBaseDirPath, Settings.Regices))
                     {
