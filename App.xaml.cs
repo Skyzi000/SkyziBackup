@@ -168,13 +168,16 @@ namespace SkyziBackup
 
         private void Exit_Click(object? sender, EventArgs e) => Quit();
 
-        protected override void OnSessionEnding(SessionEndingCancelEventArgs e)
+        protected override async void OnSessionEnding(SessionEndingCancelEventArgs e)
         {
             base.OnSessionEnding(e);
-            if (!AcceptExit())
-            {
-                e.Cancel = true;
-            }
+            if (!BackupManager.IsRunning) return;
+            e.Cancel = true;
+            NotifyIcon.Text = $"{AssemblyName.Name} - バックアップを中断しています";
+            Logger.Warn("バックアップを中断します: (セッションの終了)\n=============================\n\n");
+            await BackupManager.CancelAllAsync();
+            NotifyIcon.Text = AssemblyName.Name;
+            e.Cancel = false;
         }
 
         protected override async void OnExit(ExitEventArgs e)
