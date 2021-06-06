@@ -840,9 +840,9 @@ namespace SkyziBackup
         }
 
         /// <summary>
-        /// 読み取り専用属性を持っていないとデータベースに記録されているファイルかどうか。
+        /// 指定の属性を持っていないとデータベースに記録されているファイルかどうか。
         /// </summary>
-        /// <returns>前回のバックアップ時に読み取り専用属性がなかった場合 true, 対象のファイルが読み取り専用属性を持っていたり、データが無い場合は false</returns>
+        /// <returns>前回のバックアップ時に指定の属性がなかった場合 true, 対象のファイルが指定の属性を持っていたり、データが無い場合は false</returns>
         private bool IsNotAttributesInDatabase(string originFilePath, FileAttributes fileAttributes)
         {
             if (Database is null)
@@ -856,7 +856,7 @@ namespace SkyziBackup
             Logger.Info(Results.Message = $"ファイルをバックアップ: '{originFilePath}' => '{destFilePath}'");
             try
             {
-                Directory.CreateDirectory(Path.GetDirectoryName(destFilePath) ?? throw new ArgumentException(nameof(destFilePath)));
+                Directory.CreateDirectory(Path.GetDirectoryName(destFilePath) ?? throw new ArgumentException("ディレクトリ名を取得できません。", nameof(destFilePath)));
                 if (Settings.IsOverwriteReadonly)
                 {
                     RemoveReadonlyAttribute(originFilePath, destFilePath);
