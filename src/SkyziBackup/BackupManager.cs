@@ -13,9 +13,9 @@ namespace SkyziBackup
 {
     public static class BackupManager
     {
-        public static bool IsRunning => runningBackups.Any();
+        public static bool IsRunning => RunningBackups.Any();
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
-        private static Dictionary<(string, string), BackupController> runningBackups = new Dictionary<(string, string), BackupController>();
+        private static readonly Dictionary<(string, string), BackupController> RunningBackups = new();
         private static readonly HashAlgorithm SHA1Provider = new SHA1CryptoServiceProvider();
 
         public static async Task<BackupResults?> StartBackupAsync(string originPath, string destPath, string? password = null, BackupSettings? settings = null)
@@ -27,16 +27,17 @@ namespace SkyziBackup
         {
             BackupResults? result = null;
             Semaphore? semaphore = null;
+            var createdNew = true;
             try
             {
-                semaphore = new Semaphore(1, 1, App.AssemblyName.Name + ComputeStringSHA1(backup.originBaseDirPath + backup.destBaseDirPath), out var createdNew);
+                semaphore = new Semaphore(1, 1, App.AssemblyName.Name + ComputeStringSHA1(backup.originBaseDirPath + backup.destBaseDirPath), out createdNew);
                 if (!createdNew)
                 {
                     string m;
                     Logger.Info(m = $"バックアップ('{backup.originBaseDirPath}' => '{backup.destBaseDirPath}')の開始をキャンセル: 既に別のプロセスによって実行中です。");
                     return new BackupResults(true, false, m);
                 }
-                runningBackups.Add((backup.originBaseDirPath, backup.destBaseDirPath), backup);
+                RunningBackups.Add((backup.originBaseDirPath, backup.destBaseDirPath), backup);
                 App.NotifyIcon.Text = IsRunning ? $"{App.AssemblyName.Name} - バックアップ中" : App.AssemblyName.Name;
                 result = await backup.StartBackupAsync();
                 if (!result.isSuccess)
@@ -46,8 +47,9 @@ namespace SkyziBackup
             finally
             {
                 semaphore?.Dispose();
-                runningBackups.Remove((backup.originBaseDirPath, backup.destBaseDirPath));
-                backup?.Dispose();
+                RunningBackups.Remove((backup.originBaseDirPath, backup.destBaseDirPath));
+                if(createdNew)
+                    backup.Dispose();
                 App.NotifyIcon.Text = IsRunning ? $"{App.AssemblyName.Name} - バックアップ中" : App.AssemblyName.Name;
                 GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
                 GC.Collect(2);
@@ -56,13 +58,13 @@ namespace SkyziBackup
         }
         public static async Task CancelAllAsync()
         {
-            await Task.WhenAll(runningBackups.Values.Select(b => b.CancelAsync()).ToArray());
-            runningBackups.Values.ToList().ForEach(b => b.Dispose());
-            runningBackups.Clear();
+            await Task.WhenAll(RunningBackups.Values.Select(b => b.CancelAsync()).ToArray());
+            RunningBackups.Values.ToList().ForEach(b => b.Dispose());
+            RunningBackups.Clear();
         }
 
-        public static BackupController? GetBackupIfRunning(string originPath, string destPath) => runningBackups.TryGetValue((originPath, destPath), out BackupController? backupDirectory) ? backupDirectory : null;
-        public static BackupController[] GetRunningBackups() => runningBackups.Values.ToArray();
+        public static BackupController? GetBackupIfRunning(string originPath, string destPath) => RunningBackups.TryGetValue((originPath, destPath), out BackupController? backupDirectory) ? backupDirectory : null;
+        public static BackupController[] GetRunningBackups() => RunningBackups.Values.ToArray();
         public static string ComputeFileSHA1(string filePath)
         {
             using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
