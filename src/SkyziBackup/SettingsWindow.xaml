@@ -168,7 +168,7 @@
                                     <ComboBoxItem DataContext="IgnoreOnlyDirectories" Content="ディレクトリのみ無視する" ToolTip="ディレクトリのリパースポイントは無視し、ファイルのシンボリックリンクはターゲットの実体をバックアップします。(デフォルト動作)" />
                                     <ComboBoxItem DataContext="IgnoreAll" Content="全て無視する" ToolTip="リパースポイントはディレクトリだろうとファイルだろうと無視します。すべてのファイルはリパースポイントでないかをチェックされます。" />
                                     <ComboBoxItem DataContext="Follow" Content="フォローする" ToolTip="ターゲットの実体をバックアップします。無限ループに陥る可能性があるので注意してください。"/>
-                                    <ComboBoxItem DataContext="Direct" Content="直接コピーする(非推奨・アルファ版)" ToolTip="ジャンクションやシンボリックリンクを出来る限りバックアップ先に再現します。設定によってはバックアップ先に作成されたリンクを削除する際にターゲットの実体が削除される恐れがあり危険です。また、管理者権限が必要かもしれません。"/>
+                                    <ComboBoxItem DataContext="Direct" IsEnabled="False" Content="直接コピーする(非推奨・未実装)" ToolTip="ジャンクションやシンボリックリンクを出来る限りバックアップ先に再現します。設定によってはバックアップ先に作成されたリンクを削除する際にターゲットの実体が削除される恐れがあり危険です。また、管理者権限が必要かもしれません。"/>
                                 </ComboBox>
                                 <CheckBox x:Name="IsCancelableBox" Content="キャンセル可能(推奨)" IsChecked="True" />
                             </StackPanel>
