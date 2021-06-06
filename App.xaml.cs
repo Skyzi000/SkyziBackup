@@ -86,8 +86,10 @@ namespace SkyziBackup
                 {
                     BackupSettings? settings = BackupSettings.LoadLocalSettings(originPath, destPath) ??
                                                BackupSettings.Default;
-                    _ = await BackupManager.StartBackupAsync(originPath, destPath,
+                    using BackupResults? results = await BackupManager.StartBackupAsync(originPath, destPath,
                         settings.IsRecordPassword ? settings.GetRawPassword() : null, settings);
+                    if (results is {isSuccess: false})
+                        await Task.Delay(10000);
                 }
                 else
                 {
