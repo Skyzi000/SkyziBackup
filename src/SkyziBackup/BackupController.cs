@@ -29,6 +29,7 @@ namespace SkyziBackup
         private int currentRetryCount = 0;
         private Task<BackupDatabase>? loadBackupDatabaseTask = null;
         private bool disposedValue;
+        private static readonly string symLoopMessage = "シンボリックリンク(リパースポイント)がループしている可能性があります。";
 
         public BackupController(string originDirectoryPath, string destDirectoryPath, string? password = null, BackupSettings? settings = null)
         {
@@ -544,8 +545,8 @@ namespace SkyziBackup
                  }
                  catch (IOException e)
                  {
-                     Logger.Error(e, "シンボリックリンク(リパースポイント)がループしている可能性があります。");
-                     throw;
+                     Logger.Error(e, symLoopMessage);
+                     return Enumerable.Empty<string>();
                  }
                  catch (Exception e) when (e is UnauthorizedAccessException or DirectoryNotFoundException)
                  {
@@ -567,8 +568,8 @@ namespace SkyziBackup
                      }
                      catch (IOException e)
                      {
-                         Logger.Error(e, "シンボリックリンク(リパースポイント)がループしている可能性があります。");
-                         throw;
+                         Logger.Error(e, symLoopMessage);
+                         return Enumerable.Empty<string>();
                      }
                      catch (Exception e) when (e is UnauthorizedAccessException or DirectoryNotFoundException)
                      {
@@ -593,8 +594,8 @@ namespace SkyziBackup
                     }
                     catch (IOException e)
                     {
-                        Logger.Error(e, "シンボリックリンク(リパースポイント)がループしている可能性があります。");
-                        throw;
+                        Logger.Error(e, symLoopMessage);
+                        return Enumerable.Empty<string>();
                     }
                     catch (Exception e) when (e is UnauthorizedAccessException or DirectoryNotFoundException)
                     {
@@ -615,8 +616,8 @@ namespace SkyziBackup
                     }
                     catch (IOException e)
                     {
-                        Logger.Error(e, "シンボリックリンク(リパースポイント)がループしている可能性があります。");
-                        throw;
+                        Logger.Error(e, symLoopMessage);
+                        return Enumerable.Empty<string>();
                     }
                     catch (Exception e) when (e is UnauthorizedAccessException or DirectoryNotFoundException)
                     {
@@ -639,8 +640,8 @@ namespace SkyziBackup
                         }
                         catch (IOException e)
                         {
-                            Logger.Error(e, "シンボリックリンク(リパースポイント)がループしている可能性があります。");
-                            throw;
+                            Logger.Error(e, symLoopMessage);
+                            return Enumerable.Empty<string>();
                         }
                         catch (Exception e) when (e is UnauthorizedAccessException or DirectoryNotFoundException)
                         {
@@ -666,8 +667,8 @@ namespace SkyziBackup
                     }
                     catch (IOException e)
                     {
-                        Logger.Error(e, "シンボリックリンク(リパースポイント)がループしている可能性があります。");
-                        throw;
+                        Logger.Error(e, symLoopMessage);
+                        return Enumerable.Empty<string>();
                     }
                     catch (Exception e) when (e is UnauthorizedAccessException or DirectoryNotFoundException)
                     {
