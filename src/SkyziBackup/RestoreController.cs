@@ -7,6 +7,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using static Skyzi000.IO.FileSystem;
 
 namespace SkyziBackup
 {
@@ -106,7 +107,7 @@ namespace SkyziBackup
                                                         backedUpDirectoriesDict: Database?.BackedUpDirectoriesDict,
                                                         isRestoreAttributesFromDatabase: isRestoreAttributesFromDatabase);
 
-            foreach (var originFilePath in BackupController.EnumerateAllFilesIgnoreReparsePoints(sourceBaseDirPath))
+            foreach (var originFilePath in EnumerateAllFilesIgnoreReparsePoints(sourceBaseDirPath))
             {
                 var destFilePath = originFilePath.Replace(sourceBaseDirPath, destBaseDirPath);
                 RestoreFile(originFilePath, destFilePath);
@@ -308,7 +309,7 @@ namespace SkyziBackup
             }
             else
             {
-                foreach (var originDirPath in BackupController.EnumerateAllDirectoriesIgnoreReparsePoints(sourceBaseDirPath))
+                foreach (var originDirPath in EnumerateAllDirectoriesIgnoreReparsePoints(sourceBaseDirPath))
                 {
                     var destDirPath = originDirPath.Replace(sourceBaseDirPath, destBaseDirPath);
                     if (!Directory.Exists(destDirPath))
@@ -352,7 +353,7 @@ namespace SkyziBackup
                         Results.failedFiles.Add(originDirPath);
                     }
                 }
-                foreach (var originFilePath in BackupController.EnumerateAllFilesIgnoreReparsePoints(sourceBaseDirPath))
+                foreach (var originFilePath in EnumerateAllFilesIgnoreReparsePoints(sourceBaseDirPath))
                 {
                     var destFilePath = originFilePath.Replace(sourceBaseDirPath, destBaseDirPath);
                     if (!File.Exists(destFilePath))
@@ -387,7 +388,7 @@ namespace SkyziBackup
         }
 
         [return: NotNullIfNotNull("backedUpDirectoriesDict")]
-        public Dictionary<string, BackedUpDirectoryData>? CopyDirectoryStructure(string sourceBaseDirPath,
+        public static Dictionary<string, BackedUpDirectoryData>? CopyDirectoryStructure(string sourceBaseDirPath,
                                                                                  string destBaseDirPath,
                                                                                  BackupResults results,
                                                                                  bool isCopyAttributes = true,
@@ -412,24 +413,18 @@ namespace SkyziBackup
                 throw new ArgumentNullException(nameof(backedUpDirectoriesDict));
             }
             Logger.Info(results.Message = $"ディレクトリ構造をコピー");
-            foreach (var originDirPath in symbolicLink == SymbolicLinkHandling.IgnoreOnlyDirectories || symbolicLink == SymbolicLinkHandling.IgnoreAll
-                ? BackupController.EnumerateAllDirectoriesIgnoreReparsePoints(sourceBaseDirPath)
-                : BackupController.EnumerateAllDirectories(sourceBaseDirPath))
-            {
-                backedUpDirectoriesDict = CopyDirectory(originDirPath: originDirPath,
-                                                        sourceBaseDirPath: sourceBaseDirPath,
-                                                        destBaseDirPath: destBaseDirPath,
-                                                        results: results,
-                                                        isCopyAttributes: isCopyAttributes,
-                                                        backedUpDirectoriesDict: backedUpDirectoriesDict,
-                                                        isForceCreateDirectoryAndReturnDictionary: isForceCreateDirectoryAndReturnDictionary,
-                                                        isRestoreAttributesFromDatabase: isRestoreAttributesFromDatabase,
-                                                        versioning: versioning);
-            }
-            return backedUpDirectoriesDict;
+            return (symbolicLink is SymbolicLinkHandling.IgnoreOnlyDirectories or SymbolicLinkHandling.IgnoreAll
+                ? EnumerateAllDirectoriesIgnoreReparsePoints(sourceBaseDirPath)
+                : EnumerateAllDirectories(sourceBaseDirPath)).Aggregate(backedUpDirectoriesDict,
+                (current, originDirPath) => CopyDirectory(originDirPath: originDirPath,
+                    sourceBaseDirPath: sourceBaseDirPath, destBaseDirPath: destBaseDirPath, results: results,
+                    isCopyAttributes: isCopyAttributes, backedUpDirectoriesDict: current,
+                    isForceCreateDirectoryAndReturnDictionary: isForceCreateDirectoryAndReturnDictionary,
+                    isRestoreAttributesFromDatabase: isRestoreAttributesFromDatabase,
+                    symbolicLinkHandling: symbolicLink, versioning: versioning));
         }
 
-        private Dictionary<string, BackedUpDirectoryData>? CopyDirectory(string originDirPath,
+        private static Dictionary<string, BackedUpDirectoryData>? CopyDirectory(string originDirPath,
                                                                          string sourceBaseDirPath,
                                                                          string destBaseDirPath,
                                                                          BackupResults results,
