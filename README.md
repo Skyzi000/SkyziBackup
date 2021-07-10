@@ -4,9 +4,6 @@
 ちなみに、作者は現在このソフトで4TB以上のデータを毎日バックアップしています。  
 しかしながらこのソフトは未完成であり、致命的な不具合が存在する可能性が高い点を予めご了承ください。
 
-## ダウンロード
-https://github.com/skyzi000/SkyziBackup/releases/latest
-
 ## 特徴
 - オープンソース
 - インストール不要
@@ -33,6 +30,9 @@ Windows 10 Version 1903 (64bit) 以降
 最新の.NET Desktop Runtime 5.0 (x64)がインストールされている必要があります。
 必要なランタイムは以下のページからインストールできます。
 https://dotnet.microsoft.com/download/dotnet/5.0
+
+## ダウンロード
+https://github.com/skyzi000/SkyziBackup/releases/latest
 
 ## コマンドライン引数
 ```
