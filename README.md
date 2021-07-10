@@ -29,8 +29,8 @@ https://github.com/skyzi000/SkyziBackup/releases/latest
 
 ## 動作環境
 Windows 10 Version 1903 (64bit) 以降  
-.NET 5 ランタイムがインストールされている必要があります。
-.NET 5 ランタイムはこちらからインストールできます。
+最新の.NET Desktop Runtime 5.0 (x64)がインストールされている必要があります。
+必要なランタイムはこちらからインストールできます。
 https://dotnet.microsoft.com/download/dotnet/5.0
 
 ## コマンドライン引数
