@@ -27,7 +27,7 @@
 
 ## 動作環境
 Windows 10 Version 1903 (64bit) 以降  
-最新の.NET Desktop Runtime 5.0 (x64)がインストールされている必要があります。
+最新の .NET Desktop Runtime 5.0 (x64) がインストールされている必要があります。
 必要なランタイムは以下のページからインストールできます。
 https://dotnet.microsoft.com/download/dotnet/5.0
 
