@@ -520,12 +520,13 @@ namespace SkyziBackup
                     CopyReparsePoint(originDirPath, destDirPath, versioning == VersioningMethod.PermanentDeletion);
                 }
                 // データベースのデータを使わない場合
-                else if (backedUpDirectoriesDict is null || !backedUpDirectoriesDict.TryGetValue(originDirPath, out BackedUpDirectoryData? data) || (isForceCreateDirectoryAndReturnDictionary && !isRestoreAttributesFromDatabase))
+                else if (backedUpDirectoriesDict is null || !backedUpDirectoriesDict.TryGetValue(originDirPath, out BackedUpDirectoryData? data) || (isForceCreateDirectoryAndReturnDictionary && !isRestoreAttributesFromDatabase) || originDirPath == sourceBaseDirPath)
                 {
                     var destDirPath = originDirPath.Replace(sourceBaseDirPath, destBaseDirPath);
                     Logger.Debug($"存在しなければ作成: '{destDirPath}'");
                     destDirInfo = Directory.CreateDirectory(destDirPath);
-                    if (isCopyAttributes) // originDirInfo は null ではない
+                    // ベースディレクトリは属性をコピーしない
+                    if (isCopyAttributes && originDirPath != sourceBaseDirPath) // originDirInfo は null ではない
                     {
                         Logger.Debug("ディレクトリ属性をコピー");
                         try
