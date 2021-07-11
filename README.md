@@ -1,7 +1,22 @@
-# SkyziBackup
+# ![SkyziBackup](SkyziBackup.ico)SkyziBackup
+
+[![Release](https://img.shields.io/github/v/release/Skyzi000/SkyziBackup?sort=semver)](https://github.com/Skyzi000/SkyziBackup/releases)
+[![Download](https://img.shields.io/github/downloads/Skyzi000/SkyziBackup/total)](https://github.com/Skyzi000/SkyziBackup/releases)
+[![Last Commit](https://img.shields.io/github/last-commit/Skyzi000/SkyziBackup)](https://github.com/Skyzi000/SkyziBackup/commits)
+[![Build](https://github.com/Skyzi000/SkyziBackup/actions/workflows/build.yml/badge.svg)](https://github.com/Skyzi000/SkyziBackup/actions/workflows/build.yml)
+[![LICENSE](https://img.shields.io/github/license/Skyzi000/SkyziBackup)](https://github.com/Skyzi000/SkyziBackup/blob/main/LICENSE)
+[![Twitter](https://img.shields.io/twitter/follow/skyzi000?style=social)](https://twitter.com/skyzi000)
+
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=Skyzi000_SkyziBackup&metric=alert_status)](https://sonarcloud.io/dashboard?id=Skyzi000_SkyziBackup)
+[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=Skyzi000_SkyziBackup&metric=sqale_rating)](https://sonarcloud.io/dashboard?id=Skyzi000_SkyziBackup)
+[![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=Skyzi000_SkyziBackup&metric=reliability_rating)](https://sonarcloud.io/dashboard?id=Skyzi000_SkyziBackup)
+[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=Skyzi000_SkyziBackup&metric=security_rating)](https://sonarcloud.io/dashboard?id=Skyzi000_SkyziBackup)
+[![Technical Debt](https://sonarcloud.io/api/project_badges/measure?project=Skyzi000_SkyziBackup&metric=sqale_index)](https://sonarcloud.io/dashboard?id=Skyzi000_SkyziBackup)
+[![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=Skyzi000_SkyziBackup&metric=ncloc)](https://sonarcloud.io/dashboard?id=Skyzi000_SkyziBackup)
+
+
 ファイル単位で圧縮と暗号化のできる、インストール不要の無料ファイルバックアップソフトです。  
 自分に合う無料のファイルバックアップソフトが見つからなかったので、C#の勉強もかねて自作しました。  
-実際に作者はこのソフトを使って4TB以上のデータを毎日バックアップしています。  
 しかしながらこのソフトは未完成であり、致命的な不具合が存在する可能性が高い点を予めご了承ください。
 
 ## 特徴
