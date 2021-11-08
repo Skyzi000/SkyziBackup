@@ -1,4 +1,4 @@
-# ![SkyziBackup](SkyziBackup.ico)SkyziBackup
+# ![SkyziBackup](https://raw.githubusercontent.com/Skyzi000/SkyziBackup/develop/SkyziBackup.ico)SkyziBackup
 
 [![Release](https://img.shields.io/github/v/release/Skyzi000/SkyziBackup?sort=semver)](https://github.com/Skyzi000/SkyziBackup/releases)
 [![Download](https://img.shields.io/github/downloads/Skyzi000/SkyziBackup/total)](https://github.com/Skyzi000/SkyziBackup/releases)
