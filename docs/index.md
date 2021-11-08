@@ -1,4 +1,10 @@
-# ![SkyziBackup](https://raw.githubusercontent.com/Skyzi000/SkyziBackup/develop/SkyziBackup.ico)SkyziBackup
+---
+# Feel free to add content and custom Front Matter to this file.
+# To modify the layout, see https://jekyllrb.com/docs/themes/#overriding-theme-defaults
+title: SkyziBackup
+description: ファイル単位で圧縮と暗号化のできる、インストール不要の無料ファイルバックアップソフト
+layout: default
+---
 
 [![Release](https://img.shields.io/github/v/release/Skyzi000/SkyziBackup?sort=semver)](https://github.com/Skyzi000/SkyziBackup/releases)
 [![Download](https://img.shields.io/github/downloads/Skyzi000/SkyziBackup/total)](https://github.com/Skyzi000/SkyziBackup/releases)

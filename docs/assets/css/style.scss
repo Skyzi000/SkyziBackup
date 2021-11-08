@@ -1,0 +1,19 @@
+---
+---
+
+@import "{{ site.theme }}";
+.page-header {
+  // color: #ABF4FF;
+  background-color: transparentize($color: #000000, $amount: 0.75);
+  background-image: linear-gradient(60deg, #FF45A3, #6FCCFF);
+  background-blend-mode: soft-light;
+}
+// .btn {
+//   color: rgba(0, 0, 0, 0.7);
+//   background-color: rgba(0, 0, 0, 0.08);
+//   border-color: rgba(0, 0, 0, 0.2);
+//   transition: color 0.2s, background-color 0.2s, border-color 0.2s; }
+//   .btn:hover {
+//     color: rgba(0, 0, 0, 0.8);
+//     background-color: rgba(0, 0, 0, 0.2);
+//     border-color: rgba(0, 0, 0, 0.3); }
