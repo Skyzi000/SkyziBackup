@@ -3,10 +3,17 @@
 
 @import "{{ site.theme }}";
 .page-header {
-  // color: #ABF4FF;
+  color: #fff;
   background-color: transparentize($color: #000000, $amount: 0.75);
   background-image: linear-gradient(60deg, #FF45A3, #6FCCFF);
   background-blend-mode: soft-light;
+}
+h1 a{
+  color: #fff;
+  text-decoration: none;
+}
+h1 a:hover{
+  text-decoration-color: transparentize($color: #fff, $amount: 0.7);
 }
 // .btn {
 //   color: rgba(0, 0, 0, 0.7);
