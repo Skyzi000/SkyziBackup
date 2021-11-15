@@ -44,7 +44,7 @@ namespace SkyziBackup
         /// 生データによるバイナリ比較
         /// </summary>
         /// <remarks>データベースを利用出来ず、暗号化や圧縮と併用できない点に注意</remarks>
-        FileContentsBynary = 1 << 4,
+        FileContentsBinary = 1 << 4,
     }
 
     /// <summary>

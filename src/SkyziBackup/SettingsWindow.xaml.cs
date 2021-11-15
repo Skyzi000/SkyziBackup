@@ -76,7 +76,7 @@ namespace SkyziBackup
             WriteTimeLBI.IsSelected = settings.ComparisonMethod.HasFlag(ComparisonMethod.WriteTime);
             SizeLBI.IsSelected = settings.ComparisonMethod.HasFlag(ComparisonMethod.Size);
             SHA1LBI.IsSelected = settings.ComparisonMethod.HasFlag(ComparisonMethod.FileContentsSHA1);
-            BynaryLBI.IsSelected = settings.ComparisonMethod.HasFlag(ComparisonMethod.FileContentsBynary);
+            BinaryLBI.IsSelected = settings.ComparisonMethod.HasFlag(ComparisonMethod.FileContentsBinary);
             SymbolicLinkHandlingBox.SelectedIndex = (int)settings.SymbolicLink;
             IsCancelableBox.IsChecked = settings.IsCancelable;
         }

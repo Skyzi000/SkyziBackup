@@ -676,7 +676,7 @@ namespace SkyziBackup
             }
 
             // 生データ(データベースを用いず比較)
-            if (Settings.ComparisonMethod.HasFlag(ComparisonMethod.FileContentsBynary))
+            if (Settings.ComparisonMethod.HasFlag(ComparisonMethod.FileContentsBinary))
             {
                 if (AesCryptor != null)
                 {
@@ -785,7 +785,7 @@ namespace SkyziBackup
             }
 
             // 生データ
-            if (Settings.ComparisonMethod.HasFlag(ComparisonMethod.FileContentsBynary))
+            if (Settings.ComparisonMethod.HasFlag(ComparisonMethod.FileContentsBinary))
             {
                 if (AesCryptor != null)
                 {

@@ -112,7 +112,7 @@
                                     <ListBoxItem x:Name="WriteTimeLBI" Content="更新日時" IsSelected="True" ToolTip="更新日時によって比較します。バックアップ先が古くても新しくても上書きします。" />
                                     <ListBoxItem x:Name="SizeLBI" Content="サイズ" IsSelected="True" ToolTip="ファイルサイズで比較します。暗号化や圧縮が有効な場合、データベースを利用する必要があります。" />
                                     <ListBoxItem x:Name="SHA1LBI" Content="ファイル内容(SHA1)" IsSelected="False" ToolTip="ファイル内容からSHA1を計算して比較します。この比較方法を使う場合はデータベースを利用し、ファイルサイズでの比較を併用することをおすすめします。暗号化や圧縮が有効な場合、データベースを利用する必要があります。" />
-                                    <ListBoxItem x:Name="BynaryLBI" Content="ファイル内容(Bynary)" IsSelected="False" ToolTip="1バイトずつ内容を比較します。ファイルサイズでの比較を併用することをおすすめします。この比較方法ではデータベースを利用できません。また、暗号化や圧縮が有効な場合は比較できません。" />
+                                    <ListBoxItem x:Name="BinaryLBI" Content="ファイル内容(Binary)" IsSelected="False" ToolTip="1バイトずつ内容を比較します。ファイルサイズでの比較を併用することをおすすめします。この比較方法ではデータベースを利用できません。また、暗号化や圧縮が有効な場合は比較できません。" />
                                 </ListBox>
                             </GroupBox>
                             <TextBlock>
