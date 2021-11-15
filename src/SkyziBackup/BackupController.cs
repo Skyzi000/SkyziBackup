@@ -28,7 +28,7 @@ namespace SkyziBackup
 
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         private int currentRetryCount = 0;
-        private Task<BackupDatabase>? loadBackupDatabaseTask = null;
+        private readonly Task<BackupDatabase>? loadBackupDatabaseTask = null;
         private bool disposedValue;
 
         public BackupController(string originDirectoryPath, string destDirectoryPath, string? password = null, BackupSettings? settings = null)
@@ -200,8 +200,8 @@ namespace SkyziBackup
                 // ミラーリング処理(バックアップ先ファイルの削除)
                 if (Settings.IsEnableDeletion)
                 {
-                    await Task.Run(() => DeleteFiles(), cToken).ConfigureAwait(false);
-                    await Task.Run(() => DeleteDirectories(), cToken).ConfigureAwait(false);
+                    await Task.Run(DeleteFiles, cToken).ConfigureAwait(false);
+                    await Task.Run(DeleteDirectories, cToken).ConfigureAwait(false);
                 }
 
                 // 成功判定
@@ -233,7 +233,7 @@ namespace SkyziBackup
             Results.Message = (Results.isSuccess ? "バックアップ完了: " : Results.Message + "\nバックアップ失敗: ") + DateTime.Now;
             Logger.Info("{0}\n=============================\n\n", Results.isSuccess ? "バックアップ完了" : "バックアップ失敗");
             if (Results.SaveFileName is not null)
-                await Results.SaveAsync().ConfigureAwait(false);
+                await Results.SaveAsync(cancellationToken: CancellationToken.None).ConfigureAwait(false);
             return Results;
         }
 
@@ -909,13 +909,11 @@ namespace SkyziBackup
         private bool RemoveHiddenAttribute(string filePath)
         {
             var fi = new FileInfo(filePath);
-            if (fi.Exists && fi.Attributes.HasFlag(FileAttributes.Hidden))
-            {
-                fi.Attributes = RemoveAttribute(fi.Attributes, FileAttributes.Hidden);
-                fi.Refresh();
-                return true;
-            }
-            return false;
+            if (!fi.Exists || !fi.Attributes.HasFlag(FileAttributes.Hidden))
+                return false;
+            fi.Attributes = RemoveAttribute(fi.Attributes, FileAttributes.Hidden);
+            fi.Refresh();
+            return true;
         }
 
         private void CopyFileAttributesAndUpdateDatabase(string originFilePath, string destFilePath)
@@ -1033,18 +1031,17 @@ namespace SkyziBackup
 
         protected virtual void Dispose(bool disposing)
         {
-            if (!disposedValue)
+            if (disposedValue)
+                return;
+            if (disposing)
             {
-                if (disposing)
-                {
-                    CTS?.Dispose();
-                    AesCryptor?.Dispose();
-                    Database?.Dispose();
-                    loadBackupDatabaseTask?.Dispose();
-                    // Settingsは借り物なので勝手にDisposeしない
-                }
-                disposedValue = true;
+                CTS?.Dispose();
+                AesCryptor?.Dispose();
+                Database?.Dispose();
+                loadBackupDatabaseTask?.Dispose();
+                // Settingsは借り物なので勝手にDisposeしない
             }
+            disposedValue = true;
         }
 
         public void Dispose()
