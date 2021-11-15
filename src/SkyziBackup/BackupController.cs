@@ -185,7 +185,7 @@ namespace SkyziBackup
                 await Task.Run(async () =>
                 {
                     foreach (var originFilePath in Settings.SymbolicLink is SymbolicLinkHandling.IgnoreAll or SymbolicLinkHandling.IgnoreOnlyDirectories
-                        ? EnumerateAllFilesIgnoreReparsePoints(originBaseDirPath, Settings.Regices)
+                        ? EnumerateAllFilesIgnoringReparsePoints(originBaseDirPath, Settings.Regices)
                         : EnumerateAllFiles(originBaseDirPath, Settings.Regices))
                     {
                         var destFilePath = originFilePath.Replace(originBaseDirPath, destBaseDirPath);
@@ -268,7 +268,7 @@ namespace SkyziBackup
             else // データベースを使わない
             {
                 foreach (var destDirPath in Settings.SymbolicLink is SymbolicLinkHandling.IgnoreOnlyDirectories or SymbolicLinkHandling.IgnoreAll
-                    ? EnumerateAllDirectoriesIgnoreReparsePoints(destBaseDirPath, Settings.Regices)
+                    ? EnumerateAllDirectoriesIgnoringReparsePoints(destBaseDirPath, Settings.Regices)
                     : EnumerateAllDirectories(destBaseDirPath, Settings.Regices))
                 {
                     var originDirPath = destDirPath.Replace(destBaseDirPath, originBaseDirPath);
@@ -356,7 +356,7 @@ namespace SkyziBackup
             else // データベースを使わない
             {
                 foreach (var destFilePath in Settings.SymbolicLink is SymbolicLinkHandling.IgnoreOnlyDirectories or SymbolicLinkHandling.IgnoreAll
-                    ? EnumerateAllFilesIgnoreReparsePoints(destBaseDirPath, Settings.Regices)
+                    ? EnumerateAllFilesIgnoringReparsePoints(destBaseDirPath, Settings.Regices)
                     : EnumerateAllFiles(destBaseDirPath, Settings.Regices))
                 {
                     var originFilePath = destFilePath.Replace(destBaseDirPath, originBaseDirPath);
@@ -440,7 +440,7 @@ namespace SkyziBackup
             }
             Logger.Info(results.Message = $"ディレクトリ構造をコピー");
             return (symbolicLink is SymbolicLinkHandling.IgnoreOnlyDirectories or SymbolicLinkHandling.IgnoreAll
-                ? EnumerateAllDirectoriesIgnoreReparsePoints(sourceBaseDirPath, regices)
+                ? EnumerateAllDirectoriesIgnoringReparsePoints(sourceBaseDirPath, regices)
                 : EnumerateAllDirectories(sourceBaseDirPath, regices)).Aggregate(backedUpDirectoriesDict,
                 (current, originDirPath) => CopyDirectory(originDirPath: originDirPath,
                     sourceBaseDirPath: sourceBaseDirPath, destBaseDirPath: destBaseDirPath, results: results,

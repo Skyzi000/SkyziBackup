@@ -107,7 +107,7 @@ namespace SkyziBackup
                                                         backedUpDirectoriesDict: Database?.BackedUpDirectoriesDict,
                                                         isRestoreAttributesFromDatabase: isRestoreAttributesFromDatabase);
 
-            foreach (var originFilePath in EnumerateAllFilesIgnoreReparsePoints(sourceBaseDirPath))
+            foreach (var originFilePath in EnumerateAllFilesIgnoringReparsePoints(sourceBaseDirPath))
             {
                 var destFilePath = originFilePath.Replace(sourceBaseDirPath, destBaseDirPath);
                 RestoreFile(originFilePath, destFilePath);
@@ -309,7 +309,7 @@ namespace SkyziBackup
             }
             else
             {
-                foreach (var originDirPath in EnumerateAllDirectoriesIgnoreReparsePoints(sourceBaseDirPath))
+                foreach (var originDirPath in EnumerateAllDirectoriesIgnoringReparsePoints(sourceBaseDirPath))
                 {
                     var destDirPath = originDirPath.Replace(sourceBaseDirPath, destBaseDirPath);
                     if (!Directory.Exists(destDirPath))
@@ -353,7 +353,7 @@ namespace SkyziBackup
                         Results.failedFiles.Add(originDirPath);
                     }
                 }
-                foreach (var originFilePath in EnumerateAllFilesIgnoreReparsePoints(sourceBaseDirPath))
+                foreach (var originFilePath in EnumerateAllFilesIgnoringReparsePoints(sourceBaseDirPath))
                 {
                     var destFilePath = originFilePath.Replace(sourceBaseDirPath, destBaseDirPath);
                     if (!File.Exists(destFilePath))
@@ -414,7 +414,7 @@ namespace SkyziBackup
             }
             Logger.Info(results.Message = $"ディレクトリ構造をコピー");
             return (symbolicLink is SymbolicLinkHandling.IgnoreOnlyDirectories or SymbolicLinkHandling.IgnoreAll
-                ? EnumerateAllDirectoriesIgnoreReparsePoints(sourceBaseDirPath)
+                ? EnumerateAllDirectoriesIgnoringReparsePoints(sourceBaseDirPath)
                 : EnumerateAllDirectories(sourceBaseDirPath)).Aggregate(backedUpDirectoriesDict,
                 (current, originDirPath) => CopyDirectory(originDirPath: originDirPath,
                     sourceBaseDirPath: sourceBaseDirPath, destBaseDirPath: destBaseDirPath, results: results,

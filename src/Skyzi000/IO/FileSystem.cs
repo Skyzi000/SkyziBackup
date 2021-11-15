@@ -14,13 +14,13 @@ namespace Skyzi000.IO
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         private static readonly string SymLoopMessage = "シンボリックリンク(リパースポイント)がループしている可能性があります。";
 
-        public static IEnumerable<string> EnumerateAllFilesIgnoreReparsePoints(string path) => File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint) ? Enumerable.Empty<string>() : Directory.EnumerateFiles(path)
+        public static IEnumerable<string> EnumerateAllFilesIgnoringReparsePoints(string path) => File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint) ? Enumerable.Empty<string>() : Directory.EnumerateFiles(path)
              .Union(Directory.EnumerateDirectories(path)
              .SelectMany(s =>
              {
                  try
                  {
-                     return EnumerateAllFilesIgnoreReparsePoints(s);
+                     return EnumerateAllFilesIgnoringReparsePoints(s);
                  }
                  catch (Exception e) when (e is UnauthorizedAccessException or DirectoryNotFoundException)
                  {
@@ -29,7 +29,7 @@ namespace Skyzi000.IO
                  }
              }));
 
-        public static IEnumerable<string> EnumerateAllFilesIgnoreReparsePoints(string path, IEnumerable<Regex>? ignoreDirectoryRegices, int matchingStartIndex = -1)
+        public static IEnumerable<string> EnumerateAllFilesIgnoringReparsePoints(string path, IEnumerable<Regex>? ignoreDirectoryRegices, int matchingStartIndex = -1)
         {
             if (ignoreDirectoryRegices is null)
                 return File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint) ? Enumerable.Empty<string>() : Directory.EnumerateFiles(path)
@@ -38,7 +38,7 @@ namespace Skyzi000.IO
                  {
                      try
                      {
-                         return EnumerateAllFilesIgnoreReparsePoints(s);
+                         return EnumerateAllFilesIgnoringReparsePoints(s);
                      }
                      catch (Exception e) when (e is UnauthorizedAccessException or DirectoryNotFoundException)
                      {
@@ -59,7 +59,7 @@ namespace Skyzi000.IO
                 {
                     try
                     {
-                        return EnumerateAllFilesIgnoreReparsePoints(s, ignoreDirectoryRegices, matchingStartIndex);
+                        return EnumerateAllFilesIgnoringReparsePoints(s, ignoreDirectoryRegices, matchingStartIndex);
                     }
                     catch (Exception e) when (e is UnauthorizedAccessException or DirectoryNotFoundException)
                     {
@@ -69,14 +69,14 @@ namespace Skyzi000.IO
                 }));
         }
 
-        public static IEnumerable<string> EnumerateAllDirectoriesIgnoreReparsePoints(string path) => File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint) ? Enumerable.Empty<string>() : Enumerable.Empty<string>()
+        public static IEnumerable<string> EnumerateAllDirectoriesIgnoringReparsePoints(string path) => File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint) ? Enumerable.Empty<string>() : Enumerable.Empty<string>()
                 .Append(path)
                 .Union(Directory.EnumerateDirectories(path)
                 .SelectMany(s =>
                 {
                     try
                     {
-                        return EnumerateAllDirectoriesIgnoreReparsePoints(s);
+                        return EnumerateAllDirectoriesIgnoringReparsePoints(s);
                     }
                     catch (Exception e) when (e is UnauthorizedAccessException or DirectoryNotFoundException)
                     {
@@ -85,7 +85,7 @@ namespace Skyzi000.IO
                     }
                 }));
 
-        public static IEnumerable<string> EnumerateAllDirectoriesIgnoreReparsePoints(string path, IEnumerable<Regex>? ignoreDirectoryRegices = null, int matchingStartIndex = -1)
+        public static IEnumerable<string> EnumerateAllDirectoriesIgnoringReparsePoints(string path, IEnumerable<Regex>? ignoreDirectoryRegices = null, int matchingStartIndex = -1)
         {
             if (ignoreDirectoryRegices is null)
                 return File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint) ? Enumerable.Empty<string>() : Enumerable.Empty<string>()
@@ -95,7 +95,7 @@ namespace Skyzi000.IO
                     {
                         try
                         {
-                            return EnumerateAllDirectoriesIgnoreReparsePoints(s);
+                            return EnumerateAllDirectoriesIgnoringReparsePoints(s);
                         }
                         catch (Exception e) when (e is UnauthorizedAccessException or DirectoryNotFoundException)
                         {
@@ -117,7 +117,7 @@ namespace Skyzi000.IO
                 {
                     try
                     {
-                        return EnumerateAllDirectoriesIgnoreReparsePoints(s, ignoreDirectoryRegices, matchingStartIndex);
+                        return EnumerateAllDirectoriesIgnoringReparsePoints(s, ignoreDirectoryRegices, matchingStartIndex);
                     }
                     catch (Exception e) when (e is UnauthorizedAccessException or DirectoryNotFoundException)
                     {
