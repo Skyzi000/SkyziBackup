@@ -319,20 +319,19 @@ namespace SkyziBackup
             var originDirInfo = new DirectoryInfo(originDirPath);
             Logger.Debug($"存在しなければ作成: '{destDirPath}'");
             DirectoryInfo? destDirInfo = Directory.CreateDirectory(destDirPath);
-            if (Settings.IsCopyAttributes)
+            if (!Settings.IsCopyAttributes)
+                return;
+            Logger.Debug("ディレクトリ属性をコピー");
+            try
             {
-                Logger.Debug("ディレクトリ属性をコピー");
-                try
-                {
-                    destDirInfo.CreationTime = originDirInfo.CreationTime;
-                    destDirInfo.LastWriteTime = originDirInfo.LastWriteTime;
-                }
-                catch (UnauthorizedAccessException)
-                {
-                    Logger.Warn($"'{destDirPath}'のCreationTime/LastWriteTimeを変更できません");
-                }
-                destDirInfo.Attributes = originDirInfo.Attributes;
+                destDirInfo.CreationTime = originDirInfo.CreationTime;
+                destDirInfo.LastWriteTime = originDirInfo.LastWriteTime;
             }
+            catch (UnauthorizedAccessException)
+            {
+                Logger.Warn($"'{destDirPath}'のCreationTime/LastWriteTimeを変更できません");
+            }
+            destDirInfo.Attributes = originDirInfo.Attributes;
         }
 
         private void DeleteFiles()
@@ -598,13 +597,10 @@ namespace SkyziBackup
                 if (File.GetAttributes(originFilePath).HasFlag(FileAttributes.ReparsePoint))
                     return true;
             // 除外パターンとマッチング
-            if (Settings.Regices != null)
-            {
-                var s = originFilePath[(originBaseDirPath.Length - 1)..];
-                if (Settings.Regices.Any(r => r.IsMatch(s)))
-                    return true;
-            }
-            return false;
+            if (Settings.Regices == null)
+                return false;
+            var s = originFilePath[(originBaseDirPath.Length - 1)..];
+            return Settings.Regices.Any(r => r.IsMatch(s));
         }
         /// <summary>
         /// データベースにデータが記録されている場合はバックアップ先ファイルにアクセスしない(比較に必要なデータが無い場合はアクセスしに行く)
@@ -614,8 +610,10 @@ namespace SkyziBackup
         {
             if (Database is null)
                 return IsUnchangedFileWithoutDatabase(originFilePath, destFilePath);
-            if (!Database.BackedUpFilesDict.ContainsKey(originFilePath)) return false;
-            if (Settings.ComparisonMethod == ComparisonMethod.NoComparison) return false;
+            if (!Database.BackedUpFilesDict.ContainsKey(originFilePath))
+                return false;
+            if (Settings.ComparisonMethod == ComparisonMethod.NoComparison)
+                return false;
             FileInfo? originFileInfo = null;
             BackedUpFileData destFileData = Database.BackedUpFilesDict[originFilePath];
 
@@ -893,12 +891,10 @@ namespace SkyziBackup
         private bool RemoveReadonlyAttribute(string filePath)
         {
             var fi = new FileInfo(filePath);
-            if (fi.Exists && fi.Attributes.HasFlag(FileAttributes.ReadOnly))
-            {
-                fi.Attributes = RemoveAttribute(fi.Attributes, FileAttributes.ReadOnly);
-                return true;
-            }
-            return false;
+            if (!fi.Exists || !fi.Attributes.HasFlag(FileAttributes.ReadOnly))
+                return false;
+            fi.Attributes = RemoveAttribute(fi.Attributes, FileAttributes.ReadOnly);
+            return true;
         }
         private bool RemoveHiddenAttribute(string originFilePath, string destFilePath)
         {
