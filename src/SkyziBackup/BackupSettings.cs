@@ -194,13 +194,13 @@ namespace SkyziBackup
         [JsonIgnore]
         private string? localFileName => (OriginBaseDirPath is null || DestBaseDirPath is null) ? null : GetLocalSettingsFileName(OriginBaseDirPath, DestBaseDirPath);
 
-        private HashSet<Regex>? regices;
+        private HashSet<Regex>? regexes;
 
         /// <summary>
         /// <see cref="IgnorePattern"/> を元に生成した除外用の正規表現セット
         /// </summary>
         [JsonIgnore]
-        public HashSet<Regex>? Regices { get => regices ?? (string.IsNullOrEmpty(IgnorePattern) ? null : Regices = PatternToRegices(IgnorePattern)); private set => regices = value; }
+        public HashSet<Regex>? Regexes { get => regexes ?? (string.IsNullOrEmpty(IgnorePattern) ? null : Regexes = PatternToRegices(IgnorePattern)); private set => regexes = value; }
         /// <summary>
         /// バックアップ設定のファイル名
         /// </summary>

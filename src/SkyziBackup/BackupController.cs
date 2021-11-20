@@ -172,21 +172,21 @@ namespace SkyziBackup
                     Database.BackedUpDirectoriesDict = await Task
                         .Run(
                             () => CopyDirectoryStructure(originBaseDirPath, destBaseDirPath, Results,
-                                Settings.IsCopyAttributes, Settings.Regices, Database.BackedUpDirectoriesDict), cToken)
+                                Settings.IsCopyAttributes, Settings.Regexes, Database.BackedUpDirectoriesDict), cToken)
                         .ConfigureAwait(false) ?? throw new InvalidOperationException();
                 else
                     _ = await Task
                         .Run(
                             () => CopyDirectoryStructure(originBaseDirPath, destBaseDirPath, Results,
-                                Settings.IsCopyAttributes, Settings.Regices), cToken)
+                                Settings.IsCopyAttributes, Settings.Regexes), cToken)
                         .ConfigureAwait(false);
 
                 // ファイルの処理
                 await Task.Run(async () =>
                 {
                     foreach (var originFilePath in Settings.SymbolicLink is SymbolicLinkHandling.IgnoreAll or SymbolicLinkHandling.IgnoreOnlyDirectories
-                        ? EnumerateAllFilesIgnoringReparsePoints(originBaseDirPath, Settings.Regices)
-                        : EnumerateAllFiles(originBaseDirPath, Settings.Regices))
+                        ? EnumerateAllFilesIgnoringReparsePoints(originBaseDirPath, Settings.Regexes)
+                        : EnumerateAllFiles(originBaseDirPath, Settings.Regexes))
                     {
                         var destFilePath = originFilePath.Replace(originBaseDirPath, destBaseDirPath);
                         // 除外パターンと一致せず、バックアップ済みファイルと一致しないファイルをバックアップする
@@ -268,8 +268,8 @@ namespace SkyziBackup
             else // データベースを使わない
             {
                 foreach (var destDirPath in Settings.SymbolicLink is SymbolicLinkHandling.IgnoreOnlyDirectories or SymbolicLinkHandling.IgnoreAll
-                    ? EnumerateAllDirectoriesIgnoringReparsePoints(destBaseDirPath, Settings.Regices)
-                    : EnumerateAllDirectories(destBaseDirPath, Settings.Regices))
+                    ? EnumerateAllDirectoriesIgnoringReparsePoints(destBaseDirPath, Settings.Regexes)
+                    : EnumerateAllDirectories(destBaseDirPath, Settings.Regexes))
                 {
                     var originDirPath = destDirPath.Replace(destBaseDirPath, originBaseDirPath);
                     if (Results.successfulDirectories.Contains(originDirPath) || Results.failedDirectories.Contains(originDirPath))
@@ -356,8 +356,8 @@ namespace SkyziBackup
             else // データベースを使わない
             {
                 foreach (var destFilePath in Settings.SymbolicLink is SymbolicLinkHandling.IgnoreOnlyDirectories or SymbolicLinkHandling.IgnoreAll
-                    ? EnumerateAllFilesIgnoringReparsePoints(destBaseDirPath, Settings.Regices)
-                    : EnumerateAllFiles(destBaseDirPath, Settings.Regices))
+                    ? EnumerateAllFilesIgnoringReparsePoints(destBaseDirPath, Settings.Regexes)
+                    : EnumerateAllFiles(destBaseDirPath, Settings.Regexes))
                 {
                     var originFilePath = destFilePath.Replace(destBaseDirPath, originBaseDirPath);
                     if (Results.successfulFiles.Contains(originFilePath) || Results.failedFiles.Contains(originFilePath) || (Results.unchangedFiles?.Contains(originFilePath) ?? false))
@@ -597,10 +597,10 @@ namespace SkyziBackup
                 if (File.GetAttributes(originFilePath).HasFlag(FileAttributes.ReparsePoint))
                     return true;
             // 除外パターンとマッチング
-            if (Settings.Regices == null)
+            if (Settings.Regexes == null)
                 return false;
             var s = originFilePath[(originBaseDirPath.Length - 1)..];
-            return Settings.Regices.Any(r => r.IsMatch(s));
+            return Settings.Regexes.Any(r => r.IsMatch(s));
         }
         /// <summary>
         /// データベースにデータが記録されている場合はバックアップ先ファイルにアクセスしない(比較に必要なデータが無い場合はアクセスしに行く)
