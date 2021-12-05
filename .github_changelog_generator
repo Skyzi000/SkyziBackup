@@ -1,0 +1,8 @@
+header-label=# Changelog (変更履歴)
+unreleased-label=🔜未リリース
+breaking-label=### 💥破壊的変更
+enhancement-label=### ✨機能強化
+bugs-label=### 🐞バグ修正
+issues-label=### ✔その他変更など
+pr-label=### Ⓜマージ済みのプルリクエスト
+add-sections={"documentation":{"prefix":"### 📝ドキュメントの変更","labels":["documentation"]},"dependencies":{"prefix":"### 🌐依存関係の更新"}}
