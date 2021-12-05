@@ -41,8 +41,16 @@ name: Build
 on:
   push:
     branches: [ develop ]
+    paths-ignore:
+      - "**.md"
+      - "**.yml"
+    # Publish version tags as releases.
+    tags: ["v*.*"]
   pull_request:
     types: [opened, synchronize, reopened]
+    paths-ignore:
+      - "**.md"
+      - "**.yml"
 
 jobs:
 
@@ -94,6 +102,7 @@ jobs:
         restore-keys: ${{ runner.os }}-sonar
         
     - name: Cache SonarCloud scanner
+      if: github.event_name != 'pull_request' && github.event_name != 'pull_request_target'
       id: cache-sonar-scanner
       uses: actions/cache@v1
       with:
@@ -102,7 +111,9 @@ jobs:
         restore-keys: ${{ runner.os }}-sonar-scanner
         
     - name: Install SonarCloud scanner
-      if: steps.cache-sonar-scanner.outputs.cache-hit != 'true'
+      if: |
+        steps.cache-sonar-scanner.outputs.cache-hit != 'true' &&
+        github.event_name != 'pull_request' && github.event_name != 'pull_request_target'
       shell: powershell
       run: |
         New-Item -Path .\.sonar\scanner -ItemType Directory
@@ -131,6 +142,7 @@ jobs:
 #         Configuration: ${{ matrix.configuration }}
     
     - name: Build and analyze
+      if: github.event_name != 'pull_request' && github.event_name != 'pull_request_target'
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -139,6 +151,12 @@ jobs:
         .\.sonar\scanner\dotnet-sonarscanner begin /k:"Skyzi000_SkyziBackup" /o:"skyzi000" /d:sonar.login="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io"
         dotnet publish $env:Solution_Name -r win-x64 -v n /p:Configuration=Release /p:Platform="x64" /p:PublishSingleFile=true /p:PublishReadyToRun=true /p:SelfContained=false
         .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.login="${{ secrets.SONAR_TOKEN }}"
+
+    - name: Build without analyze
+      if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
+      shell: powershell
+      run: |
+        dotnet publish $env:Solution_Name -r win-x64 -v n /p:Configuration=Release /p:Platform="x64" /p:PublishSingleFile=true /p:PublishReadyToRun=true /p:SelfContained=false
 
 #     # Remove the pfx
 #     - name: Remove the pfx
