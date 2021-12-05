@@ -95,6 +95,7 @@ jobs:
 #       run: dotnet test
 
     - name: Cache SonarCloud packages
+      if: github.event_name != 'pull_request' && github.event_name != 'pull_request_target'
       uses: actions/cache@v1
       with:
         path: ~\sonar\cache
@@ -146,17 +147,20 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        Configuration: ${{ matrix.configuration }}
       shell: powershell
       run: |
         .\.sonar\scanner\dotnet-sonarscanner begin /k:"Skyzi000_SkyziBackup" /o:"skyzi000" /d:sonar.login="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io"
-        dotnet publish $env:Solution_Name -r win-x64 -v n /p:Configuration=Release /p:Platform="x64" /p:PublishSingleFile=true /p:PublishReadyToRun=true /p:SelfContained=false
+        dotnet publish $env:Solution_Name -r win-x64 -v n /p:Configuration=$env:Configuration /p:Platform="x64" /p:PublishSingleFile=true /p:PublishReadyToRun=true /p:SelfContained=false
         .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.login="${{ secrets.SONAR_TOKEN }}"
 
     - name: Build without analyze
       if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
       shell: powershell
+      env:
+        Configuration: ${{ matrix.configuration }}
       run: |
-        dotnet publish $env:Solution_Name -r win-x64 -v n /p:Configuration=Release /p:Platform="x64" /p:PublishSingleFile=true /p:PublishReadyToRun=true /p:SelfContained=false
+        dotnet publish $env:Solution_Name -r win-x64 -v n /p:Configuration=$env:Configuration /p:Platform="x64" /p:PublishSingleFile=true /p:PublishReadyToRun=true /p:SelfContained=false
 
 #     # Remove the pfx
 #     - name: Remove the pfx
@@ -166,7 +170,7 @@ jobs:
     - name: Upload build artifacts
       uses: actions/upload-artifact@v2
       with:
-        name: win-x64 Release
-        path: bin\x64\Release\net5.0-windows10.0.18362.0\win-x64\publish\
+        name: win-x64 ${{ matrix.configuration }}
+        path: bin\x64\${{ matrix.configuration }}\net5.0-windows10.0.18362.0\win-x64\publish\
 #         name: MSIX Package
 #         path: ${{ env.Wap_Project_Directory }}\AppPackages
