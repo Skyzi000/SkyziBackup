@@ -99,18 +99,22 @@ Twitter: <https://twitter.com/skyzi000>
 
 このアプリケーションは下記のライブラリを使用しています。  
 
-ModernWPF UI Library  
+### [ModernWPF UI Library](https://github.com/Kinnara/ModernWpf)
+
 Copyright (c) 2019 Yimeng Wu  
 <https://github.com/Kinnara/ModernWpf/blob/master/LICENSE>
 
-Nerdbank.GitVersioning  
+### [Nerdbank.GitVersioning](https://github.com/dotnet/Nerdbank.GitVersioning)
+
 Copyright (c) .NET Foundation and Contributors  
 <https://github.com/dotnet/Nerdbank.GitVersioning/blob/master/LICENSE>
 
-NLog  
+### [NLog](https://github.com/NLog/NLog)
+
 Copyright (c) 2004-2021 Jaroslaw Kowalski &lt;jaak@jkowalski.net&gt;, Kim Christensen, Julian Verdurmen  
 <https://github.com/NLog/NLog/blob/master/LICENSE.txt>
 
-github-changelog-generator  
+### [github-changelog-generator](https://github.com/github-changelog-generator/github-changelog-generator)
+
 Copyright (c) 2016-2019 Petr Korolev  
 <https://github.com/github-changelog-generator/github-changelog-generator/blob/master/LICENSE>
