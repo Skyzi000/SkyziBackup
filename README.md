@@ -110,3 +110,7 @@ Copyright (c) .NET Foundation and Contributors
 NLog  
 Copyright (c) 2004-2021 Jaroslaw Kowalski &lt;jaak@jkowalski.net&gt;, Kim Christensen, Julian Verdurmen  
 <https://github.com/NLog/NLog/blob/master/LICENSE.txt>
+
+github-changelog-generator  
+Copyright (c) 2016-2019 Petr Korolev  
+<https://github.com/github-changelog-generator/github-changelog-generator/blob/master/LICENSE>
