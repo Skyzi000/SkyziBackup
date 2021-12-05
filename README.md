@@ -3,7 +3,8 @@
 [![Release](https://img.shields.io/github/v/release/Skyzi000/SkyziBackup?sort=semver)](https://github.com/Skyzi000/SkyziBackup/releases)
 [![Download](https://img.shields.io/github/downloads/Skyzi000/SkyziBackup/total)](https://github.com/Skyzi000/SkyziBackup/releases)
 [![Last Commit](https://img.shields.io/github/last-commit/Skyzi000/SkyziBackup)](https://github.com/Skyzi000/SkyziBackup/commits)
-[![Build](https://github.com/Skyzi000/SkyziBackup/actions/workflows/build.yml/badge.svg)](https://github.com/Skyzi000/SkyziBackup/actions/workflows/build.yml)
+[![Build](https://github.com/Skyzi000/SkyziBackup/actions/workflows/build.yml/badge.svg?branch=develop)](https://github.com/Skyzi000/SkyziBackup/actions/workflows/build.yml)
+[![CodeQL](https://github.com/Skyzi000/SkyziBackup/actions/workflows/codeql-analysis.yml/badge.svg?branch=develop)](https://github.com/Skyzi000/SkyziBackup/actions/workflows/codeql-analysis.yml)
 [![LICENSE](https://img.shields.io/github/license/Skyzi000/SkyziBackup)](https://github.com/Skyzi000/SkyziBackup/blob/main/LICENSE)
 [![Twitter](https://img.shields.io/twitter/follow/skyzi000?style=social)](https://twitter.com/skyzi000)
 
