@@ -1,3 +1,5 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+
 # This workflow uses actions that are not certified by GitHub.
 # They are provided by a third-party and are governed by
 # separate terms of service, privacy policy, and support
@@ -170,7 +172,7 @@ jobs:
     - name: Upload build artifacts
       uses: actions/upload-artifact@v2
       with:
-        name: win-x64 ${{ matrix.configuration }}
+        name: Win-x64-${{ matrix.configuration }}-${{ github.sha }}
         path: bin\x64\${{ matrix.configuration }}\net5.0-windows10.0.18362.0\win-x64\publish\
 #         name: MSIX Package
 #         path: ${{ env.Wap_Project_Directory }}\AppPackages
