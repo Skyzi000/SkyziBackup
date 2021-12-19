@@ -1,4 +1,4 @@
-# ![SkyziBackup](SkyziBackup.ico)SkyziBackup
+# ![SkyziBackup](https://user-images.githubusercontent.com/38061609/146688893-4a185096-a2ed-49bf-bce8-f59ec20b08ae.png)SkyziBackup
 
 [![Release](https://img.shields.io/github/v/release/Skyzi000/SkyziBackup?sort=semver)](https://github.com/Skyzi000/SkyziBackup/releases)
 [![Download](https://img.shields.io/github/downloads/Skyzi000/SkyziBackup/total)](https://github.com/Skyzi000/SkyziBackup/releases)
@@ -18,6 +18,12 @@
 ファイル単位で圧縮と暗号化のできる、インストール不要の無料ファイルバックアップソフトです。  
 自分に合う無料のファイルバックアップソフトが見つからなかったので、C#の勉強もかねて自作しました。  
 しかしながらこのソフトは未完成であり、致命的な不具合が存在する可能性が高い点を予めご了承ください。
+
+## 公式サイト
+
+公式サイトを作りました！  
+<https://skyzibackup.skyzi.jp/>  
+まだコンテンツは少ないですが、上記リンクから見ることができます。
 
 ## 特徴
 
@@ -47,7 +53,8 @@
 Windows 10 Version 1903 (64bit) 以降  
 最新の .NET Desktop Runtime 5.0 (x64) がインストールされている必要があります。  
 必要なランタイムは以下のページからインストールできます。  
-<https://dotnet.microsoft.com/download/dotnet/5.0>
+<https://dotnet.microsoft.com/download/dotnet/5.0>  
+.NET "Desktop" Runtime でないと動かないので気を付けてください！
 
 ## ダウンロード
 
@@ -84,12 +91,14 @@ PowerShellを利用して解凍することができます。
 
 ## ビルド
 
-Visual Studio 2019 最新版が必要です。  
+Visual Studio 2019 以降が必要です。  
 
 ## 連絡先
 
 Twitter: <https://twitter.com/skyzi000>  
 必ずしも対応できるとは限りません。ご了承ください。  
+
+[よくある質問ページ](https://skyzibackup.skyzi.jp/faq)もどうぞ。
 
 ## ライセンス
 
