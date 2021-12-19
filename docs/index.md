@@ -24,9 +24,10 @@ layout: default
 
 ## ページ
 
-- [スクリーンショット](./screenshots.html)
-- [マニュアル(使い方)](./manual.html)
-- [よくある質問](./faq.html)
+- [スクリーンショット](./screenshots)
+- [マニュアル(使い方)](./manual)
+- [暗号化方式について](./encryption)
+- [よくある質問](./faq)
 
 ## 特徴
 
