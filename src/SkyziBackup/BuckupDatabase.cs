@@ -19,12 +19,13 @@ namespace SkyziBackup
         public SemaphoreSlim Semaphore { get => semaphore ??= new SemaphoreSlim(1, 1); set => semaphore = value; }
         private SemaphoreSlim? semaphore;
         private bool disposedValue;
-        public virtual void StartAutoSave(double intervalMilliSeconds)
+
+        public virtual void StartAutoSave(double intervalMsec)
         {
             saveTimer?.Stop();
             saveTimer?.Dispose();
             saveTimer = null;
-            SaveTimer.Interval = intervalMilliSeconds;
+            SaveTimer.Interval = intervalMsec;
             SaveTimer.Elapsed += (s, e) =>
             {
                 if (Semaphore.CurrentCount != 0)
@@ -234,7 +235,7 @@ namespace SkyziBackup
 
         // TODO: ここ以下のデータベース関連メソッドはBackupDatabaseクラスの方に移動させる
         /// <summary>
-        /// <see cref="DatabaseFileName"/>と<see cref="GetDatabaseDirectoryName(string, string)"/>でAppDataPathからの相対ファイルパスを求める。
+        /// <see cref="BackupDatabase.FileName"/>と<see cref="GetDatabaseDirectoryName(string, string)"/>でAppDataPathからの相対ファイルパスを求める。
         /// </summary>
         /// <remarks>引数はもちろん予めTrim()したりする必要はない</remarks>
         /// <returns>AppDataPathからの相対パス</returns>

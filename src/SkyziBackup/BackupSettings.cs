@@ -200,7 +200,7 @@ namespace SkyziBackup
         /// <see cref="IgnorePattern"/> を元に生成した除外用の正規表現セット
         /// </summary>
         [JsonIgnore]
-        public HashSet<Regex>? Regexes { get => regexes ?? (string.IsNullOrEmpty(IgnorePattern) ? null : Regexes = PatternToRegices(IgnorePattern)); private set => regexes = value; }
+        public HashSet<Regex>? Regexes { get => regexes ?? (string.IsNullOrEmpty(IgnorePattern) ? null : Regexes = PatternToRegexes(IgnorePattern)); private set => regexes = value; }
         /// <summary>
         /// バックアップ設定のファイル名
         /// </summary>
@@ -346,7 +346,7 @@ namespace SkyziBackup
             DestBaseDirPath = destBaseDirPath;
             return this;
         }
-        public HashSet<Regex> PatternToRegices(string pattern)
+        public HashSet<Regex> PatternToRegexes(string pattern)
         {
             var patStrArr = pattern.Split(new[] { "\r\n", "\n", "\r", "|" }, StringSplitOptions.None);
             return new HashSet<Regex>(patStrArr.Select(ConvertToRegex));
