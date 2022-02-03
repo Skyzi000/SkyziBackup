@@ -18,7 +18,7 @@ namespace SkyziBackup
             try
             {
                 using var sr = new StreamReader(
-                    Application.GetResourceStream(new Uri("LICENSE", UriKind.Relative)).Stream,
+                    Application.GetResourceStream(new Uri("LICENSE", UriKind.Relative))?.Stream ?? throw new IOException("ResourceStream is null."),
                     Encoding.UTF8);
                 ThisLicenseBlock.Text = sr.ReadToEnd();
             }
