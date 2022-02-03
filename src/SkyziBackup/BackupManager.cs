@@ -1,5 +1,4 @@
-﻿using NLog;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -8,6 +7,8 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows.Forms;
+using NLog;
 
 namespace SkyziBackup
 {
@@ -23,6 +24,7 @@ namespace SkyziBackup
             using var bc = new BackupController(originPath, destPath, password, settings);
             return await StartBackupAsync(bc);
         }
+
         public static async Task<BackupResults?> StartBackupAsync(BackupController backup)
         {
             BackupResults? result = null;
@@ -37,25 +39,28 @@ namespace SkyziBackup
                     Logger.Info(m = $"バックアップ('{backup.originBaseDirPath}' => '{backup.destBaseDirPath}')の開始をキャンセル: 既に別のプロセスによって実行中です。");
                     return new BackupResults(true, false, m);
                 }
+
                 RunningBackups.Add((backup.originBaseDirPath, backup.destBaseDirPath), backup);
                 App.NotifyIcon.Text = IsRunning ? $"{App.AssemblyName.Name} - バックアップ中" : App.AssemblyName.Name;
                 result = await backup.StartBackupAsync();
                 if (!result.isSuccess)
-                    App.NotifyIcon.ShowBalloonTip(10000, $"{App.AssemblyName.Name} - エラー", "バックアップに失敗しました。", System.Windows.Forms.ToolTipIcon.Error);
+                    App.NotifyIcon.ShowBalloonTip(10000, $"{App.AssemblyName.Name} - エラー", "バックアップに失敗しました。", ToolTipIcon.Error);
                 result = null;
             }
             finally
             {
                 semaphore?.Dispose();
                 RunningBackups.Remove((backup.originBaseDirPath, backup.destBaseDirPath));
-                if(createdNew)
+                if (createdNew)
                     backup.Dispose();
                 App.NotifyIcon.Text = IsRunning ? $"{App.AssemblyName.Name} - バックアップ中" : App.AssemblyName.Name;
                 GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
                 GC.Collect(2);
             }
+
             return result;
         }
+
         public static async Task CancelAllAsync()
         {
             await Task.WhenAll(RunningBackups.Values.Select(b => b.CancelAsync()).ToArray());
@@ -63,8 +68,11 @@ namespace SkyziBackup
             RunningBackups.Clear();
         }
 
-        public static BackupController? GetBackupIfRunning(string originPath, string destPath) => RunningBackups.TryGetValue((originPath, destPath), out BackupController? backupDirectory) ? backupDirectory : null;
+        public static BackupController? GetBackupIfRunning(string originPath, string destPath) =>
+            RunningBackups.TryGetValue((originPath, destPath), out var backupDirectory) ? backupDirectory : null;
+
         public static BackupController[] GetRunningBackups() => RunningBackups.Values.ToArray();
+
         public static string ComputeFileSHA1(string filePath)
         {
             using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
@@ -76,6 +84,7 @@ namespace SkyziBackup
             var bs = SHA1Provider.ComputeHash(stream);
             return BitConverter.ToString(bs).ToLower().Replace("-", "");
         }
+
         public static string ComputeStringSHA1(string value) => ComputeStreamSHA1(new MemoryStream(Encoding.UTF8.GetBytes(value)));
     }
 }

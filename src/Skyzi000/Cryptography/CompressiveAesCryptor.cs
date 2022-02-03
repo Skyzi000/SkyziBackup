@@ -12,6 +12,7 @@ namespace Skyzi000.Cryptography
         Deflate,
         GZip,
     }
+
     public class CompressiveAesCryptor : IDisposable
     {
         public HashAlgorithmName HashAlgorithm { get; set; } = HashAlgorithmName.SHA256;
@@ -25,25 +26,25 @@ namespace Skyzi000.Cryptography
         public readonly int KeySize;
 
         private readonly int blockSize;
-        private byte[] password;
+        private readonly byte[] password;
         private byte[]? key;
         private readonly SymmetricAlgorithm aes;
 
         public CompressiveAesCryptor(string password,
-                                           int keySize = 256,
-                                           int iterationCount = 10000,
-                                           CipherMode cipherMode = CipherMode.CBC,
-                                           CompressionLevel compressionLevel = CompressionLevel.NoCompression,
-                                           CompressAlgorithm compressAlgorithm = CompressAlgorithm.Deflate)
+            int keySize = 256,
+            int iterationCount = 10000,
+            CipherMode cipherMode = CipherMode.CBC,
+            CompressionLevel compressionLevel = CompressionLevel.NoCompression,
+            CompressAlgorithm compressAlgorithm = CompressAlgorithm.Deflate)
         {
             this.password = Encoding.UTF8.GetBytes(password);
-            this.KeySize = (keySize is 128 or 192) ? keySize : 256;
-            this.IterationCount = iterationCount;
-            this.Mode = cipherMode;
-            this.aes = new AesCng { Mode = Mode, Padding = PaddingMode.PKCS7 };
-            this.blockSize = aes.BlockSize / 8;
-            this.CompressionLevel = compressionLevel;
-            this.CompressAlgorithm = compressAlgorithm;
+            KeySize = keySize is 128 or 192 ? keySize : 256;
+            IterationCount = iterationCount;
+            Mode = cipherMode;
+            aes = new AesCng { Mode = Mode, Padding = PaddingMode.PKCS7 };
+            blockSize = aes.BlockSize / 8;
+            CompressionLevel = compressionLevel;
+            CompressAlgorithm = compressAlgorithm;
         }
 
         public void EncryptFile(string inputPath, string outputPath)
@@ -73,31 +74,28 @@ namespace Skyzi000.Cryptography
                 switch (CompressAlgorithm)
                 {
                     case CompressAlgorithm.Deflate:
-                        {
-                            using var deflateStream = new DeflateStream(cryptoStream, CompressionLevel);
-                            input.CopyTo(deflateStream);
-                            break;
-                        }
+                    {
+                        using var deflateStream = new DeflateStream(cryptoStream, CompressionLevel);
+                        input.CopyTo(deflateStream);
+                        break;
+                    }
                     case CompressAlgorithm.GZip:
-                        {
-                            using var deflateStream = new GZipStream(cryptoStream, CompressionLevel);
-                            input.CopyTo(deflateStream);
-                            break;
-                        }
+                    {
+                        using var deflateStream = new GZipStream(cryptoStream, CompressionLevel);
+                        input.CopyTo(deflateStream);
+                        break;
+                    }
                 }
             }
             else
-            {
                 input.CopyTo(cryptoStream);
-            }
         }
 
         public void DecryptStream(Stream input, Stream output)
         {
             if (!TryExtractSalt(input, out var salt))
                 throw new ArgumentException("Cannot read salt from input.");
-            else
-                Salt = salt;
+            Salt = salt;
             (key, Iv) = GetKeyAndIV(GenerateKIV(Salt, password, HashAlgorithmName.SHA256, 10000, KeySize / 8 + blockSize));
             ICryptoTransform cryptoTransform = aes.CreateDecryptor(key, Iv);
             if (CompressionLevel != CompressionLevel.NoCompression)
@@ -105,19 +103,19 @@ namespace Skyzi000.Cryptography
                 switch (CompressAlgorithm)
                 {
                     case CompressAlgorithm.Deflate:
-                        {
-                            using var cryptoStream = new CryptoStream(input, cryptoTransform, CryptoStreamMode.Read);
-                            using var deflateStream = new DeflateStream(cryptoStream, CompressionMode.Decompress);
-                            deflateStream.CopyTo(output);
-                            break;
-                        }
+                    {
+                        using var cryptoStream = new CryptoStream(input, cryptoTransform, CryptoStreamMode.Read);
+                        using var deflateStream = new DeflateStream(cryptoStream, CompressionMode.Decompress);
+                        deflateStream.CopyTo(output);
+                        break;
+                    }
                     case CompressAlgorithm.GZip:
-                        {
-                            using var cryptoStream = new CryptoStream(input, cryptoTransform, CryptoStreamMode.Read);
-                            using var deflateStream = new GZipStream(cryptoStream, CompressionMode.Decompress);
-                            deflateStream.CopyTo(output);
-                            break;
-                        }
+                    {
+                        using var cryptoStream = new CryptoStream(input, cryptoTransform, CryptoStreamMode.Read);
+                        using var deflateStream = new GZipStream(cryptoStream, CompressionMode.Decompress);
+                        deflateStream.CopyTo(output);
+                        break;
+                    }
                 }
             }
             else
@@ -137,9 +135,11 @@ namespace Skyzi000.Cryptography
                 if (encrypted.Read(salt, 0, 8) == 8)
                     return true;
             }
+
             salt = null;
             return false;
         }
+
         private (byte[] key, byte[] iv) GetKeyAndIV(byte[] kiv)
         {
             var k = new byte[KeySize / 8];
@@ -160,8 +160,10 @@ namespace Skyzi000.Cryptography
             csp.GetBytes(result);
             return result;
         }
-        private byte[] GenerateKIV(byte[] salt, byte[] password, HashAlgorithmName hashAlgorithm, int iterationCount, int size) => new Rfc2898DeriveBytes(password, salt, iterationCount, hashAlgorithm).GetBytes(size);
 
-        public void Dispose() => ((IDisposable)aes).Dispose();
+        private byte[] GenerateKIV(byte[] salt, byte[] password, HashAlgorithmName hashAlgorithm, int iterationCount, int size) =>
+            new Rfc2898DeriveBytes(password, salt, iterationCount, hashAlgorithm).GetBytes(size);
+
+        public void Dispose() => ((IDisposable) aes).Dispose();
     }
 }

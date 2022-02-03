@@ -2,6 +2,7 @@
 using System.IO;
 using System.Text;
 using System.Windows;
+using NLog;
 
 namespace SkyziBackup
 {
@@ -24,7 +25,7 @@ namespace SkyziBackup
             }
             catch (IOException e)
             {
-                NLog.LogManager.GetCurrentClassLogger().Error(e, "ライセンス情報が見つかりません。");
+                LogManager.GetCurrentClassLogger().Error(e, "ライセンス情報が見つかりません。");
             }
         }
 
