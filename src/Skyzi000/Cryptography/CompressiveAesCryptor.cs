@@ -37,10 +37,10 @@ namespace Skyzi000.Cryptography
                                            CompressAlgorithm compressAlgorithm = CompressAlgorithm.Deflate)
         {
             this.password = Encoding.UTF8.GetBytes(password);
-            this.keySize = (keySize == 128 || keySize == 192) ? keySize : 256;
+            this.keySize = (keySize is 128 or 192) ? keySize : 256;
             this.IterationCount = iterationCount;
             this.Mode = cipherMode;
-            this.aes = new AesCng { Mode = this.Mode, Padding = PaddingMode.PKCS7 };
+            this.aes = new AesCng { Mode = Mode, Padding = PaddingMode.PKCS7 };
             this.blockSize = aes.BlockSize / 8;
             this.CompressionLevel = compressionLevel;
             this.CompressAlgorithm = compressAlgorithm;
@@ -156,11 +156,9 @@ namespace Skyzi000.Cryptography
         private byte[] GenerateSalt(int saltLength)
         {
             var result = new byte[saltLength];
-            using (var csp = new RNGCryptoServiceProvider())
-            {
-                csp.GetBytes(result);
-                return result;
-            }
+            using var csp = new RNGCryptoServiceProvider();
+            csp.GetBytes(result);
+            return result;
         }
         private byte[] GenerateKIV(byte[] salt, byte[] password, HashAlgorithmName hashAlgorithm, int iterationCount, int size) => new Rfc2898DeriveBytes(password, salt, iterationCount, hashAlgorithm).GetBytes(size);
 
