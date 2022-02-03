@@ -349,7 +349,7 @@ namespace SkyziBackup
         public HashSet<Regex> PatternToRegices(string pattern)
         {
             var patStrArr = pattern.Split(new[] { "\r\n", "\n", "\r", "|" }, StringSplitOptions.None);
-            return new HashSet<Regex>(patStrArr.Select(s => ConvertToRegex(s)));
+            return new HashSet<Regex>(patStrArr.Select(ConvertToRegex));
         }
         internal string GetRawPassword()
         {
