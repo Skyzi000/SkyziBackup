@@ -11,6 +11,8 @@ using System.Windows.Forms;
 using System.Windows.Threading;
 using MessageBox = System.Windows.MessageBox;
 
+// ReSharper disable CheckNamespace
+
 namespace SkyziBackup
 {
     /// <summary>
