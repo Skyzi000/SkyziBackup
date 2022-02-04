@@ -22,28 +22,28 @@ namespace SkyziBackup
         public CompressiveAesCryptor? AesCryptor { get; }
         public BackupSettings Settings { get; set; }
         public BackupDatabase? Database { get; private set; }
-        public CancellationTokenSource? CTS { get; private set; }
-        public readonly string originBaseDirPath;
-        public readonly string destBaseDirPath;
+        public CancellationTokenSource? Cts { get; private set; }
+        public readonly string OriginBaseDirPath;
+        public readonly string DestBaseDirPath;
         public DateTime StartTime { get; private set; }
 
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
-        private int currentRetryCount;
-        private readonly Task<BackupDatabase>? loadBackupDatabaseTask;
-        private bool disposedValue;
+        private int _currentRetryCount;
+        private readonly Task<BackupDatabase>? _loadBackupDatabaseTask;
+        private bool _disposedValue;
 
         public BackupController(string originDirectoryPath, string destDirectoryPath, string? password = null, BackupSettings? settings = null)
         {
-            originBaseDirPath = GetQualifiedDirectoryPath(originDirectoryPath);
-            destBaseDirPath = GetQualifiedDirectoryPath(destDirectoryPath);
-            Settings = settings ?? BackupSettings.LoadLocalSettings(originBaseDirPath, destBaseDirPath) ?? BackupSettings.Default;
+            OriginBaseDirPath = GetQualifiedDirectoryPath(originDirectoryPath);
+            DestBaseDirPath = GetQualifiedDirectoryPath(destDirectoryPath);
+            Settings = settings ?? BackupSettings.LoadLocalSettings(OriginBaseDirPath, DestBaseDirPath) ?? BackupSettings.Default;
             Results = new BackupResults(originDirectoryPath, destDirectoryPath);
             if (Settings.IsDefault)
-                Settings = new BackupSettings(Settings).ConvertToLocalSettings(originBaseDirPath, destBaseDirPath);
+                Settings = new BackupSettings(Settings).ConvertToLocalSettings(OriginBaseDirPath, DestBaseDirPath);
             if (Settings.IsUseDatabase)
-                loadBackupDatabaseTask = LoadOrCreateDatabaseAsync();
+                _loadBackupDatabaseTask = LoadOrCreateDatabaseAsync();
             if (Settings.IsCancelable)
-                CTS = new CancellationTokenSource();
+                Cts = new CancellationTokenSource();
             if (!string.IsNullOrEmpty(password))
                 AesCryptor = new CompressiveAesCryptor(password, compressionLevel: Settings.CompressionLevel, compressAlgorithm: Settings.CompressAlgorithm);
         }
@@ -51,19 +51,19 @@ namespace SkyziBackup
         private async Task InitializeAsync()
         {
             if (Settings.IsDefault)
-                Settings = new BackupSettings(Settings).ConvertToLocalSettings(originBaseDirPath, destBaseDirPath);
+                Settings = new BackupSettings(Settings).ConvertToLocalSettings(OriginBaseDirPath, DestBaseDirPath);
             var saveTask = Settings.SaveAsync();
             if (Settings.IsUseDatabase)
             {
-                Database = await (loadBackupDatabaseTask ?? LoadOrCreateDatabaseAsync());
+                Database = await (_loadBackupDatabaseTask ?? LoadOrCreateDatabaseAsync());
                 // 万が一データベースと一致しない場合は読み込みなおす(データベースファイルを一旦削除かリネームする処理を入れても良いかも)
-                if (Database.DestBaseDirPath != destBaseDirPath)
+                if (Database.DestBaseDirPath != DestBaseDirPath)
                 {
                     Database = await LoadOrCreateDatabaseAsync();
-                    if (Database.DestBaseDirPath != destBaseDirPath)
+                    if (Database.DestBaseDirPath != DestBaseDirPath)
                     {
                         Logger.Error(Results.Message = $"データベースの読み込み失敗: 既存のデータベース'{DataFileWriter.GetPath(Database)}'を利用できません。");
-                        Database = new BackupDatabase(originBaseDirPath, destBaseDirPath);
+                        Database = new BackupDatabase(OriginBaseDirPath, DestBaseDirPath);
                     }
                 }
 
@@ -97,12 +97,12 @@ namespace SkyziBackup
         private async Task<BackupDatabase> LoadOrCreateDatabaseAsync()
         {
             string databasePath;
-            var isExists = File.Exists(databasePath = DataFileWriter.GetDatabasePath(originBaseDirPath, destBaseDirPath));
+            var isExists = File.Exists(databasePath = DataFileWriter.GetDatabasePath(OriginBaseDirPath, DestBaseDirPath));
             Logger.Info(Results.Message = isExists ? $"既存のデータベースをロード: '{databasePath}'" : "新規データベースを初期化");
             return isExists
-                ? await DataFileWriter.ReadAsync<BackupDatabase>(DataFileWriter.GetDatabaseFileName(originBaseDirPath, destBaseDirPath))
-                  ?? new BackupDatabase(originBaseDirPath, destBaseDirPath)
-                : new BackupDatabase(originBaseDirPath, destBaseDirPath);
+                ? await DataFileWriter.ReadAsync<BackupDatabase>(DataFileWriter.GetDatabaseFileName(OriginBaseDirPath, DestBaseDirPath))
+                  ?? new BackupDatabase(OriginBaseDirPath, DestBaseDirPath)
+                : new BackupDatabase(OriginBaseDirPath, DestBaseDirPath);
         }
 
         private void CleanUpDatabase()
@@ -128,9 +128,9 @@ namespace SkyziBackup
         public async Task CancelAsync()
         {
             await SaveDatabaseAsync().ConfigureAwait(false);
-            if (CTS is null)
+            if (Cts is null)
                 Logger.Info("キャンセル失敗: キャンセル機能が無効です");
-            CTS?.Cancel();
+            Cts?.Cancel();
             Results.isSuccess = false;
             Results.IsFinished = true;
         }
@@ -139,25 +139,25 @@ namespace SkyziBackup
         {
             if (Results.IsFinished)
                 throw new InvalidOperationException("Backup already finished.");
-            if (disposedValue)
+            if (_disposedValue)
                 throw new ObjectDisposedException(GetType().FullName);
             if (cancellationToken != default)
             {
-                CTS?.Dispose();
-                CTS = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                Cts?.Dispose();
+                Cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             }
 
-            var cToken = CTS?.Token ?? default;
+            var cToken = Cts?.Token ?? default;
 
             Logger.Info("バックアップ設定:\n{0}", Settings);
-            Logger.Info("バックアップを開始'{0}' => '{1}'", originBaseDirPath, destBaseDirPath);
+            Logger.Info("バックアップを開始'{0}' => '{1}'", OriginBaseDirPath, DestBaseDirPath);
 
             StartTime = DateTime.Now;
             await InitializeAsync().ConfigureAwait(false);
 
-            if (!Directory.Exists(originBaseDirPath))
+            if (!Directory.Exists(OriginBaseDirPath))
             {
-                Logger.Warn(Results.Message = $"バックアップ元のディレクトリ'{originBaseDirPath}'が見つかりません。");
+                Logger.Warn(Results.Message = $"バックアップ元のディレクトリ'{OriginBaseDirPath}'が見つかりません。");
                 Results.IsFinished = true;
                 return Results;
             }
@@ -169,7 +169,7 @@ namespace SkyziBackup
                 {
                     Database.BackedUpDirectoriesDict = await Task
                         .Run(
-                            () => CopyDirectoryStructure(originBaseDirPath, destBaseDirPath, Results,
+                            () => CopyDirectoryStructure(OriginBaseDirPath, DestBaseDirPath, Results,
                                 Settings.IsCopyAttributes, Settings.Regexes, Database.BackedUpDirectoriesDict), cToken)
                         .ConfigureAwait(false) ?? throw new InvalidOperationException();
                 }
@@ -177,7 +177,7 @@ namespace SkyziBackup
                 {
                     _ = await Task
                         .Run(
-                            () => CopyDirectoryStructure(originBaseDirPath, destBaseDirPath, Results,
+                            () => CopyDirectoryStructure(OriginBaseDirPath, DestBaseDirPath, Results,
                                 Settings.IsCopyAttributes, Settings.Regexes), cToken)
                         .ConfigureAwait(false);
                 }
@@ -186,10 +186,10 @@ namespace SkyziBackup
                 await Task.Run(async () =>
                 {
                     foreach (var originFilePath in Settings.SymbolicLink is SymbolicLinkHandling.IgnoreAll or SymbolicLinkHandling.IgnoreOnlyDirectories
-                        ? EnumerateAllFilesIgnoringReparsePoints(originBaseDirPath, Settings.Regexes)
-                        : EnumerateAllFiles(originBaseDirPath, Settings.Regexes))
+                        ? EnumerateAllFilesIgnoringReparsePoints(OriginBaseDirPath, Settings.Regexes)
+                        : EnumerateAllFiles(OriginBaseDirPath, Settings.Regexes))
                     {
-                        var destFilePath = originFilePath.Replace(originBaseDirPath, destBaseDirPath);
+                        var destFilePath = originFilePath.Replace(OriginBaseDirPath, DestBaseDirPath);
                         // 除外パターンと一致せず、バックアップ済みファイルと一致しないファイルをバックアップする
                         if (!IsIgnoredFile(originFilePath) && !(Settings.IsUseDatabase
                             ? IsUnchangedFileOnDatabase(originFilePath, destFilePath)
@@ -246,7 +246,7 @@ namespace SkyziBackup
                 {
                     if (Results.successfulDirectories.Contains(originDirPath) || Results.failedDirectories.Contains(originDirPath))
                         continue;
-                    var destDirPath = originDirPath.Replace(originBaseDirPath, destBaseDirPath);
+                    var destDirPath = originDirPath.Replace(OriginBaseDirPath, DestBaseDirPath);
                     if (!Directory.Exists(destDirPath))
                     {
                         Database.BackedUpDirectoriesDict.Remove(originDirPath);
@@ -268,10 +268,10 @@ namespace SkyziBackup
             else // データベースを使わない
             {
                 foreach (var destDirPath in Settings.SymbolicLink is SymbolicLinkHandling.IgnoreOnlyDirectories or SymbolicLinkHandling.IgnoreAll
-                    ? EnumerateAllDirectoriesIgnoringReparsePoints(destBaseDirPath, Settings.Regexes)
-                    : EnumerateAllDirectories(destBaseDirPath, Settings.Regexes))
+                    ? EnumerateAllDirectoriesIgnoringReparsePoints(DestBaseDirPath, Settings.Regexes)
+                    : EnumerateAllDirectories(DestBaseDirPath, Settings.Regexes))
                 {
-                    var originDirPath = destDirPath.Replace(destBaseDirPath, originBaseDirPath);
+                    var originDirPath = destDirPath.Replace(DestBaseDirPath, OriginBaseDirPath);
                     if (Results.successfulDirectories.Contains(originDirPath) || Results.failedDirectories.Contains(originDirPath))
                         continue;
                     try
@@ -300,13 +300,13 @@ namespace SkyziBackup
                     break;
                 case VersioningMethod.Replace:
                 case VersioningMethod.FileTimeStamp:
-                    revDirPath = directoryPath.Replace(destBaseDirPath,
+                    revDirPath = directoryPath.Replace(DestBaseDirPath,
                         Settings.RevisionsDirPath ?? throw new NullReferenceException(nameof(Settings.RevisionsDirPath)));
                     CopyDirectoryAttributes(directoryPath, revDirPath);
                     break;
                 case VersioningMethod.DirectoryTimeStamp:
                     revDirPath = Path.Combine(Settings.RevisionsDirPath ?? throw new NullReferenceException(nameof(Settings.RevisionsDirPath)),
-                        StartTime.ToString("yyyy-MM-dd_HHmmss"), directoryPath.Replace(destBaseDirPath, null));
+                        StartTime.ToString("yyyy-MM-dd_HHmmss"), directoryPath.Replace(DestBaseDirPath, null));
                     CopyDirectoryAttributes(directoryPath, revDirPath);
                     break;
                 default:
@@ -344,7 +344,7 @@ namespace SkyziBackup
                     if (Results.successfulFiles.Contains(originFilePath) || Results.failedFiles.Contains(originFilePath) ||
                         (Results.unchangedFiles?.Contains(originFilePath) ?? false))
                         continue;
-                    var destFilePath = originFilePath.Replace(originBaseDirPath, destBaseDirPath);
+                    var destFilePath = originFilePath.Replace(OriginBaseDirPath, DestBaseDirPath);
                     if (!File.Exists(destFilePath))
                     {
                         Database.BackedUpFilesDict.Remove(originFilePath);
@@ -357,10 +357,10 @@ namespace SkyziBackup
             else // データベースを使わない
             {
                 foreach (var destFilePath in Settings.SymbolicLink is SymbolicLinkHandling.IgnoreOnlyDirectories or SymbolicLinkHandling.IgnoreAll
-                    ? EnumerateAllFilesIgnoringReparsePoints(destBaseDirPath, Settings.Regexes)
-                    : EnumerateAllFiles(destBaseDirPath, Settings.Regexes))
+                    ? EnumerateAllFilesIgnoringReparsePoints(DestBaseDirPath, Settings.Regexes)
+                    : EnumerateAllFiles(DestBaseDirPath, Settings.Regexes))
                 {
-                    var originFilePath = destFilePath.Replace(destBaseDirPath, originBaseDirPath);
+                    var originFilePath = destFilePath.Replace(DestBaseDirPath, OriginBaseDirPath);
                     if (Results.successfulFiles.Contains(originFilePath) || Results.failedFiles.Contains(originFilePath) ||
                         (Results.unchangedFiles?.Contains(originFilePath) ?? false))
                         continue;
@@ -398,16 +398,16 @@ namespace SkyziBackup
                     FileSystem.DeleteFile(filePath, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
                     return;
                 case VersioningMethod.Replace:
-                    revisionFilePath = filePath.Replace(destBaseDirPath,
+                    revisionFilePath = filePath.Replace(DestBaseDirPath,
                         Settings.RevisionsDirPath ?? throw new NullReferenceException(nameof(Settings.RevisionsDirPath)));
                     break;
                 case VersioningMethod.DirectoryTimeStamp:
                     revisionFilePath = Path.Combine(Settings.RevisionsDirPath ?? throw new NullReferenceException(nameof(Settings.RevisionsDirPath)),
-                        StartTime.ToString("yyyy-MM-dd_HHmmss"), filePath.Replace(destBaseDirPath, "").TrimStart(Path.DirectorySeparatorChar));
+                        StartTime.ToString("yyyy-MM-dd_HHmmss"), filePath.Replace(DestBaseDirPath, "").TrimStart(Path.DirectorySeparatorChar));
                     break;
                 case VersioningMethod.FileTimeStamp:
                     revisionFilePath =
-                        filePath.Replace(destBaseDirPath, Settings.RevisionsDirPath ?? throw new NullReferenceException(nameof(Settings.RevisionsDirPath))) +
+                        filePath.Replace(DestBaseDirPath, Settings.RevisionsDirPath ?? throw new NullReferenceException(nameof(Settings.RevisionsDirPath))) +
                         StartTime.ToString("_yyyy-MM-dd_HHmmss") + Path.GetExtension(filePath);
                     break;
                 default:
@@ -617,7 +617,7 @@ namespace SkyziBackup
             // 除外パターンとマッチング
             if (Settings.Regexes == null)
                 return false;
-            var s = originFilePath[(originBaseDirPath.Length - 1)..];
+            var s = originFilePath[(OriginBaseDirPath.Length - 1)..];
             return Settings.Regexes.Any(r => r.IsMatch(s));
         }
 
@@ -1025,18 +1025,18 @@ namespace SkyziBackup
         private async Task RetryStartAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (currentRetryCount >= Settings.RetryCount)
+            if (_currentRetryCount >= Settings.RetryCount)
             {
                 Results.IsFinished = true;
                 return;
             }
 
-            Logger.Debug(Results.Message = $"リトライ待機中...({currentRetryCount + 1}/{Settings.RetryCount}回目)");
+            Logger.Debug(Results.Message = $"リトライ待機中...({_currentRetryCount + 1}/{Settings.RetryCount}回目)");
 
             await Task.Delay(Settings.RetryWaitMilliSec, cancellationToken);
 
-            currentRetryCount++;
-            Logger.Info(Results.Message = $"リトライ {currentRetryCount}/{Settings.RetryCount} 回目");
+            _currentRetryCount++;
+            Logger.Info(Results.Message = $"リトライ {_currentRetryCount}/{Settings.RetryCount} 回目");
             if (Results.failedDirectories.Any())
             {
                 foreach (var originDirPath in Results.failedDirectories.ToArray())
@@ -1044,12 +1044,12 @@ namespace SkyziBackup
                     {
                         Database.BackedUpDirectoriesDict =
                             await Task.Run(
-                                () => CopyDirectory(originDirPath, originBaseDirPath, destBaseDirPath, Results, Settings.IsCopyAttributes,
+                                () => CopyDirectory(originDirPath, OriginBaseDirPath, DestBaseDirPath, Results, Settings.IsCopyAttributes,
                                     Database.BackedUpDirectoriesDict), cancellationToken) ?? Database.BackedUpDirectoriesDict;
                     }
                     else
                     {
-                        _ = await Task.Run(() => CopyDirectory(originDirPath, originBaseDirPath, destBaseDirPath, Results, Settings.IsCopyAttributes),
+                        _ = await Task.Run(() => CopyDirectory(originDirPath, OriginBaseDirPath, DestBaseDirPath, Results, Settings.IsCopyAttributes),
                             cancellationToken);
                     }
             }
@@ -1058,7 +1058,7 @@ namespace SkyziBackup
             {
                 foreach (var originFilePath in Results.failedFiles.ToArray())
                 {
-                    var destFilePath = originFilePath.Replace(originBaseDirPath, destBaseDirPath);
+                    var destFilePath = originFilePath.Replace(OriginBaseDirPath, DestBaseDirPath);
                     await Task.Run(() => BackupFile(originFilePath, destFilePath), cancellationToken);
                 }
             }
@@ -1075,18 +1075,18 @@ namespace SkyziBackup
 
         protected virtual void Dispose(bool disposing)
         {
-            if (disposedValue)
+            if (_disposedValue)
                 return;
             if (disposing)
             {
-                CTS?.Dispose();
+                Cts?.Dispose();
                 AesCryptor?.Dispose();
                 Database?.Dispose();
-                loadBackupDatabaseTask?.Dispose();
+                _loadBackupDatabaseTask?.Dispose();
                 // Settingsは借り物なので勝手にDisposeしない
             }
 
-            disposedValue = true;
+            _disposedValue = true;
         }
 
         public void Dispose()

@@ -25,10 +25,10 @@ namespace Skyzi000.Cryptography
         public string Prefix = "Salted__";
         public readonly int KeySize;
 
-        private readonly int blockSize;
-        private readonly byte[] password;
-        private byte[]? key;
-        private readonly SymmetricAlgorithm aes;
+        private readonly int _blockSize;
+        private readonly byte[] _password;
+        private byte[]? _key;
+        private readonly SymmetricAlgorithm _aes;
 
         public CompressiveAesCryptor(string password,
             int keySize = 256,
@@ -37,12 +37,12 @@ namespace Skyzi000.Cryptography
             CompressionLevel compressionLevel = CompressionLevel.NoCompression,
             CompressAlgorithm compressAlgorithm = CompressAlgorithm.Deflate)
         {
-            this.password = Encoding.UTF8.GetBytes(password);
+            _password = Encoding.UTF8.GetBytes(password);
             KeySize = keySize is 128 or 192 ? keySize : 256;
             IterationCount = iterationCount;
             Mode = cipherMode;
-            aes = new AesCng { Mode = Mode, Padding = PaddingMode.PKCS7 };
-            blockSize = aes.BlockSize / 8;
+            _aes = new AesCng { Mode = Mode, Padding = PaddingMode.PKCS7 };
+            _blockSize = _aes.BlockSize / 8;
             CompressionLevel = compressionLevel;
             CompressAlgorithm = compressAlgorithm;
         }
@@ -64,10 +64,10 @@ namespace Skyzi000.Cryptography
         public void EncryptStream(Stream input, Stream output)
         {
             Salt = GenerateSalt(8);
-            (key, Iv) = GetKeyAndIV(GenerateKIV(Salt, password, HashAlgorithm, 10000, KeySize / 8 + blockSize));
+            (_key, Iv) = GetKeyAndIV(GenerateKIV(Salt, _password, HashAlgorithm, 10000, KeySize / 8 + _blockSize));
             output.Write(Encoding.UTF8.GetBytes(Prefix));
             output.Write(Salt);
-            ICryptoTransform cryptoTransform = aes.CreateEncryptor(key, Iv);
+            ICryptoTransform cryptoTransform = _aes.CreateEncryptor(_key, Iv);
             using var cryptoStream = new CryptoStream(output, cryptoTransform, CryptoStreamMode.Write);
             if (CompressionLevel != CompressionLevel.NoCompression)
             {
@@ -96,8 +96,8 @@ namespace Skyzi000.Cryptography
             if (!TryExtractSalt(input, out var salt))
                 throw new ArgumentException("Cannot read salt from input.");
             Salt = salt;
-            (key, Iv) = GetKeyAndIV(GenerateKIV(Salt, password, HashAlgorithmName.SHA256, 10000, KeySize / 8 + blockSize));
-            ICryptoTransform cryptoTransform = aes.CreateDecryptor(key, Iv);
+            (_key, Iv) = GetKeyAndIV(GenerateKIV(Salt, _password, HashAlgorithmName.SHA256, 10000, KeySize / 8 + _blockSize));
+            ICryptoTransform cryptoTransform = _aes.CreateDecryptor(_key, Iv);
             if (CompressionLevel != CompressionLevel.NoCompression)
             {
                 switch (CompressAlgorithm)
@@ -143,9 +143,9 @@ namespace Skyzi000.Cryptography
         private (byte[] key, byte[] iv) GetKeyAndIV(byte[] kiv)
         {
             var k = new byte[KeySize / 8];
-            var i = new byte[blockSize];
+            var i = new byte[_blockSize];
             Array.Copy(kiv, 0, k, 0, k.Length);
-            Array.Copy(kiv, k.Length, i, 0, blockSize);
+            Array.Copy(kiv, k.Length, i, 0, _blockSize);
             return (k, i);
         }
 
@@ -164,6 +164,6 @@ namespace Skyzi000.Cryptography
         private byte[] GenerateKIV(byte[] salt, byte[] password, HashAlgorithmName hashAlgorithm, int iterationCount, int size) =>
             new Rfc2898DeriveBytes(password, salt, iterationCount, hashAlgorithm).GetBytes(size);
 
-        public void Dispose() => ((IDisposable) aes).Dispose();
+        public void Dispose() => ((IDisposable) _aes).Dispose();
     }
 }

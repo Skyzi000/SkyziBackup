@@ -130,11 +130,11 @@ namespace SkyziBackup
         /// <remarks>デフォルト設定では常にnull。セットするときは<see cref="BackupController.GetQualifiedDirectoryPath" />が自動的に適用される。</remarks>
         public string? OriginBaseDirPath
         {
-            get => originBaseDirPath;
-            set => originBaseDirPath = value is null ? null : BackupController.GetQualifiedDirectoryPath(value);
+            get => _originBaseDirPath;
+            set => _originBaseDirPath = value is null ? null : BackupController.GetQualifiedDirectoryPath(value);
         }
 
-        private string? originBaseDirPath;
+        private string? _originBaseDirPath;
 
         /// <summary>
         /// バックアップ先ディレクトリパス
@@ -142,11 +142,11 @@ namespace SkyziBackup
         /// <remarks>デフォルト設定では常にnull。セットするときは<see cref="BackupController.GetQualifiedDirectoryPath" />が自動的に適用される。</remarks>
         public string? DestBaseDirPath
         {
-            get => destBaseDirPath;
-            set => destBaseDirPath = value is null ? null : BackupController.GetQualifiedDirectoryPath(value);
+            get => _destBaseDirPath;
+            set => _destBaseDirPath = value is null ? null : BackupController.GetQualifiedDirectoryPath(value);
         }
 
-        private string? destBaseDirPath;
+        private string? _destBaseDirPath;
 
         /// <summary>
         /// データベースを利用する
@@ -233,10 +233,10 @@ namespace SkyziBackup
         /// <see cref="Properties.Settings.AppDataPath" /> から見たローカル設定の相対パス。デフォルト設定の場合は null
         /// </summary>
         [JsonIgnore]
-        private string? localFileName =>
+        private string? LocalFileName =>
             OriginBaseDirPath is null || DestBaseDirPath is null ? null : GetLocalSettingsFileName(OriginBaseDirPath, DestBaseDirPath);
 
-        private HashSet<Regex>? regexes;
+        private HashSet<Regex>? _regexes;
 
         /// <summary>
         /// <see cref="IgnorePattern" /> を元に生成した除外用の正規表現セット
@@ -244,8 +244,8 @@ namespace SkyziBackup
         [JsonIgnore]
         public HashSet<Regex>? Regexes
         {
-            get => regexes ?? (string.IsNullOrEmpty(IgnorePattern) ? null : Regexes = PatternToRegexes(IgnorePattern));
-            private set => regexes = value;
+            get => _regexes ?? (string.IsNullOrEmpty(IgnorePattern) ? null : Regexes = PatternToRegexes(IgnorePattern));
+            private set => _regexes = value;
         }
 
         /// <summary>
@@ -257,13 +257,13 @@ namespace SkyziBackup
         /// Default設定なら true
         /// </summary>
         [JsonIgnore]
-        public bool IsDefault => string.IsNullOrEmpty(localFileName);
+        public bool IsDefault => string.IsNullOrEmpty(LocalFileName);
 
         /// <summary>
-        /// デフォルト設定であれば <see cref="FileName" /> 、そうでなければ <see cref="localFileName" />
+        /// デフォルト設定であれば <see cref="FileName" /> 、そうでなければ <see cref="LocalFileName" />
         /// </summary>
         [JsonIgnore]
-        public override string SaveFileName => string.IsNullOrEmpty(localFileName) ? FileName : localFileName;
+        public override string SaveFileName => string.IsNullOrEmpty(LocalFileName) ? FileName : LocalFileName;
 
         /// <summary>
         /// 除外パターン

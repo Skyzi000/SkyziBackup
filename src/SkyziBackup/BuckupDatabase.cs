@@ -19,27 +19,27 @@ namespace SkyziBackup
         [JsonIgnore]
         public Timer SaveTimer
         {
-            get => saveTimer ??= new Timer();
-            set => saveTimer = value;
+            get => _saveTimer ??= new Timer();
+            set => _saveTimer = value;
         }
 
-        private Timer? saveTimer;
+        private Timer? _saveTimer;
 
         [JsonIgnore]
         public SemaphoreSlim Semaphore
         {
-            get => semaphore ??= new SemaphoreSlim(1, 1);
-            set => semaphore = value;
+            get => _semaphore ??= new SemaphoreSlim(1, 1);
+            set => _semaphore = value;
         }
 
-        private SemaphoreSlim? semaphore;
-        private bool disposedValue;
+        private SemaphoreSlim? _semaphore;
+        private bool _disposedValue;
 
         public virtual void StartAutoSave(double intervalMsec)
         {
-            saveTimer?.Stop();
-            saveTimer?.Dispose();
-            saveTimer = null;
+            _saveTimer?.Stop();
+            _saveTimer?.Dispose();
+            _saveTimer = null;
             SaveTimer.Interval = intervalMsec;
             SaveTimer.Elapsed += (s, e) =>
             {
@@ -92,16 +92,16 @@ namespace SkyziBackup
 
         protected virtual void Dispose(bool disposing)
         {
-            if (!disposedValue)
+            if (!_disposedValue)
             {
                 if (disposing)
                 {
-                    semaphore?.Dispose();
-                    saveTimer?.Stop();
-                    saveTimer?.Dispose();
+                    _semaphore?.Dispose();
+                    _saveTimer?.Stop();
+                    _saveTimer?.Dispose();
                 }
 
-                disposedValue = true;
+                _disposedValue = true;
             }
         }
 
@@ -141,7 +141,7 @@ namespace SkyziBackup
 
         public static readonly string FileName = "Database" + DataFileWriter.DefaultExtension;
 
-        private readonly int tempCount = 0;
+        private readonly int _tempCount = 0;
 
         public BackupDatabase()
         {
@@ -168,7 +168,7 @@ namespace SkyziBackup
                 var tempDirPath =
                     Path.Combine(Path.GetDirectoryName(path) ?? throw new InvalidOperationException($"Path.GetDirectoryName(path) is null. (path: {path})"),
                         "Temp");
-                var tempPath = Path.Combine(tempDirPath, $"Database{tempCount}{DataFileWriter.TempFileExtension}");
+                var tempPath = Path.Combine(tempDirPath, $"Database{_tempCount}{DataFileWriter.TempFileExtension}");
                 DataFileWriter.Write(temp, tempPath);
                 DataFileWriter.Replace(tempPath, path, true);
             }

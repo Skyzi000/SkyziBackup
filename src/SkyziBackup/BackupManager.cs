@@ -32,15 +32,15 @@ namespace SkyziBackup
             var createdNew = true;
             try
             {
-                semaphore = new Semaphore(1, 1, App.AssemblyName.Name + ComputeStringSHA1(backup.originBaseDirPath + backup.destBaseDirPath), out createdNew);
+                semaphore = new Semaphore(1, 1, App.AssemblyName.Name + ComputeStringSHA1(backup.OriginBaseDirPath + backup.DestBaseDirPath), out createdNew);
                 if (!createdNew)
                 {
                     string m;
-                    Logger.Info(m = $"バックアップ('{backup.originBaseDirPath}' => '{backup.destBaseDirPath}')の開始をキャンセル: 既に別のプロセスによって実行中です。");
+                    Logger.Info(m = $"バックアップ('{backup.OriginBaseDirPath}' => '{backup.DestBaseDirPath}')の開始をキャンセル: 既に別のプロセスによって実行中です。");
                     return new BackupResults(true, false, m);
                 }
 
-                RunningBackups.Add((backup.originBaseDirPath, backup.destBaseDirPath), backup);
+                RunningBackups.Add((backup.OriginBaseDirPath, backup.DestBaseDirPath), backup);
                 App.NotifyIcon.Text = IsRunning ? $"{App.AssemblyName.Name} - バックアップ中" : App.AssemblyName.Name;
                 result = await backup.StartBackupAsync();
                 if (!result.isSuccess)
@@ -50,7 +50,7 @@ namespace SkyziBackup
             finally
             {
                 semaphore?.Dispose();
-                RunningBackups.Remove((backup.originBaseDirPath, backup.destBaseDirPath));
+                RunningBackups.Remove((backup.OriginBaseDirPath, backup.DestBaseDirPath));
                 if (createdNew)
                     backup.Dispose();
                 App.NotifyIcon.Text = IsRunning ? $"{App.AssemblyName.Name} - バックアップ中" : App.AssemblyName.Name;

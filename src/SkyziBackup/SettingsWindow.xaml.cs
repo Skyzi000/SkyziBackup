@@ -17,17 +17,17 @@ namespace SkyziBackup
     public partial class SettingsWindow : Window
     {
         private static readonly Regex NonNumber = new(@"\D", RegexOptions.Compiled);
-        private BackupSettings settings;
+        private BackupSettings _settings;
 
         public SettingsWindow()
         {
             InitializeComponent();
             dataPath.Text = Settings.Default.AppDataPath;
-            settings = BackupSettings.Default;
+            _settings = BackupSettings.Default;
             ContentRendered += (_, _) =>
             {
                 NoComparisonLBI.Selected += (_, _) => ComparisonMethodListBox.SelectedIndex = 0;
-                VersioningPanel.IsEnabled = (int) settings.Versioning >= (int) VersioningMethod.Replace;
+                VersioningPanel.IsEnabled = (int) _settings.Versioning >= (int) VersioningMethod.Replace;
                 if ((SymbolicLinkHandling) SymbolicLinkHandlingBox.SelectedIndex == SymbolicLinkHandling.Direct)
                     SymbolicLinkHandlingBox.IsEnabled = false;
             };
@@ -38,7 +38,7 @@ namespace SkyziBackup
         /// </summary>
         public SettingsWindow(BackupSettings settings) : this()
         {
-            this.settings = settings;
+            _settings = settings;
             DisplaySettings();
         }
 
@@ -47,48 +47,48 @@ namespace SkyziBackup
         /// </summary>
         public SettingsWindow(string originBaseDirPath, string destBaseDirPath) : this()
         {
-            this.settings = BackupSettings.TryLoadLocalSettings(originBaseDirPath, destBaseDirPath, out var settings)
+            _settings = BackupSettings.TryLoadLocalSettings(originBaseDirPath, destBaseDirPath, out var settings)
                 ? settings
                 : BackupSettings.Default.ConvertToLocalSettings(originBaseDirPath, destBaseDirPath);
-            this.settings.OriginBaseDirPath = originBaseDirPath;
-            this.settings.DestBaseDirPath = destBaseDirPath;
+            _settings.OriginBaseDirPath = originBaseDirPath;
+            _settings.DestBaseDirPath = destBaseDirPath;
             DisplaySettings();
         }
 
         private void DisplaySettings()
         {
-            settingsPath.Text = DataFileWriter.GetPath(settings);
-            ignorePatternBox.Text = settings.IgnorePattern;
-            isUseDatabaseCheckBox.IsChecked = settings.IsUseDatabase;
-            isRecordPasswordCheckBox.IsChecked = settings.IsRecordPassword;
-            isOverwriteReadonlyCheckBox.IsChecked = settings.IsOverwriteReadonly;
+            settingsPath.Text = DataFileWriter.GetPath(_settings);
+            ignorePatternBox.Text = _settings.IgnorePattern;
+            isUseDatabaseCheckBox.IsChecked = _settings.IsUseDatabase;
+            isRecordPasswordCheckBox.IsChecked = _settings.IsRecordPassword;
+            isOverwriteReadonlyCheckBox.IsChecked = _settings.IsOverwriteReadonly;
             //isEnableTempFileCheckBox = 
-            isEnableDeletionCheckBox.IsChecked = settings.IsEnableDeletion;
-            if (settings.Versioning == VersioningMethod.RecycleBin)
+            isEnableDeletionCheckBox.IsChecked = _settings.IsEnableDeletion;
+            if (_settings.Versioning == VersioningMethod.RecycleBin)
                 RecycleButton.IsChecked = true;
-            else if (settings.Versioning == VersioningMethod.PermanentDeletion)
+            else if (_settings.Versioning == VersioningMethod.PermanentDeletion)
                 PermanentButton.IsChecked = true;
             else
             {
                 VersioningButton.IsChecked = true;
-                RevisionDirectory.Text = settings.RevisionsDirPath;
-                VersioningMethodBox.SelectedValue = ((int) settings.Versioning).ToString();
+                RevisionDirectory.Text = _settings.RevisionsDirPath;
+                VersioningMethodBox.SelectedValue = ((int) _settings.Versioning).ToString();
             }
 
-            isCopyAttributesCheckBox.IsChecked = settings.IsCopyAttributes;
-            RetryCountTextBox.Text = settings.RetryCount.ToString();
-            RetryWaitTimeTextBox.Text = settings.RetryWaitMilliSec.ToString();
-            CompressAlgorithmComboBox.SelectedIndex = (int) settings.CompressAlgorithm;
-            CompressionLevelSlider.Value = -((int) settings.CompressionLevel - 2); // 最大値で引いてから符号を反転することでSliderの表示に合わせている
-            PasswordScopeComboBox.SelectedIndex = (int) settings.PasswordProtectionScope;
-            NoComparisonLBI.IsSelected = settings.ComparisonMethod == ComparisonMethod.NoComparison;
-            ArchiveAttributeLBI.IsSelected = settings.ComparisonMethod.HasFlag(ComparisonMethod.ArchiveAttribute);
-            WriteTimeLBI.IsSelected = settings.ComparisonMethod.HasFlag(ComparisonMethod.WriteTime);
-            SizeLBI.IsSelected = settings.ComparisonMethod.HasFlag(ComparisonMethod.Size);
-            SHA1LBI.IsSelected = settings.ComparisonMethod.HasFlag(ComparisonMethod.FileContentsSHA1);
-            BinaryLBI.IsSelected = settings.ComparisonMethod.HasFlag(ComparisonMethod.FileContentsBinary);
-            SymbolicLinkHandlingBox.SelectedIndex = (int) settings.SymbolicLink;
-            IsCancelableBox.IsChecked = settings.IsCancelable;
+            isCopyAttributesCheckBox.IsChecked = _settings.IsCopyAttributes;
+            RetryCountTextBox.Text = _settings.RetryCount.ToString();
+            RetryWaitTimeTextBox.Text = _settings.RetryWaitMilliSec.ToString();
+            CompressAlgorithmComboBox.SelectedIndex = (int) _settings.CompressAlgorithm;
+            CompressionLevelSlider.Value = -((int) _settings.CompressionLevel - 2); // 最大値で引いてから符号を反転することでSliderの表示に合わせている
+            PasswordScopeComboBox.SelectedIndex = (int) _settings.PasswordProtectionScope;
+            NoComparisonLBI.IsSelected = _settings.ComparisonMethod == ComparisonMethod.NoComparison;
+            ArchiveAttributeLBI.IsSelected = _settings.ComparisonMethod.HasFlag(ComparisonMethod.ArchiveAttribute);
+            WriteTimeLBI.IsSelected = _settings.ComparisonMethod.HasFlag(ComparisonMethod.WriteTime);
+            SizeLBI.IsSelected = _settings.ComparisonMethod.HasFlag(ComparisonMethod.Size);
+            SHA1LBI.IsSelected = _settings.ComparisonMethod.HasFlag(ComparisonMethod.FileContentsSHA1);
+            BinaryLBI.IsSelected = _settings.ComparisonMethod.HasFlag(ComparisonMethod.FileContentsBinary);
+            SymbolicLinkHandlingBox.SelectedIndex = (int) _settings.SymbolicLink;
+            IsCancelableBox.IsChecked = _settings.IsCancelable;
         }
 
         private void TextBox_PreviewTextInput(object sender, TextCompositionEventArgs args) => args.Handled = NonNumber.IsMatch(args.Text);
@@ -101,14 +101,14 @@ namespace SkyziBackup
 
         private BackupSettings GetNewSettings()
         {
-            BackupSettings newSettings = settings.OriginBaseDirPath is null || settings.DestBaseDirPath is null
+            BackupSettings newSettings = _settings.OriginBaseDirPath is null || _settings.DestBaseDirPath is null
                 ? new BackupSettings()
-                : new BackupSettings(settings.OriginBaseDirPath, settings.DestBaseDirPath);
+                : new BackupSettings(_settings.OriginBaseDirPath, _settings.DestBaseDirPath);
             newSettings.IgnorePattern = ignorePatternBox.Text;
-            newSettings.IsUseDatabase = isUseDatabaseCheckBox.IsChecked ?? settings.IsUseDatabase;
-            newSettings.IsRecordPassword = isRecordPasswordCheckBox.IsChecked ?? settings.IsRecordPassword;
-            newSettings.IsOverwriteReadonly = isOverwriteReadonlyCheckBox.IsChecked ?? settings.IsOverwriteReadonly;
-            newSettings.IsEnableDeletion = isEnableDeletionCheckBox.IsChecked ?? settings.IsEnableDeletion;
+            newSettings.IsUseDatabase = isUseDatabaseCheckBox.IsChecked ?? _settings.IsUseDatabase;
+            newSettings.IsRecordPassword = isRecordPasswordCheckBox.IsChecked ?? _settings.IsRecordPassword;
+            newSettings.IsOverwriteReadonly = isOverwriteReadonlyCheckBox.IsChecked ?? _settings.IsOverwriteReadonly;
+            newSettings.IsEnableDeletion = isEnableDeletionCheckBox.IsChecked ?? _settings.IsEnableDeletion;
             if (RecycleButton.IsChecked ?? false)
                 newSettings.Versioning = VersioningMethod.RecycleBin;
             else if (PermanentButton.IsChecked ?? false)
@@ -116,16 +116,16 @@ namespace SkyziBackup
             else if (VersioningButton.IsChecked ?? false)
                 newSettings.Versioning = (VersioningMethod) int.Parse(VersioningMethodBox.SelectedValue.ToString() ?? "0");
             else
-                newSettings.Versioning = settings.Versioning;
+                newSettings.Versioning = _settings.Versioning;
             newSettings.RevisionsDirPath = RevisionDirectory.Text;
-            newSettings.IsCopyAttributes = isCopyAttributesCheckBox.IsChecked ?? settings.IsCopyAttributes;
-            newSettings.RetryCount = int.TryParse(RetryCountTextBox.Text, out var rcount) ? rcount : settings.RetryCount;
-            newSettings.RetryWaitMilliSec = int.TryParse(RetryWaitTimeTextBox.Text, out var wait) ? wait : settings.RetryWaitMilliSec;
+            newSettings.IsCopyAttributes = isCopyAttributesCheckBox.IsChecked ?? _settings.IsCopyAttributes;
+            newSettings.RetryCount = int.TryParse(RetryCountTextBox.Text, out var rcount) ? rcount : _settings.RetryCount;
+            newSettings.RetryWaitMilliSec = int.TryParse(RetryWaitTimeTextBox.Text, out var wait) ? wait : _settings.RetryWaitMilliSec;
             newSettings.CompressAlgorithm = (CompressAlgorithm) CompressAlgorithmComboBox.SelectedIndex;
             newSettings.CompressionLevel = (CompressionLevel) (-(CompressionLevelSlider.Value - 2));
             newSettings.PasswordProtectionScope = (DataProtectionScope) PasswordScopeComboBox.SelectedIndex;
             if (newSettings.IsRecordPassword)
-                newSettings.ProtectedPassword = settings.ProtectedPassword;
+                newSettings.ProtectedPassword = _settings.ProtectedPassword;
             newSettings.ComparisonMethod = 0;
             foreach (var item in ComparisonMethodListBox.SelectedItems)
             {
@@ -148,10 +148,10 @@ namespace SkyziBackup
         {
             if (MessageBox.Show("設定を初期値にリセットします。よろしいですか？", "設定リセットの確認", MessageBoxButton.OKCancel) == MessageBoxResult.OK)
             {
-                settings = settings.IsDefault || settings.OriginBaseDirPath is null || settings.DestBaseDirPath is null
+                _settings = _settings.IsDefault || _settings.OriginBaseDirPath is null || _settings.DestBaseDirPath is null
                     ? new BackupSettings()
-                    : new BackupSettings(settings.OriginBaseDirPath, settings.DestBaseDirPath);
-                DataFileWriter.Write(settings);
+                    : new BackupSettings(_settings.OriginBaseDirPath, _settings.DestBaseDirPath);
+                DataFileWriter.Write(_settings);
                 DisplaySettings();
             }
         }
@@ -178,8 +178,8 @@ namespace SkyziBackup
                 GlobalDiagnosticsContext.Set("AppDataPath", dataPath.Text);
             }
 
-            settings = newSettings;
-            settings.Save();
+            _settings = newSettings;
+            _settings.Save();
         }
 
         private void OkButton_Click(object sender, RoutedEventArgs args)
@@ -191,7 +191,7 @@ namespace SkyziBackup
                 return;
             }
 
-            if (settings.SymbolicLink != newSettings.SymbolicLink && newSettings.SymbolicLink == SymbolicLinkHandling.Direct)
+            if (_settings.SymbolicLink != newSettings.SymbolicLink && newSettings.SymbolicLink == SymbolicLinkHandling.Direct)
             {
                 if (MessageBoxResult.OK != MessageBox.Show(
                     "リパースポイント(シンボリックリンク/ジャンクション)を直接コピーするモードを本当に有効にしますか？\n" +
@@ -209,7 +209,7 @@ namespace SkyziBackup
         private void Window_Closing(object sender, CancelEventArgs args)
         {
             BackupSettings newSettings = GetNewSettings();
-            if (!File.Exists(DataFileWriter.GetPath(newSettings)) || settings.ToString() != newSettings.ToString()) // TODO: できればもうちょっとましな比較方法にしたい
+            if (!File.Exists(DataFileWriter.GetPath(newSettings)) || _settings.ToString() != newSettings.ToString()) // TODO: できればもうちょっとましな比較方法にしたい
             {
                 var r = MessageBox.Show("設定を保存しますか？", "設定変更の確認", MessageBoxButton.YesNoCancel);
                 if (r == MessageBoxResult.Yes)
@@ -222,7 +222,7 @@ namespace SkyziBackup
                         return;
                     }
 
-                    if (settings.SymbolicLink != newSettings.SymbolicLink && newSettings.SymbolicLink == SymbolicLinkHandling.Direct)
+                    if (_settings.SymbolicLink != newSettings.SymbolicLink && newSettings.SymbolicLink == SymbolicLinkHandling.Direct)
                     {
                         if (MessageBoxResult.OK != MessageBox.Show(
                             "リパースポイント(シンボリックリンク/ジャンクション)を直接コピーするモードを本当に有効にしますか？\n" +

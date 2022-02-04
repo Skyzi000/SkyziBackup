@@ -68,8 +68,8 @@ namespace SkyziBackup
 
                 ButtonsIsEnabled = false;
                 progressBar.Visibility = Visibility.Visible;
-                originPath.Text = running.originBaseDirPath;
-                destPath.Text = running.destBaseDirPath;
+                originPath.Text = running.OriginBaseDirPath;
+                destPath.Text = running.DestBaseDirPath;
                 var m = message.Text = $"\n'{originPath.Text}' => '{destPath.Text}'\nバックアップ実行中 ({running.StartTime}開始)\n";
                 running.Results.MessageChanged += (_, _) =>
                 {

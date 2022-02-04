@@ -21,9 +21,9 @@ namespace SkyziBackup
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
         private BackupSettings LoadCurrentSettings =>
-            importedSettings ?? BackupSettings.LoadLocalSettings(destPath.Text, originPath.Text) ?? BackupSettings.Default;
+            _importedSettings ?? BackupSettings.LoadLocalSettings(destPath.Text, originPath.Text) ?? BackupSettings.Default;
 
-        private BackupSettings? importedSettings;
+        private BackupSettings? _importedSettings;
 
         public RestoreWindow()
         {
@@ -157,19 +157,19 @@ namespace SkyziBackup
             {
                 try
                 {
-                    importedSettings = DataFileWriter.Read<BackupSettings>(ofd.FileName);
+                    _importedSettings = DataFileWriter.Read<BackupSettings>(ofd.FileName);
                 }
                 catch (Exception e)
                 {
                     Logger.Error(e, "設定のインポートに失敗しました。");
-                    importedSettings = null;
+                    _importedSettings = null;
                 }
 
-                if (importedSettings is null)
+                if (_importedSettings is null)
                     MessageBox.Show("インポートに失敗しました。", $"{App.AssemblyName.Name} - エラー", MessageBoxButton.OK, MessageBoxImage.Error);
-                else if (importedSettings.IsDefault)
+                else if (_importedSettings.IsDefault)
                     MessageBox.Show("デフォルト設定がインポートされました。", $"{App.AssemblyName.Name} - 警告", MessageBoxButton.OK, MessageBoxImage.Warning);
-                DiscardImportedSettings.IsEnabled = importedSettings is not null;
+                DiscardImportedSettings.IsEnabled = _importedSettings is not null;
             }
         }
 
@@ -178,7 +178,7 @@ namespace SkyziBackup
 
         private void DiscardImportedSettings_Click(object sender, RoutedEventArgs args)
         {
-            importedSettings = null;
+            _importedSettings = null;
             MessageBox.Show("インポートされた設定を破棄しました。", $"{App.AssemblyName.Name} - 現在の設定");
             DiscardImportedSettings.IsEnabled = false;
         }
