@@ -12,6 +12,7 @@
     <Platforms>AnyCPU;x64;x86</Platforms>
     <RepositoryUrl>https://github.com/skyzi000/SkyziBackup</RepositoryUrl>
     <Nullable>enable</Nullable>
+    <RootNamespace />
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">

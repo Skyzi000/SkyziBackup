@@ -1,7 +1,13 @@
-﻿using System.IO;
+﻿using System.ComponentModel;
+using System.IO;
+using System.IO.Compression;
+using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Input;
+using NLog;
+using Skyzi000.Cryptography;
+using SkyziBackup.Properties;
 
 namespace SkyziBackup
 {
@@ -10,116 +16,116 @@ namespace SkyziBackup
     /// </summary>
     public partial class SettingsWindow : Window
     {
-        private static readonly Regex NonNumber = new Regex(@"\D", RegexOptions.Compiled);
-        private BackupSettings settings;
+        private static readonly Regex NonNumber = new(@"\D", RegexOptions.Compiled);
+        private BackupSettings _settings;
+
         public SettingsWindow()
         {
             InitializeComponent();
-            dataPath.Text = Properties.Settings.Default.AppDataPath;
-            settings = BackupSettings.Default;
-            ContentRendered += (s, e) =>
+            dataPath.Text = Settings.Default.AppDataPath;
+            _settings = BackupSettings.Default;
+            ContentRendered += (_, _) =>
             {
-                NoComparisonLBI.Selected += (s, e) => ComparisonMethodListBox.SelectedIndex = 0;
-                VersioningPanel.IsEnabled = (int)settings.Versioning >= (int)VersioningMethod.Replace;
-                if ((SymbolicLinkHandling)SymbolicLinkHandlingBox.SelectedIndex == SymbolicLinkHandling.Direct)
+                NoComparisonLBI.Selected += (_, _) => ComparisonMethodListBox.SelectedIndex = 0;
+                VersioningPanel.IsEnabled = (int) _settings.Versioning >= (int) VersioningMethod.Replace;
+                if ((SymbolicLinkHandling) SymbolicLinkHandlingBox.SelectedIndex == SymbolicLinkHandling.Direct)
                     SymbolicLinkHandlingBox.IsEnabled = false;
             };
         }
+
         /// <summary>
         /// 受け取った設定をもとに設定画面を開く。設定画面を閉じた後にリロードする必要がある。
         /// </summary>
         public SettingsWindow(BackupSettings settings) : this()
         {
-            this.settings = settings;
+            _settings = settings;
             DisplaySettings();
         }
+
         /// <summary>
         /// ローカル設定をファイルから読み込んで変更する。対応するローカル設定が存在していなければ新規作成する。
         /// </summary>
         public SettingsWindow(string originBaseDirPath, string destBaseDirPath) : this()
         {
-            this.settings = BackupSettings.TryLoadLocalSettings(originBaseDirPath, destBaseDirPath, out BackupSettings? settings)
+            _settings = BackupSettings.TryLoadLocalSettings(originBaseDirPath, destBaseDirPath, out var settings)
                 ? settings
                 : BackupSettings.Default.ConvertToLocalSettings(originBaseDirPath, destBaseDirPath);
-            this.settings.OriginBaseDirPath = originBaseDirPath;
-            this.settings.DestBaseDirPath = destBaseDirPath;
+            _settings.OriginBaseDirPath = originBaseDirPath;
+            _settings.DestBaseDirPath = destBaseDirPath;
             DisplaySettings();
         }
 
         private void DisplaySettings()
         {
-            settingsPath.Text = DataFileWriter.GetPath(settings);
-            ignorePatternBox.Text = settings.IgnorePattern;
-            isUseDatabaseCheckBox.IsChecked = settings.IsUseDatabase;
-            isRecordPasswordCheckBox.IsChecked = settings.IsRecordPassword;
-            isOverwriteReadonlyCheckBox.IsChecked = settings.IsOverwriteReadonly;
+            settingsPath.Text = DataFileWriter.GetPath(_settings);
+            ignorePatternBox.Text = _settings.IgnorePattern;
+            isUseDatabaseCheckBox.IsChecked = _settings.IsUseDatabase;
+            isRecordPasswordCheckBox.IsChecked = _settings.IsRecordPassword;
+            isOverwriteReadonlyCheckBox.IsChecked = _settings.IsOverwriteReadonly;
             //isEnableTempFileCheckBox = 
-            isEnableDeletionCheckBox.IsChecked = settings.IsEnableDeletion;
-            if (settings.Versioning == VersioningMethod.RecycleBin)
+            isEnableDeletionCheckBox.IsChecked = _settings.IsEnableDeletion;
+            if (_settings.Versioning == VersioningMethod.RecycleBin)
                 RecycleButton.IsChecked = true;
-            else if (settings.Versioning == VersioningMethod.PermanentDeletion)
+            else if (_settings.Versioning == VersioningMethod.PermanentDeletion)
                 PermanentButton.IsChecked = true;
             else
             {
                 VersioningButton.IsChecked = true;
-                RevisionDirectory.Text = settings.RevisionsDirPath;
-                VersioningMethodBox.SelectedValue = ((int)settings.Versioning).ToString();
+                RevisionDirectory.Text = _settings.RevisionsDirPath;
+                VersioningMethodBox.SelectedValue = ((int) _settings.Versioning).ToString();
             }
-            isCopyAttributesCheckBox.IsChecked = settings.IsCopyAttributes;
-            RetryCountTextBox.Text = settings.RetryCount.ToString();
-            RetryWaitTimeTextBox.Text = settings.RetryWaitMilliSec.ToString();
-            CompressAlgorithmComboBox.SelectedIndex = (int)settings.CompressAlgorithm;
-            CompressionLevelSlider.Value = -((int)settings.CompressionLevel - 2); // 最大値で引いてから符号を反転することでSliderの表示に合わせている
-            PasswordScopeComboBox.SelectedIndex = (int)settings.PasswordProtectionScope;
-            NoComparisonLBI.IsSelected = settings.ComparisonMethod == ComparisonMethod.NoComparison;
-            ArchiveAttributeLBI.IsSelected = settings.ComparisonMethod.HasFlag(ComparisonMethod.ArchiveAttribute);
-            WriteTimeLBI.IsSelected = settings.ComparisonMethod.HasFlag(ComparisonMethod.WriteTime);
-            SizeLBI.IsSelected = settings.ComparisonMethod.HasFlag(ComparisonMethod.Size);
-            SHA1LBI.IsSelected = settings.ComparisonMethod.HasFlag(ComparisonMethod.FileContentsSHA1);
-            BynaryLBI.IsSelected = settings.ComparisonMethod.HasFlag(ComparisonMethod.FileContentsBynary);
-            SymbolicLinkHandlingBox.SelectedIndex = (int)settings.SymbolicLink;
-            IsCancelableBox.IsChecked = settings.IsCancelable;
+
+            isCopyAttributesCheckBox.IsChecked = _settings.IsCopyAttributes;
+            RetryCountTextBox.Text = _settings.RetryCount.ToString();
+            RetryWaitTimeTextBox.Text = _settings.RetryWaitMilliSec.ToString();
+            CompressAlgorithmComboBox.SelectedIndex = (int) _settings.CompressAlgorithm;
+            CompressionLevelSlider.Value = -((int) _settings.CompressionLevel - 2); // 最大値で引いてから符号を反転することでSliderの表示に合わせている
+            PasswordScopeComboBox.SelectedIndex = (int) _settings.PasswordProtectionScope;
+            NoComparisonLBI.IsSelected = _settings.ComparisonMethod == ComparisonMethod.NoComparison;
+            ArchiveAttributeLBI.IsSelected = _settings.ComparisonMethod.HasFlag(ComparisonMethod.ArchiveAttribute);
+            WriteTimeLBI.IsSelected = _settings.ComparisonMethod.HasFlag(ComparisonMethod.WriteTime);
+            SizeLBI.IsSelected = _settings.ComparisonMethod.HasFlag(ComparisonMethod.Size);
+            SHA1LBI.IsSelected = _settings.ComparisonMethod.HasFlag(ComparisonMethod.FileContentsSHA1);
+            BinaryLBI.IsSelected = _settings.ComparisonMethod.HasFlag(ComparisonMethod.FileContentsBinary);
+            SymbolicLinkHandlingBox.SelectedIndex = (int) _settings.SymbolicLink;
+            IsCancelableBox.IsChecked = _settings.IsCancelable;
         }
 
-        private void TextBox_PreviewTextInput(object sender, TextCompositionEventArgs e) => e.Handled = NonNumber.IsMatch(e.Text);
+        private void TextBox_PreviewTextInput(object sender, TextCompositionEventArgs args) => args.Handled = NonNumber.IsMatch(args.Text);
 
-        private void TextBox_PreviewExecuted(object sender, ExecutedRoutedEventArgs e)
+        private void TextBox_PreviewExecuted(object sender, ExecutedRoutedEventArgs args)
         {
-            if (e.Command == ApplicationCommands.Paste)
-            {
-                e.Handled = true;
-            }
+            if (args.Command == ApplicationCommands.Paste)
+                args.Handled = true;
         }
 
         private BackupSettings GetNewSettings()
         {
-            BackupSettings newSettings = settings.OriginBaseDirPath is null || settings.DestBaseDirPath is null ? new BackupSettings() : new BackupSettings(settings.OriginBaseDirPath, settings.DestBaseDirPath);
+            BackupSettings newSettings = _settings.OriginBaseDirPath is null || _settings.DestBaseDirPath is null
+                ? new BackupSettings()
+                : new BackupSettings(_settings.OriginBaseDirPath, _settings.DestBaseDirPath);
             newSettings.IgnorePattern = ignorePatternBox.Text;
-            newSettings.IsUseDatabase = isUseDatabaseCheckBox.IsChecked ?? settings.IsUseDatabase;
-            newSettings.IsRecordPassword = isRecordPasswordCheckBox.IsChecked ?? settings.IsRecordPassword;
-            newSettings.IsOverwriteReadonly = isOverwriteReadonlyCheckBox.IsChecked ?? settings.IsOverwriteReadonly;
-            newSettings.IsEnableDeletion = isEnableDeletionCheckBox.IsChecked ?? settings.IsEnableDeletion;
+            newSettings.IsUseDatabase = isUseDatabaseCheckBox.IsChecked ?? _settings.IsUseDatabase;
+            newSettings.IsRecordPassword = isRecordPasswordCheckBox.IsChecked ?? _settings.IsRecordPassword;
+            newSettings.IsOverwriteReadonly = isOverwriteReadonlyCheckBox.IsChecked ?? _settings.IsOverwriteReadonly;
+            newSettings.IsEnableDeletion = isEnableDeletionCheckBox.IsChecked ?? _settings.IsEnableDeletion;
             if (RecycleButton.IsChecked ?? false)
                 newSettings.Versioning = VersioningMethod.RecycleBin;
             else if (PermanentButton.IsChecked ?? false)
                 newSettings.Versioning = VersioningMethod.PermanentDeletion;
             else if (VersioningButton.IsChecked ?? false)
-            {
-                newSettings.Versioning = (VersioningMethod)int.Parse(VersioningMethodBox.SelectedValue.ToString() ?? "0");
-            }
+                newSettings.Versioning = (VersioningMethod) int.Parse(VersioningMethodBox.SelectedValue.ToString() ?? "0");
             else
-                newSettings.Versioning = settings.Versioning;
+                newSettings.Versioning = _settings.Versioning;
             newSettings.RevisionsDirPath = RevisionDirectory.Text;
-            newSettings.IsCopyAttributes = isCopyAttributesCheckBox.IsChecked ?? settings.IsCopyAttributes;
-            newSettings.RetryCount = int.TryParse(RetryCountTextBox.Text, out var rcount) ? rcount : settings.RetryCount;
-            newSettings.RetryWaitMilliSec = int.TryParse(RetryWaitTimeTextBox.Text, out var wait) ? wait : settings.RetryWaitMilliSec;
-            newSettings.CompressAlgorithm = (Skyzi000.Cryptography.CompressAlgorithm)CompressAlgorithmComboBox.SelectedIndex;
-            newSettings.CompressionLevel = (System.IO.Compression.CompressionLevel)(-(CompressionLevelSlider.Value - 2));
-            newSettings.PasswordProtectionScope = (System.Security.Cryptography.DataProtectionScope)PasswordScopeComboBox.SelectedIndex;
+            newSettings.IsCopyAttributes = isCopyAttributesCheckBox.IsChecked ?? _settings.IsCopyAttributes;
+            newSettings.RetryCount = int.TryParse(RetryCountTextBox.Text, out var rcount) ? rcount : _settings.RetryCount;
+            newSettings.RetryWaitMilliSec = int.TryParse(RetryWaitTimeTextBox.Text, out var wait) ? wait : _settings.RetryWaitMilliSec;
+            newSettings.CompressAlgorithm = (CompressAlgorithm) CompressAlgorithmComboBox.SelectedIndex;
+            newSettings.CompressionLevel = (CompressionLevel) (-(CompressionLevelSlider.Value - 2));
+            newSettings.PasswordProtectionScope = (DataProtectionScope) PasswordScopeComboBox.SelectedIndex;
             if (newSettings.IsRecordPassword)
-            {
-                newSettings.ProtectedPassword = settings.ProtectedPassword;
-            }
+                newSettings.ProtectedPassword = _settings.ProtectedPassword;
             newSettings.ComparisonMethod = 0;
             foreach (var item in ComparisonMethodListBox.SelectedItems)
             {
@@ -129,55 +135,63 @@ namespace SkyziBackup
                     newSettings.ComparisonMethod = ComparisonMethod.NoComparison;
                     break;
                 }
-                newSettings.ComparisonMethod |= (ComparisonMethod)(1 << (i - 1));
+
+                newSettings.ComparisonMethod |= (ComparisonMethod) (1 << (i - 1));
             }
-            newSettings.SymbolicLink = (SymbolicLinkHandling)SymbolicLinkHandlingBox.SelectedIndex;
+
+            newSettings.SymbolicLink = (SymbolicLinkHandling) SymbolicLinkHandlingBox.SelectedIndex;
             newSettings.IsCancelable = IsCancelableBox.IsChecked ?? newSettings.IsCancelable;
             return newSettings;
         }
 
-        private void ResetSettingsButton_Click(object sender, RoutedEventArgs e)
+        private void ResetSettingsButton_Click(object sender, RoutedEventArgs args)
         {
             if (MessageBox.Show("設定を初期値にリセットします。よろしいですか？", "設定リセットの確認", MessageBoxButton.OKCancel) == MessageBoxResult.OK)
             {
-                settings = settings.IsDefault || settings.OriginBaseDirPath is null || settings.DestBaseDirPath is null ? new BackupSettings() : new BackupSettings(settings.OriginBaseDirPath, settings.DestBaseDirPath);
-                DataFileWriter.Write(settings);
+                _settings = _settings.IsDefault || _settings.OriginBaseDirPath is null || _settings.DestBaseDirPath is null
+                    ? new BackupSettings()
+                    : new BackupSettings(_settings.OriginBaseDirPath, _settings.DestBaseDirPath);
+                DataFileWriter.Write(_settings);
                 DisplaySettings();
             }
         }
 
-        private void VersioningButton_Checked(object sender, RoutedEventArgs e)
+        private void VersioningButton_Checked(object sender, RoutedEventArgs args)
         {
             if (VersioningPanel != null)
                 VersioningPanel.IsEnabled = true;
         }
 
-        private void PermanentOrRecycleBinButton_Checked(object sender, RoutedEventArgs e)
+        private void PermanentOrRecycleBinButton_Checked(object sender, RoutedEventArgs args)
         {
             if (VersioningPanel != null)
                 VersioningPanel.IsEnabled = false;
         }
+
         private void SaveNewSettings(BackupSettings newSettings)
         {
-            if (Properties.Settings.Default.AppDataPath != dataPath.Text && Directory.Exists(dataPath.Text))
+            if (Settings.Default.AppDataPath != dataPath.Text && Directory.Exists(dataPath.Text))
             {
-                Properties.Settings.Default.AppDataPath = dataPath.Text;
-                Properties.Settings.Default.Save();
-                dataPath.Text = Properties.Settings.Default.AppDataPath;
-                NLog.GlobalDiagnosticsContext.Set("AppDataPath", dataPath.Text);
+                Settings.Default.AppDataPath = dataPath.Text;
+                Settings.Default.Save();
+                dataPath.Text = Settings.Default.AppDataPath;
+                GlobalDiagnosticsContext.Set("AppDataPath", dataPath.Text);
             }
-            settings = newSettings;
-            settings.Save();
+
+            _settings = newSettings;
+            _settings.Save();
         }
-        private void OkButton_Click(object sender, RoutedEventArgs e)
+
+        private void OkButton_Click(object sender, RoutedEventArgs args)
         {
             BackupSettings newSettings = GetNewSettings();
-            if ((int)newSettings.Versioning >= (int)VersioningMethod.Replace && !Directory.Exists(newSettings.RevisionsDirPath))
+            if ((int) newSettings.Versioning >= (int) VersioningMethod.Replace && !Directory.Exists(newSettings.RevisionsDirPath))
             {
                 MessageBox.Show("バージョン管理の移動先ディレクトリが存在しません。\n正しいパスを入力してください。", $"{App.AssemblyName.Name} - 警告", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
-            if (settings.SymbolicLink != newSettings.SymbolicLink && newSettings.SymbolicLink == SymbolicLinkHandling.Direct)
+
+            if (_settings.SymbolicLink != newSettings.SymbolicLink && newSettings.SymbolicLink == SymbolicLinkHandling.Direct)
             {
                 if (MessageBoxResult.OK != MessageBox.Show(
                     "リパースポイント(シンボリックリンク/ジャンクション)を直接コピーするモードを本当に有効にしますか？\n" +
@@ -186,26 +200,29 @@ namespace SkyziBackup
                     $"{App.AssemblyName.Name} - 確認", MessageBoxButton.OKCancel, MessageBoxImage.None, MessageBoxResult.Cancel))
                     return;
             }
+
             SaveNewSettings(newSettings);
             DisplaySettings();
             Close();
         }
 
-        private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        private void Window_Closing(object sender, CancelEventArgs args)
         {
             BackupSettings newSettings = GetNewSettings();
-            if (!File.Exists(DataFileWriter.GetPath(newSettings)) || settings.ToString() != newSettings.ToString()) // TODO: できればもうちょっとましな比較方法にしたい
+            if (!File.Exists(DataFileWriter.GetPath(newSettings)) || _settings.ToString() != newSettings.ToString()) // TODO: できればもうちょっとましな比較方法にしたい
             {
-                MessageBoxResult r = MessageBox.Show("設定を保存しますか？", "設定変更の確認", MessageBoxButton.YesNoCancel);
+                var r = MessageBox.Show("設定を保存しますか？", "設定変更の確認", MessageBoxButton.YesNoCancel);
                 if (r == MessageBoxResult.Yes)
                 {
-                    if ((int)newSettings.Versioning >= (int)VersioningMethod.Replace && !Directory.Exists(newSettings.RevisionsDirPath))
+                    if ((int) newSettings.Versioning >= (int) VersioningMethod.Replace && !Directory.Exists(newSettings.RevisionsDirPath))
                     {
-                        MessageBox.Show("バージョン管理の移動先ディレクトリが存在しません。\n正しいパスを入力してください。", $"{App.AssemblyName.Name} - 警告", MessageBoxButton.OK, MessageBoxImage.Warning);
-                        e.Cancel = true;
+                        MessageBox.Show("バージョン管理の移動先ディレクトリが存在しません。\n正しいパスを入力してください。", $"{App.AssemblyName.Name} - 警告", MessageBoxButton.OK,
+                            MessageBoxImage.Warning);
+                        args.Cancel = true;
                         return;
                     }
-                    if (settings.SymbolicLink != newSettings.SymbolicLink && newSettings.SymbolicLink == SymbolicLinkHandling.Direct)
+
+                    if (_settings.SymbolicLink != newSettings.SymbolicLink && newSettings.SymbolicLink == SymbolicLinkHandling.Direct)
                     {
                         if (MessageBoxResult.OK != MessageBox.Show(
                             "リパースポイント(シンボリックリンク/ジャンクション)を直接コピーするモードを本当に有効にしますか？\n" +
@@ -213,20 +230,19 @@ namespace SkyziBackup
                             "　そういった危険を減らすために、これ以降この設定を変更できないようになります。",
                             $"{App.AssemblyName.Name} - 確認", MessageBoxButton.OKCancel, MessageBoxImage.Information, MessageBoxResult.Cancel))
                         {
-                            e.Cancel = true;
+                            args.Cancel = true;
                             return;
                         }
                     }
+
                     SaveNewSettings(newSettings);
                 }
                 else if (r == MessageBoxResult.Cancel)
-                {
-                    e.Cancel = true;
-                }
+                    args.Cancel = true;
             }
         }
 
-        private void CancelButton_Click(object sender, RoutedEventArgs e)
+        private void CancelButton_Click(object sender, RoutedEventArgs args)
         {
             DisplaySettings();
             Close();

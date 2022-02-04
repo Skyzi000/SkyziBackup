@@ -2,6 +2,7 @@
 using System.IO;
 using System.Text;
 using System.Windows;
+using NLog;
 
 namespace SkyziBackup
 {
@@ -18,16 +19,16 @@ namespace SkyziBackup
             try
             {
                 using var sr = new StreamReader(
-                    Application.GetResourceStream(new Uri("LICENSE", UriKind.Relative)).Stream,
+                    Application.GetResourceStream(new Uri("LICENSE", UriKind.Relative))?.Stream ?? throw new IOException("ResourceStream is null."),
                     Encoding.UTF8);
                 ThisLicenseBlock.Text = sr.ReadToEnd();
             }
             catch (IOException e)
             {
-                NLog.LogManager.GetCurrentClassLogger().Error(e, "ライセンス情報が見つかりません。");
+                LogManager.GetCurrentClassLogger().Error(e, "ライセンス情報が見つかりません。");
             }
         }
 
-        private void OKButton_Click(object sender, RoutedEventArgs e) => Close();
+        private void OKButton_Click(object sender, RoutedEventArgs args) => Close();
     }
 }

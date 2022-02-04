@@ -1,7 +1,10 @@
-﻿namespace SkyziBackup.Properties
+﻿// ReSharper disable EmptyConstructor
+
+using System.ComponentModel;
+using System.Configuration;
+
+namespace SkyziBackup.Properties
 {
-
-
     // このクラスでは設定クラスでの特定のイベントを処理することができます:
     //  SettingChanging イベントは、設定値が変更される前に発生します。
     //  PropertyChanged イベントは、設定値が変更された後に発生します。
@@ -9,7 +12,6 @@
     //  SettingsSaving イベントは、設定値が保存される前に発生します。
     internal sealed partial class Settings
     {
-
         public Settings()
         {
             // // 設定の保存と変更のイベント ハンドラーを追加するには、以下の行のコメントを解除します:
@@ -20,12 +22,12 @@
             //
         }
 
-        private void SettingChangingEventHandler(object sender, System.Configuration.SettingChangingEventArgs e)
+        private void SettingChangingEventHandler(object sender, SettingChangingEventArgs args)
         {
             // SettingChangingEvent イベントを処理するコードをここに追加してください。
         }
 
-        private void SettingsSavingEventHandler(object sender, System.ComponentModel.CancelEventArgs e)
+        private void SettingsSavingEventHandler(object sender, CancelEventArgs args)
         {
             // SettingsSaving イベントを処理するコードをここに追加してください。
         }
