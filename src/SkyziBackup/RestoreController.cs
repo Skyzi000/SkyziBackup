@@ -525,8 +525,10 @@ namespace SkyziBackup
                 if (isForceCreateDirectoryAndReturnDictionary && backedUpDirectoriesDict == null)
                     backedUpDirectoriesDict = new Dictionary<string, BackedUpDirectoryData>();
                 if (backedUpDirectoriesDict != null && !isRestoreAttributesFromDatabase)
+                {
                     backedUpDirectoriesDict[originDirPath] =
                         new BackedUpDirectoryData(originDirInfo?.CreationTime, originDirInfo?.LastWriteTime, originDirInfo?.Attributes);
+                }
             }
             catch (Exception e)
             {
@@ -538,7 +540,7 @@ namespace SkyziBackup
         }
 
 
-        private void Results_Finished(object? sender, EventArgs e)
+        private void Results_Finished(object? sender, EventArgs args)
         {
             if (isEnableWriteDatabase && Database != null)
             {

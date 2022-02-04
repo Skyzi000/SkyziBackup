@@ -36,11 +36,13 @@ namespace SkyziBackup
             destPath.Text = restoreDestinationPath;
             password.Password = PasswordManager.LoadPassword(LoadCurrentSettings) ?? string.Empty;
             if (LoadCurrentSettings.IsDefault)
+            {
                 MessageBox.Show("ローカル設定を読み込めませんでした。\nローカル設定をインポートするか、手動でバックアップ時の設定に戻してください。", $"{App.AssemblyName.Name} - 情報", MessageBoxButton.OK,
                     MessageBoxImage.Information);
+            }
         }
 
-        private async void RestoreButton_ClickAsync(object sender, RoutedEventArgs e)
+        private async void RestoreButton_ClickAsync(object sender, RoutedEventArgs args)
         {
             if (!Directory.Exists(originPath.Text.Trim()) && !(copyAttributesOnDatabaseCheck.IsChecked && copyOnlyAttributesCheck.IsChecked))
             {
@@ -83,7 +85,7 @@ namespace SkyziBackup
                 copyOnlyAttributesCheck.IsChecked,
                 isEnableWriteDatabaseCheck.IsChecked);
             var m = Message.Text;
-            restore.Results.MessageChanged += (_s, _e) =>
+            restore.Results.MessageChanged += (_, _) =>
             {
                 _ = Dispatcher.InvokeAsync(() => { Message.Text = m + restore.Results.Message + "\n"; },
                     DispatcherPriority.ApplicationIdle);
@@ -93,15 +95,15 @@ namespace SkyziBackup
             progressBar.Visibility = Visibility.Collapsed;
         }
 
-        private void CloseButton_Click(object sender, RoutedEventArgs e) => Close();
+        private void CloseButton_Click(object sender, RoutedEventArgs args) => Close();
 
-        private void GlobalSettingsMenu_Click(object sender, RoutedEventArgs e)
+        private void GlobalSettingsMenu_Click(object sender, RoutedEventArgs args)
         {
             new SettingsWindow(BackupSettings.Default).ShowDialog();
             BackupSettings.ReloadDefault();
         }
 
-        private void Window_Closing(object sender, CancelEventArgs e)
+        private void Window_Closing(object sender, CancelEventArgs args)
         {
             if (!RestoreButton.IsEnabled)
             {
@@ -109,21 +111,22 @@ namespace SkyziBackup
                     "確認",
                     MessageBoxButton.YesNo,
                     MessageBoxImage.Information))
-                {
-                    e.Cancel = true;
-                }
+                    args.Cancel = true;
             }
         }
 
-        private void LocalSettingsMenu_Click(object sender, RoutedEventArgs e)
+        private void LocalSettingsMenu_Click(object sender, RoutedEventArgs args)
         {
             if (LoadCurrentSettings.IsDefault)
+            {
                 if (MessageBox.Show("現在のバックアップペアに対応するローカル設定を新規作成します。", $"{App.AssemblyName.Name} - 確認", MessageBoxButton.OKCancel) == MessageBoxResult.Cancel)
                     return;
+            }
+
             new SettingsWindow(originPath.Text, destPath.Text).ShowDialog();
         }
 
-        private void OpenDirectoryDialogButton_Click(object sender, RoutedEventArgs e)
+        private void OpenDirectoryDialogButton_Click(object sender, RoutedEventArgs args)
         {
             using var ofd = new OpenFileDialog { FileName = "SelectFolder", Filter = "Folder|.", CheckFileExists = false };
             if (ofd.ShowDialog() == System.Windows.Forms.DialogResult.OK)
@@ -140,7 +143,7 @@ namespace SkyziBackup
             }
         }
 
-        private void ImportSettingsMenu_Click(object sender, RoutedEventArgs e)
+        private void ImportSettingsMenu_Click(object sender, RoutedEventArgs args)
         {
             using var ofd = new OpenFileDialog
             {
@@ -156,9 +159,9 @@ namespace SkyziBackup
                 {
                     importedSettings = DataFileWriter.Read<BackupSettings>(ofd.FileName);
                 }
-                catch (Exception ex)
+                catch (Exception e)
                 {
-                    Logger.Error(ex, "設定のインポートに失敗しました。");
+                    Logger.Error(e, "設定のインポートに失敗しました。");
                     importedSettings = null;
                 }
 
@@ -170,10 +173,10 @@ namespace SkyziBackup
             }
         }
 
-        private void ShowCurrentSettings_Click(object sender, RoutedEventArgs e) =>
+        private void ShowCurrentSettings_Click(object sender, RoutedEventArgs args) =>
             MessageBox.Show(LoadCurrentSettings.ToString(), $"{App.AssemblyName.Name} - 現在の設定");
 
-        private void DiscardImportedSettings_Click(object sender, RoutedEventArgs e)
+        private void DiscardImportedSettings_Click(object sender, RoutedEventArgs args)
         {
             importedSettings = null;
             MessageBox.Show("インポートされた設定を破棄しました。", $"{App.AssemblyName.Name} - 現在の設定");

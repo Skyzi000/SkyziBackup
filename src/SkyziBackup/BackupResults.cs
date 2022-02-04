@@ -31,7 +31,7 @@ namespace SkyziBackup
 
         public event EventHandler? Finished;
 
-        protected virtual void OnFinished(EventArgs e) => Finished?.Invoke(this, e);
+        protected virtual void OnFinished(EventArgs args) => Finished?.Invoke(this, args);
 
         /// <summary>
         /// 成功したかどうか。バックアップ進行中や一つでも失敗したファイルがある場合は false。
@@ -55,7 +55,7 @@ namespace SkyziBackup
 
         public event EventHandler? MessageChanged;
 
-        protected virtual void OnMessageChanged(EventArgs e) => MessageChanged?.Invoke(this, e);
+        protected virtual void OnMessageChanged(EventArgs args) => MessageChanged?.Invoke(this, args);
 
         // ※以下のHashSetに記録されるのはバックアップ元のパスのみ。
         /// <summary>

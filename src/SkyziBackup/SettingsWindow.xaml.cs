@@ -24,9 +24,9 @@ namespace SkyziBackup
             InitializeComponent();
             dataPath.Text = Settings.Default.AppDataPath;
             settings = BackupSettings.Default;
-            ContentRendered += (s, e) =>
+            ContentRendered += (_, _) =>
             {
-                NoComparisonLBI.Selected += (s, e) => ComparisonMethodListBox.SelectedIndex = 0;
+                NoComparisonLBI.Selected += (_, _) => ComparisonMethodListBox.SelectedIndex = 0;
                 VersioningPanel.IsEnabled = (int) settings.Versioning >= (int) VersioningMethod.Replace;
                 if ((SymbolicLinkHandling) SymbolicLinkHandlingBox.SelectedIndex == SymbolicLinkHandling.Direct)
                     SymbolicLinkHandlingBox.IsEnabled = false;
@@ -91,12 +91,12 @@ namespace SkyziBackup
             IsCancelableBox.IsChecked = settings.IsCancelable;
         }
 
-        private void TextBox_PreviewTextInput(object sender, TextCompositionEventArgs e) => e.Handled = NonNumber.IsMatch(e.Text);
+        private void TextBox_PreviewTextInput(object sender, TextCompositionEventArgs args) => args.Handled = NonNumber.IsMatch(args.Text);
 
-        private void TextBox_PreviewExecuted(object sender, ExecutedRoutedEventArgs e)
+        private void TextBox_PreviewExecuted(object sender, ExecutedRoutedEventArgs args)
         {
-            if (e.Command == ApplicationCommands.Paste)
-                e.Handled = true;
+            if (args.Command == ApplicationCommands.Paste)
+                args.Handled = true;
         }
 
         private BackupSettings GetNewSettings()
@@ -144,7 +144,7 @@ namespace SkyziBackup
             return newSettings;
         }
 
-        private void ResetSettingsButton_Click(object sender, RoutedEventArgs e)
+        private void ResetSettingsButton_Click(object sender, RoutedEventArgs args)
         {
             if (MessageBox.Show("設定を初期値にリセットします。よろしいですか？", "設定リセットの確認", MessageBoxButton.OKCancel) == MessageBoxResult.OK)
             {
@@ -156,13 +156,13 @@ namespace SkyziBackup
             }
         }
 
-        private void VersioningButton_Checked(object sender, RoutedEventArgs e)
+        private void VersioningButton_Checked(object sender, RoutedEventArgs args)
         {
             if (VersioningPanel != null)
                 VersioningPanel.IsEnabled = true;
         }
 
-        private void PermanentOrRecycleBinButton_Checked(object sender, RoutedEventArgs e)
+        private void PermanentOrRecycleBinButton_Checked(object sender, RoutedEventArgs args)
         {
             if (VersioningPanel != null)
                 VersioningPanel.IsEnabled = false;
@@ -182,7 +182,7 @@ namespace SkyziBackup
             settings.Save();
         }
 
-        private void OkButton_Click(object sender, RoutedEventArgs e)
+        private void OkButton_Click(object sender, RoutedEventArgs args)
         {
             BackupSettings newSettings = GetNewSettings();
             if ((int) newSettings.Versioning >= (int) VersioningMethod.Replace && !Directory.Exists(newSettings.RevisionsDirPath))
@@ -206,7 +206,7 @@ namespace SkyziBackup
             Close();
         }
 
-        private void Window_Closing(object sender, CancelEventArgs e)
+        private void Window_Closing(object sender, CancelEventArgs args)
         {
             BackupSettings newSettings = GetNewSettings();
             if (!File.Exists(DataFileWriter.GetPath(newSettings)) || settings.ToString() != newSettings.ToString()) // TODO: できればもうちょっとましな比較方法にしたい
@@ -218,7 +218,7 @@ namespace SkyziBackup
                     {
                         MessageBox.Show("バージョン管理の移動先ディレクトリが存在しません。\n正しいパスを入力してください。", $"{App.AssemblyName.Name} - 警告", MessageBoxButton.OK,
                             MessageBoxImage.Warning);
-                        e.Cancel = true;
+                        args.Cancel = true;
                         return;
                     }
 
@@ -230,7 +230,7 @@ namespace SkyziBackup
                             "　そういった危険を減らすために、これ以降この設定を変更できないようになります。",
                             $"{App.AssemblyName.Name} - 確認", MessageBoxButton.OKCancel, MessageBoxImage.Information, MessageBoxResult.Cancel))
                         {
-                            e.Cancel = true;
+                            args.Cancel = true;
                             return;
                         }
                     }
@@ -238,11 +238,11 @@ namespace SkyziBackup
                     SaveNewSettings(newSettings);
                 }
                 else if (r == MessageBoxResult.Cancel)
-                    e.Cancel = true;
+                    args.Cancel = true;
             }
         }
 
-        private void CancelButton_Click(object sender, RoutedEventArgs e)
+        private void CancelButton_Click(object sender, RoutedEventArgs args)
         {
             DisplaySettings();
             Close();

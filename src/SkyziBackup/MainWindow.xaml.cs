@@ -71,12 +71,12 @@ namespace SkyziBackup
                 originPath.Text = running.originBaseDirPath;
                 destPath.Text = running.destBaseDirPath;
                 var m = message.Text = $"\n'{originPath.Text}' => '{destPath.Text}'\nバックアップ実行中 ({running.StartTime}開始)\n";
-                running.Results.MessageChanged += (_s, _e) =>
+                running.Results.MessageChanged += (_, _) =>
                 {
                     _ = Dispatcher.InvokeAsync(() => { message.Text = m + running.Results.Message + "\n"; },
                         DispatcherPriority.ApplicationIdle);
                 };
-                running.Results.Finished += (s, e) =>
+                running.Results.Finished += (_, _) =>
                 {
                     Dispatcher.Invoke(() =>
                         {
@@ -89,7 +89,7 @@ namespace SkyziBackup
         }
 
 
-        private async void StartBackupButton_ClickAsync(object sender, RoutedEventArgs e)
+        private async void StartBackupButton_ClickAsync(object sender, RoutedEventArgs args)
         {
             SaveStates();
             if (BackupManager.GetBackupIfRunning(originPath.Text.Trim(), destPath.Text.Trim()) != null)
@@ -147,7 +147,7 @@ namespace SkyziBackup
             progressBar.Visibility = Visibility.Visible;
             var bc = new BackupController(originPath.Text.Trim(), destPath.Text.Trim(), password.Password, settings);
             var m = message.Text;
-            bc.Results.MessageChanged += (_s, _e) =>
+            bc.Results.MessageChanged += (_, _) =>
             {
                 _ = Dispatcher.InvokeAsync(() => { message.Text = m + bc.Results.Message + "\n"; },
                     DispatcherPriority.ApplicationIdle);
@@ -194,32 +194,35 @@ namespace SkyziBackup
             return false;
         }
 
-        private void RestoreWindowMenu_Click(object sender, RoutedEventArgs e)
+        private void RestoreWindowMenu_Click(object sender, RoutedEventArgs args)
         {
             var restoreWindow = new RestoreWindow(destPath.Text.Trim(), originPath.Text.Trim());
             restoreWindow.Show();
         }
 
-        private void CloseButton_Click(object sender, RoutedEventArgs e) => Close();
+        private void CloseButton_Click(object sender, RoutedEventArgs args) => Close();
 
-        private void GlobalSettingsMenu_Click(object sender, RoutedEventArgs e)
+        private void GlobalSettingsMenu_Click(object sender, RoutedEventArgs args)
         {
             new SettingsWindow(BackupSettings.Default).ShowDialog();
             BackupSettings.ReloadDefault();
         }
 
-        private void LocalSettingsMenu_Click(object sender, RoutedEventArgs e)
+        private void LocalSettingsMenu_Click(object sender, RoutedEventArgs args)
         {
             if (LoadCurrentSettings.IsDefault)
+            {
                 if (MessageBox.Show("現在のバックアップペアに対応するローカル設定を新規作成します。", $"{App.AssemblyName.Name} - 確認", MessageBoxButton.OKCancel) == MessageBoxResult.Cancel)
                     return;
+            }
+
             new SettingsWindow(originPath.Text, destPath.Text).ShowDialog();
         }
 
-        private void ShowCurrentSettings_Click(object sender, RoutedEventArgs e) =>
+        private void ShowCurrentSettings_Click(object sender, RoutedEventArgs args) =>
             MessageBox.Show(LoadCurrentSettings.ToString(), $"{App.AssemblyName.Name} - 現在の設定");
 
-        private void DeleteLocalSettings_Click(object sender, RoutedEventArgs e)
+        private void DeleteLocalSettings_Click(object sender, RoutedEventArgs args)
         {
             var currentSettings = LoadCurrentSettings;
             if (currentSettings.IsDefault)
@@ -234,11 +237,11 @@ namespace SkyziBackup
             }
         }
 
-        private void OpenLog_Click(object sender, RoutedEventArgs e) => App.OpenLatestLog();
+        private void OpenLog_Click(object sender, RoutedEventArgs args) => App.OpenLatestLog();
 
-        private void Exit_Click(object sender, RoutedEventArgs e) => ((App) Application.Current).Quit();
+        private void Exit_Click(object sender, RoutedEventArgs args) => ((App) Application.Current).Quit();
 
-        private void Window_Closing(object sender, CancelEventArgs e) => SaveStates();
+        private void Window_Closing(object sender, CancelEventArgs args) => SaveStates();
 
         private void SaveStates()
         {
@@ -247,7 +250,7 @@ namespace SkyziBackup
             Settings.Default.Save();
         }
 
-        private void OpenDirectoryDialogButton_Click(object sender, RoutedEventArgs e)
+        private void OpenDirectoryDialogButton_Click(object sender, RoutedEventArgs args)
         {
             using var ofd = new OpenFileDialog { FileName = "SelectFolder", Filter = "Folder|.", CheckFileExists = false };
             if (ofd.ShowDialog() == System.Windows.Forms.DialogResult.OK)
@@ -264,18 +267,18 @@ namespace SkyziBackup
             }
         }
 
-        private void OpenAppDataButton_Click(object sender, RoutedEventArgs e) => Process.Start("explorer.exe", Settings.Default.AppDataPath);
+        private void OpenAppDataButton_Click(object sender, RoutedEventArgs args) => Process.Start("explorer.exe", Settings.Default.AppDataPath);
 
-        private void DeleteDatabaseMenu_Click(object sender, RoutedEventArgs e) => DeleteDatabase();
+        private void DeleteDatabaseMenu_Click(object sender, RoutedEventArgs args) => DeleteDatabase();
 
-        private async void CancelBackupMenu_Click(object sender, RoutedEventArgs e)
+        private async void CancelBackupMenu_Click(object sender, RoutedEventArgs args)
         {
             if (BackupManager.IsRunning)
                 await BackupManager.CancelAllAsync();
         }
 
-        private void AboutAppMenu_Click(object sender, RoutedEventArgs e) => new AboutWindow().ShowDialog();
+        private void AboutAppMenu_Click(object sender, RoutedEventArgs args) => new AboutWindow().ShowDialog();
 
-        private void RepositoryLinkMenu_Click(object sender, RoutedEventArgs e) => Process.Start("explorer.exe", @"https://github.com/skyzi000/SkyziBackup");
+        private void RepositoryLinkMenu_Click(object sender, RoutedEventArgs args) => Process.Start("explorer.exe", @"https://github.com/skyzi000/SkyziBackup");
     }
 }

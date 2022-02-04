@@ -29,6 +29,6 @@ namespace SkyziBackup
             }
         }
 
-        private void OKButton_Click(object sender, RoutedEventArgs e) => Close();
+        private void OKButton_Click(object sender, RoutedEventArgs args) => Close();
     }
 }
