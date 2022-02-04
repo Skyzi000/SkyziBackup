@@ -183,7 +183,7 @@ namespace SkyziBackup
             {
                 Logger.Info("属性をコピー'{0}' => '{1}'", originFilePath, destFilePath);
                 var data = Database.BackedUpFilesDict.TryGetValue(originFilePath, out var d) ? d : new BackedUpFileData();
-                new FileInfo(destFilePath)
+                var _ = new FileInfo(destFilePath)
                 {
                     CreationTime = (data.CreationTime = (originInfo = new FileInfo(originFilePath)).CreationTime).Value,
                     LastWriteTime = (data.LastWriteTime = originInfo.LastWriteTime).Value,
@@ -194,7 +194,7 @@ namespace SkyziBackup
             else if (!_isRestoreAttributesFromDatabase || Database is null || !Database.BackedUpFilesDict.TryGetValue(originFilePath, out var data))
             {
                 Logger.Info("属性をコピー'{0}' => '{1}'", originFilePath, destFilePath);
-                new FileInfo(destFilePath)
+                var _ = new FileInfo(destFilePath)
                 {
                     CreationTime = (originInfo = new FileInfo(originFilePath)).CreationTime,
                     LastWriteTime = originInfo.LastWriteTime,
@@ -205,7 +205,7 @@ namespace SkyziBackup
             else
             {
                 Logger.Info("データベースからファイル属性をリストア '{0}'", destFilePath);
-                new FileInfo(destFilePath)
+                var _ = new FileInfo(destFilePath)
                 {
                     CreationTime = data.CreationTime ?? (originInfo = new FileInfo(originFilePath)).CreationTime,
                     LastWriteTime = data.LastWriteTime ?? (originInfo ??= new FileInfo(originFilePath)).LastWriteTime,
@@ -252,7 +252,7 @@ namespace SkyziBackup
                         if (_isEnableWriteDatabase) // newDirDict は null ではない
                         {
                             var data = Database.BackedUpDirectoriesDict.TryGetValue(originDirPath, out var d) ? d : new BackedUpDirectoryData();
-                            new DirectoryInfo(destDirPath)
+                            var _ = new DirectoryInfo(destDirPath)
                             {
                                 CreationTime = (data.CreationTime = (originInfo = new DirectoryInfo(originDirPath)).CreationTime).Value,
                                 LastWriteTime = (data.LastWriteTime = originInfo.LastWriteTime).Value,
@@ -264,7 +264,7 @@ namespace SkyziBackup
                         {
                             // データベースに記録されたディレクトリ属性をコピーする(もし記録されていないものがあれば実際のディレクトリを参照する)
                             BackedUpDirectoryData data = Database.BackedUpDirectoriesDict[originDirPath];
-                            new DirectoryInfo(destDirPath)
+                            var _ = new DirectoryInfo(destDirPath)
                             {
                                 CreationTime = data.CreationTime ?? (originInfo = new DirectoryInfo(originDirPath)).CreationTime,
                                 LastWriteTime = data.LastWriteTime ?? (originInfo ??= new DirectoryInfo(originDirPath)).LastWriteTime,
@@ -339,7 +339,7 @@ namespace SkyziBackup
                         if (_isEnableWriteDatabase && Database != null)
                         {
                             var data = Database.BackedUpDirectoriesDict.TryGetValue(originDirPath, out var d) ? d : new BackedUpDirectoryData();
-                            new DirectoryInfo(destDirPath)
+                            var _ = new DirectoryInfo(destDirPath)
                             {
                                 CreationTime = (data.CreationTime = (originInfo = new DirectoryInfo(originDirPath)).CreationTime).Value,
                                 LastWriteTime = (data.LastWriteTime = originInfo.LastWriteTime).Value,
@@ -349,7 +349,7 @@ namespace SkyziBackup
                         }
                         else
                         {
-                            new DirectoryInfo(destDirPath)
+                            var _ = new DirectoryInfo(destDirPath)
                             {
                                 CreationTime = (originInfo = new DirectoryInfo(originDirPath)).CreationTime,
                                 LastWriteTime = originInfo.LastWriteTime,
