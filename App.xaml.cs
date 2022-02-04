@@ -97,7 +97,7 @@ namespace SkyziBackup
                                    BackupSettings.Default;
                     using var results = await BackupManager.StartBackupAsync(originPath, destPath,
                         settings.IsRecordPassword ? settings.GetRawPassword() : null, settings);
-                    if (results is { isSuccess: false })
+                    if (results is { IsSuccess: false })
                         await Task.Delay(10000);
                 }
                 else

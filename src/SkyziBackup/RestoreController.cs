@@ -73,10 +73,10 @@ namespace SkyziBackup
                 _isRestoreAttributesFromDatabase, _isCopyOnlyFileAttributes, _isEnableWriteDatabase);
             Logger.Info("リストアを開始'{0}' => '{1}'", _sourceBaseDirPath, _destBaseDirPath);
 
-            Results.successfulFiles = new HashSet<string>();
-            Results.successfulDirectories = new HashSet<string>();
-            Results.failedFiles = new HashSet<string>();
-            Results.failedDirectories = new HashSet<string>();
+            Results.SuccessfulFiles = new HashSet<string>();
+            Results.SuccessfulDirectories = new HashSet<string>();
+            Results.FailedFiles = new HashSet<string>();
+            Results.FailedDirectories = new HashSet<string>();
 
             if (_isCopyOnlyFileAttributes)
                 return CopyOnlyFileAttributes();
@@ -116,7 +116,7 @@ namespace SkyziBackup
                 RestoreFile(originFilePath, destFilePath);
             }
 
-            Results.isSuccess = !Results.failedFiles.Any() && !Results.failedDirectories.Any();
+            Results.IsSuccess = !Results.FailedFiles.Any() && !Results.FailedDirectories.Any();
             Results.IsFinished = true;
             return Results;
         }
@@ -138,8 +138,8 @@ namespace SkyziBackup
                             CopyFileAttributes(originFilePath, destFilePath);
                     }
 
-                    Results.successfulFiles.Add(originFilePath);
-                    Results.failedFiles.Remove(originFilePath);
+                    Results.SuccessfulFiles.Add(originFilePath);
+                    Results.FailedFiles.Remove(originFilePath);
                 }
                 else
                 {
@@ -160,19 +160,19 @@ namespace SkyziBackup
                             CopyFileAttributes(originFilePath, destFilePath);
                     }
 
-                    Results.successfulFiles.Add(originFilePath);
-                    Results.failedFiles.Remove(originFilePath);
+                    Results.SuccessfulFiles.Add(originFilePath);
+                    Results.FailedFiles.Remove(originFilePath);
                 }
             }
             catch (UnauthorizedAccessException)
             {
                 Logger.Error(Results.Message = $"アクセスが拒否されました '{originFilePath}' => '{destFilePath}'\n");
-                Results.failedFiles.Add(originFilePath);
+                Results.FailedFiles.Add(originFilePath);
             }
             catch (Exception ex)
             {
                 Logger.Error(ex, Results.Message = $"予期しない例外が発生しました '{originFilePath}' => '{destFilePath}'\n");
-                Results.failedFiles.Add(originFilePath);
+                Results.FailedFiles.Add(originFilePath);
             }
         }
 
@@ -242,7 +242,7 @@ namespace SkyziBackup
                     if (!Directory.Exists(destDirPath))
                     {
                         Logger.Warn("コピー先のディレクトリが見つかりません: {0}", destDirPath);
-                        Results.failedFiles.Add(originDirPath);
+                        Results.FailedFiles.Add(originDirPath);
                         continue;
                     }
 
@@ -275,12 +275,12 @@ namespace SkyziBackup
                     catch (UnauthorizedAccessException)
                     {
                         Logger.Error(Results.Message = $"アクセスが拒否されました '{originDirPath}' => '{destDirPath}'");
-                        Results.failedFiles.Add(originDirPath);
+                        Results.FailedFiles.Add(originDirPath);
                     }
                     catch (Exception ex)
                     {
                         Logger.Error(ex, Results.Message = $"予期しない例外が発生しました '{originDirPath}' => '{destDirPath}'\n");
-                        Results.failedFiles.Add(originDirPath);
+                        Results.FailedFiles.Add(originDirPath);
                     }
                 }
 
@@ -290,7 +290,7 @@ namespace SkyziBackup
                     if (!File.Exists(destFilePath))
                     {
                         Logger.Warn(Results.Message = $"コピー先のファイルが見つかりません '{destFilePath}'");
-                        Results.failedFiles.Add(originFilePath);
+                        Results.FailedFiles.Add(originFilePath);
                         continue;
                     }
 
@@ -300,18 +300,18 @@ namespace SkyziBackup
                             newFileDict![originFilePath] = CopyFileAttributes(originFilePath, destFilePath)!;
                         else
                             CopyFileAttributes(originFilePath, destFilePath);
-                        Results.successfulFiles.Add(originFilePath);
-                        Results.failedFiles.Remove(originFilePath);
+                        Results.SuccessfulFiles.Add(originFilePath);
+                        Results.FailedFiles.Remove(originFilePath);
                     }
                     catch (UnauthorizedAccessException)
                     {
                         Logger.Error(Results.Message = $"アクセスが拒否されました '{originFilePath}' => '{destFilePath}'\n");
-                        Results.failedFiles.Add(originFilePath);
+                        Results.FailedFiles.Add(originFilePath);
                     }
                     catch (Exception ex)
                     {
                         Logger.Error(ex, Results.Message = $"予期しない例外が発生しました '{originFilePath}' => '{destFilePath}'\n");
-                        Results.failedFiles.Add(originFilePath);
+                        Results.FailedFiles.Add(originFilePath);
                     }
                 }
 
@@ -329,7 +329,7 @@ namespace SkyziBackup
                     if (!Directory.Exists(destDirPath))
                     {
                         Logger.Warn("コピー先のディレクトリが見つかりません: {0}", destDirPath);
-                        Results.failedFiles.Add(originDirPath);
+                        Results.FailedFiles.Add(originDirPath);
                         continue;
                     }
 
@@ -360,12 +360,12 @@ namespace SkyziBackup
                     catch (UnauthorizedAccessException)
                     {
                         Logger.Error(Results.Message = $"アクセスが拒否されました '{originDirPath}' => '{destDirPath}'\n");
-                        Results.failedFiles.Add(originDirPath);
+                        Results.FailedFiles.Add(originDirPath);
                     }
                     catch (Exception ex)
                     {
                         Logger.Error(ex, Results.Message = $"予期しない例外が発生しました '{originDirPath}' => '{destDirPath}'\n");
-                        Results.failedFiles.Add(originDirPath);
+                        Results.FailedFiles.Add(originDirPath);
                     }
                 }
 
@@ -375,7 +375,7 @@ namespace SkyziBackup
                     if (!File.Exists(destFilePath))
                     {
                         Logger.Warn("コピー先のファイルが見つかりません: '{0}'", destFilePath);
-                        Results.failedFiles.Add(originFilePath);
+                        Results.FailedFiles.Add(originFilePath);
                         continue;
                     }
 
@@ -384,23 +384,23 @@ namespace SkyziBackup
                         var data = CopyFileAttributes(originFilePath, destFilePath);
                         if (_isEnableWriteDatabase && Database != null && data != null)
                             Database.BackedUpFilesDict[originFilePath] = data;
-                        Results.successfulFiles.Add(originFilePath);
-                        Results.failedFiles.Remove(originFilePath);
+                        Results.SuccessfulFiles.Add(originFilePath);
+                        Results.FailedFiles.Remove(originFilePath);
                     }
                     catch (UnauthorizedAccessException)
                     {
                         Logger.Error(Results.Message = $"アクセスが拒否されました '{originFilePath}' => '{destFilePath}'\n");
-                        Results.failedFiles.Add(originFilePath);
+                        Results.FailedFiles.Add(originFilePath);
                     }
                     catch (Exception ex)
                     {
                         Logger.Error(ex, Results.Message = $"予期しない例外が発生しました '{originFilePath}' => '{destFilePath}'\n");
-                        Results.failedFiles.Add(originFilePath);
+                        Results.FailedFiles.Add(originFilePath);
                     }
                 }
             }
 
-            Results.isSuccess = !Results.failedFiles.Any();
+            Results.IsSuccess = !Results.FailedFiles.Any();
             Results.IsFinished = true;
             return Results;
         }
@@ -520,8 +520,8 @@ namespace SkyziBackup
                         (destDirInfo ?? Directory.CreateDirectory(destDirPath)).Attributes = originDirInfo.Attributes;
                 }
 
-                results.successfulDirectories.Add(originDirPath);
-                results.failedDirectories.Remove(originDirPath);
+                results.SuccessfulDirectories.Add(originDirPath);
+                results.FailedDirectories.Remove(originDirPath);
                 if (isForceCreateDirectoryAndReturnDictionary && backedUpDirectoriesDict == null)
                     backedUpDirectoriesDict = new Dictionary<string, BackedUpDirectoryData>();
                 if (backedUpDirectoriesDict != null && !isRestoreAttributesFromDatabase)
@@ -533,7 +533,7 @@ namespace SkyziBackup
             catch (Exception e)
             {
                 Logger.Error(e, results.Message = $"'{originDirPath}' => '{originDirPath.Replace(sourceBaseDirPath, destBaseDirPath)}'のコピーに失敗");
-                results.failedDirectories.Add(originDirPath);
+                results.FailedDirectories.Add(originDirPath);
             }
 
             return backedUpDirectoriesDict;
@@ -548,8 +548,8 @@ namespace SkyziBackup
                 _ = DataFileWriter.WriteAsync(Database);
             }
 
-            Results.Message = (Results.isSuccess ? "リストア完了: " : Results.Message + "\nリストア失敗: ") + DateTime.Now;
-            Logger.Info("{0}\n=============================\n\n", Results.isSuccess ? "リストア完了" : "リストア失敗");
+            Results.Message = (Results.IsSuccess ? "リストア完了: " : Results.Message + "\nリストア失敗: ") + DateTime.Now;
+            Logger.Info("{0}\n=============================\n\n", Results.IsSuccess ? "リストア完了" : "リストア失敗");
         }
     }
 }

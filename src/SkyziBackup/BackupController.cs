@@ -73,16 +73,16 @@ namespace SkyziBackup
             else
                 Database = null;
 
-            Results.successfulFiles = new HashSet<string>();
-            Results.successfulDirectories = new HashSet<string>();
-            Results.failedFiles = new HashSet<string>();
-            Results.failedDirectories = new HashSet<string>();
+            Results.SuccessfulFiles = new HashSet<string>();
+            Results.SuccessfulDirectories = new HashSet<string>();
+            Results.FailedFiles = new HashSet<string>();
+            Results.FailedDirectories = new HashSet<string>();
             if (Settings.ComparisonMethod != ComparisonMethod.NoComparison)
-                Results.unchangedFiles = new HashSet<string>();
+                Results.UnchangedFiles = new HashSet<string>();
             if (Settings.IsEnableDeletion)
             {
-                Results.deletedFiles = new HashSet<string>();
-                Results.deletedDirectories = new HashSet<string>();
+                Results.DeletedFiles = new HashSet<string>();
+                Results.DeletedDirectories = new HashSet<string>();
             }
 
             await saveTask;
@@ -131,7 +131,7 @@ namespace SkyziBackup
             if (Cts is null)
                 Logger.Info("キャンセル失敗: キャンセル機能が無効です");
             Cts?.Cancel();
-            Results.isSuccess = false;
+            Results.IsSuccess = false;
             Results.IsFinished = true;
         }
 
@@ -206,10 +206,10 @@ namespace SkyziBackup
                 }
 
                 // 成功判定
-                Results.isSuccess = !Results.failedDirectories.Any() && !Results.failedFiles.Any();
+                Results.IsSuccess = !Results.FailedDirectories.Any() && !Results.FailedFiles.Any();
 
                 // リトライ処理
-                if ((Results.failedDirectories.Any() || Results.failedFiles.Any()) && Settings.RetryCount > 0)
+                if ((Results.FailedDirectories.Any() || Results.FailedFiles.Any()) && Settings.RetryCount > 0)
                 {
                     Logger.Info($"{Settings.RetryWaitMilliSec} ミリ秒毎に {Settings.RetryCount} 回リトライ");
                     await RetryStartAsync(cToken).ConfigureAwait(false);
@@ -231,8 +231,8 @@ namespace SkyziBackup
                 CleanUpDatabase();
             }
 
-            Results.Message = (Results.isSuccess ? "バックアップ完了: " : Results.Message + "\nバックアップ失敗: ") + DateTime.Now;
-            Logger.Info("{0}\n=============================\n\n", Results.isSuccess ? "バックアップ完了" : "バックアップ失敗");
+            Results.Message = (Results.IsSuccess ? "バックアップ完了: " : Results.Message + "\nバックアップ失敗: ") + DateTime.Now;
+            Logger.Info("{0}\n=============================\n\n", Results.IsSuccess ? "バックアップ完了" : "バックアップ失敗");
             if (Results.SaveFileName is not null)
                 await Results.SaveAsync(cancellationToken: CancellationToken.None).ConfigureAwait(false);
             return Results;
@@ -244,7 +244,7 @@ namespace SkyziBackup
             {
                 foreach (var originDirPath in Database.BackedUpDirectoriesDict.Keys)
                 {
-                    if (Results.successfulDirectories.Contains(originDirPath) || Results.failedDirectories.Contains(originDirPath))
+                    if (Results.SuccessfulDirectories.Contains(originDirPath) || Results.FailedDirectories.Contains(originDirPath))
                         continue;
                     var destDirPath = originDirPath.Replace(OriginBaseDirPath, DestBaseDirPath);
                     if (!Directory.Exists(destDirPath))
@@ -256,7 +256,7 @@ namespace SkyziBackup
                     try
                     {
                         DeleteDirectory(destDirPath);
-                        Results.deletedDirectories?.Add(originDirPath);
+                        Results.DeletedDirectories?.Add(originDirPath);
                         Database.BackedUpDirectoriesDict.Remove(originDirPath);
                     }
                     catch (Exception e)
@@ -272,12 +272,12 @@ namespace SkyziBackup
                     : EnumerateAllDirectories(DestBaseDirPath, Settings.Regexes))
                 {
                     var originDirPath = destDirPath.Replace(DestBaseDirPath, OriginBaseDirPath);
-                    if (Results.successfulDirectories.Contains(originDirPath) || Results.failedDirectories.Contains(originDirPath))
+                    if (Results.SuccessfulDirectories.Contains(originDirPath) || Results.FailedDirectories.Contains(originDirPath))
                         continue;
                     try
                     {
                         DeleteDirectory(destDirPath);
-                        Results.deletedDirectories?.Add(originDirPath);
+                        Results.DeletedDirectories?.Add(originDirPath);
                     }
                     catch (Exception e)
                     {
@@ -341,8 +341,8 @@ namespace SkyziBackup
             {
                 foreach (var originFilePath in Database.BackedUpFilesDict.Keys)
                 {
-                    if (Results.successfulFiles.Contains(originFilePath) || Results.failedFiles.Contains(originFilePath) ||
-                        (Results.unchangedFiles?.Contains(originFilePath) ?? false))
+                    if (Results.SuccessfulFiles.Contains(originFilePath) || Results.FailedFiles.Contains(originFilePath) ||
+                        (Results.UnchangedFiles?.Contains(originFilePath) ?? false))
                         continue;
                     var destFilePath = originFilePath.Replace(OriginBaseDirPath, DestBaseDirPath);
                     if (!File.Exists(destFilePath))
@@ -361,8 +361,8 @@ namespace SkyziBackup
                     : EnumerateAllFiles(DestBaseDirPath, Settings.Regexes))
                 {
                     var originFilePath = destFilePath.Replace(DestBaseDirPath, OriginBaseDirPath);
-                    if (Results.successfulFiles.Contains(originFilePath) || Results.failedFiles.Contains(originFilePath) ||
-                        (Results.unchangedFiles?.Contains(originFilePath) ?? false))
+                    if (Results.SuccessfulFiles.Contains(originFilePath) || Results.FailedFiles.Contains(originFilePath) ||
+                        (Results.UnchangedFiles?.Contains(originFilePath) ?? false))
                         continue;
                     DeleteFile(destFilePath, originFilePath);
                 }
@@ -377,7 +377,7 @@ namespace SkyziBackup
             {
                 Logger.Info(Results.Message = $"ファイルを削除: '{destFilePath}'");
                 DeleteFile(destFilePath);
-                Results.deletedFiles?.Add(originFilePath);
+                Results.DeletedFiles?.Add(originFilePath);
                 Database?.BackedUpFilesDict.Remove(originFilePath);
             }
             catch (Exception e)
@@ -587,8 +587,8 @@ namespace SkyziBackup
                         (destDirInfo ?? Directory.CreateDirectory(destDirPath)).Attributes = originDirInfo.Attributes;
                 }
 
-                results.successfulDirectories.Add(originDirPath);
-                results.failedDirectories.Remove(originDirPath);
+                results.SuccessfulDirectories.Add(originDirPath);
+                results.FailedDirectories.Remove(originDirPath);
                 if (isForceCreateDirectoryAndReturnDictionary && backedUpDirectoriesDict == null)
                     backedUpDirectoriesDict = new Dictionary<string, BackedUpDirectoryData>();
                 if (backedUpDirectoriesDict != null && !isRestoreAttributesFromDatabase)
@@ -600,7 +600,7 @@ namespace SkyziBackup
             catch (Exception e)
             {
                 Logger.Error(e, results.Message = $"'{originDirPath}' => '{originDirPath.Replace(sourceBaseDirPath, destBaseDirPath)}'のコピーに失敗");
-                results.failedDirectories.Add(originDirPath);
+                results.FailedDirectories.Add(originDirPath);
             }
 
             return backedUpDirectoriesDict;
@@ -727,7 +727,7 @@ namespace SkyziBackup
 
             // 相違が検出されなかった
             Logger.Info("ファイルをスキップ(バックアップ済み): '{0}'", originFilePath);
-            Results.unchangedFiles?.Add(originFilePath);
+            Results.UnchangedFiles?.Add(originFilePath);
             return true;
         }
 
@@ -835,7 +835,7 @@ namespace SkyziBackup
 
             // 相違が検出されなかった
             Logger.Info("ファイルをスキップ(バックアップ済み): '{0}'", originFilePath);
-            Results.unchangedFiles?.Add(originFilePath);
+            Results.UnchangedFiles?.Add(originFilePath);
             return true;
         }
 
@@ -902,7 +902,7 @@ namespace SkyziBackup
             catch (Exception e)
             {
                 Logger.Error(e, Results.Message = $"'{originFilePath}' => '{destFilePath}'のバックアップに失敗");
-                Results.failedFiles.Add(originFilePath);
+                Results.FailedFiles.Add(originFilePath);
             }
         }
 
@@ -1018,8 +1018,8 @@ namespace SkyziBackup
                 );
             }
 
-            Results.successfulFiles.Add(originFilePath);
-            Results.failedFiles.Remove(originFilePath);
+            Results.SuccessfulFiles.Add(originFilePath);
+            Results.FailedFiles.Remove(originFilePath);
         }
 
         private async Task RetryStartAsync(CancellationToken cancellationToken = default)
@@ -1037,9 +1037,9 @@ namespace SkyziBackup
 
             _currentRetryCount++;
             Logger.Info(Results.Message = $"リトライ {_currentRetryCount}/{Settings.RetryCount} 回目");
-            if (Results.failedDirectories.Any())
+            if (Results.FailedDirectories.Any())
             {
-                foreach (var originDirPath in Results.failedDirectories.ToArray())
+                foreach (var originDirPath in Results.FailedDirectories.ToArray())
                     if (Settings.IsUseDatabase && Database != null)
                     {
                         Database.BackedUpDirectoriesDict =
@@ -1054,18 +1054,18 @@ namespace SkyziBackup
                     }
             }
 
-            if (Results.failedFiles.Any())
+            if (Results.FailedFiles.Any())
             {
-                foreach (var originFilePath in Results.failedFiles.ToArray())
+                foreach (var originFilePath in Results.FailedFiles.ToArray())
                 {
                     var destFilePath = originFilePath.Replace(OriginBaseDirPath, DestBaseDirPath);
                     await Task.Run(() => BackupFile(originFilePath, destFilePath), cancellationToken);
                 }
             }
 
-            Results.isSuccess = !Results.failedDirectories.Any() && !Results.failedFiles.Any();
+            Results.IsSuccess = !Results.FailedDirectories.Any() && !Results.FailedFiles.Any();
 
-            if (Results.isSuccess)
+            if (Results.IsSuccess)
                 Results.IsFinished = true;
             else
                 await RetryStartAsync(cancellationToken);

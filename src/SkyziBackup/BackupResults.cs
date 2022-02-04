@@ -36,7 +36,7 @@ namespace SkyziBackup
         /// <summary>
         /// 成功したかどうか。バックアップ進行中や一つでも失敗したファイルがある場合は false。
         /// </summary>
-        public bool isSuccess { get; set; }
+        public bool IsSuccess { get; set; }
 
         /// <summary>
         /// メッセージ
@@ -61,37 +61,37 @@ namespace SkyziBackup
         /// <summary>
         /// 今回バックアップ/リストアされたファイルのパス。
         /// </summary>
-        public HashSet<string> successfulFiles { get; set; } = new();
+        public HashSet<string> SuccessfulFiles { get; set; } = new();
 
         /// <summary>
         /// 今回バックアップ/リストアされたディレクトリのパス。
         /// </summary>
-        public HashSet<string> successfulDirectories { get; set; } = new();
+        public HashSet<string> SuccessfulDirectories { get; set; } = new();
 
         /// <summary>
         /// バックアップ対象だが前回のバックアップからの変更が確認されず、スキップされたファイルのパス。
         /// </summary>
-        public HashSet<string>? unchangedFiles { get; set; } = null;
+        public HashSet<string>? UnchangedFiles { get; set; } = null;
 
         /// <summary>
         /// バックアップ対象だが失敗したファイルのパス。
         /// </summary>
-        public HashSet<string> failedFiles { get; set; } = new();
+        public HashSet<string> FailedFiles { get; set; } = new();
 
         /// <summary>
         /// バックアップ対象だが失敗したディレクトリのパス。
         /// </summary>
-        public HashSet<string> failedDirectories { get; set; } = new();
+        public HashSet<string> FailedDirectories { get; set; } = new();
 
         /// <summary>
         /// 削除したファイルのパス。
         /// </summary>
-        public HashSet<string>? deletedFiles { get; set; } = null;
+        public HashSet<string>? DeletedFiles { get; set; } = null;
 
         /// <summary>
         /// 削除したディレクトリのパス。
         /// </summary>
-        public HashSet<string>? deletedDirectories { get; set; } = null;
+        public HashSet<string>? DeletedDirectories { get; set; } = null;
 
         [JsonIgnore]
         public override string? SaveFileName => OriginBaseDirPath is null || DestBaseDirPath is null ? null : GetFileName(OriginBaseDirPath, DestBaseDirPath);
@@ -103,7 +103,7 @@ namespace SkyziBackup
 
         public BackupResults(bool isSuccess, bool isFinished = false, string message = "")
         {
-            this.isSuccess = isSuccess;
+            IsSuccess = isSuccess;
             IsFinished = isFinished;
             Message = message;
         }
