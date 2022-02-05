@@ -49,6 +49,10 @@ resharper_place_field_attribute_on_same_line = false
 resharper_place_simple_embedded_statement_on_same_line = false
 resharper_space_within_single_line_array_initializer_braces = true
 
+[{*.yaml,*.yml}]
+trim_trailing_whitespace = true
+insert_final_newline = true
+
 [{*.yaml,*.yml,*.xml,*.csproj}]
 indent_size = 2
 
