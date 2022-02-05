@@ -3,6 +3,7 @@ description: 新しいアイデアを提案していただけると助かりま�
 labels: ["enhancement"]
 body:
 - type: checkboxes
+  id: check_existing_issues
   attributes:
     label: Issueを確認しましたか？
     description: 似たようなIssueが既に存在しないかどうか検索してみてください。
@@ -10,6 +11,7 @@ body:
     - label: 既存のIssueを検索してみました
       required: true
 - type: input
+  id: is_your_feature_request_related_to_a_problem
   attributes:
     label: この機能リクエストは、問題に関連していますか？
     description: 何が問題なのか、明確かつ簡潔に説明してください。
@@ -17,18 +19,21 @@ body:
   validations:
     required: false
 - type: textarea
+  id: solutions_or_desired_features
   attributes:
     label: 解決策、欲しい機能
     description: 実現してほしいことを、明確かつ簡潔に説明してください。
   validations:
     required: true
 - type: textarea
+  id: alternatives_youve_considered
   attributes:
     label: 検討した代替案
     description: 検討した代替案や機能について、明確かつ簡潔に説明してください。
   validations:
     required: false
 - type: textarea
+  id: additional_context
   attributes:
     label: その他
     description: |
