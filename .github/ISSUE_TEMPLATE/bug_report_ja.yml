@@ -4,28 +4,32 @@ description: バグを報告していただけると助かります！
 labels: ["bug"]
 body:
 - type: checkboxes
+  id: check_existing_issues
   attributes:
-    label: Issueを確認しましたか？
-    description: あなたが遭遇したバグについて、すでにIssueが存在しないかどうか検索してください。
+    label: "Issueを確認しましたか？"
+    description: "あなたが遭遇したバグについて、すでにIssueが存在しないかどうか検索してください。"
     options:
-    - label: 既存のIssueを検索してみました
+    - label: "既存のIssueを検索してみました"
       required: true
 - type: input
+  id: describe_the_bug
   attributes:
-    label: バグの説明
-    description: バグの内容を明確かつ簡潔に説明してください。
+    label: "バグの説明"
+    description: "バグの内容を明確かつ簡潔に説明してください。"
   validations:
     required: true
 - type: textarea
+  id: expected_behavior
   attributes:
-    label: 期待していた動作
-    description: 期待していた動作を明確かつ簡潔に説明してください。
+    label: "期待していた動作"
+    description: "期待していた動作を明確かつ簡潔に説明してください。"
   validations:
     required: true
 - type: textarea
+  id: to_reproduce
   attributes:
-    label: 再現手順
-    description: そのバグはどのようなときに発生しますか？バグを再現するための手順を教えてください。
+    label: "再現手順"
+    description: "そのバグはどのようなときに発生しますか？バグを再現するための手順を教えてください。"
     placeholder: |
       1. ...を...に設定
       2. '...'を実行
@@ -35,27 +39,30 @@ body:
 - type: markdown
   attributes:
     value: |
-      "## 実行環境"
+      ## 実行環境
       不明な項目は飛ばしても構いませんが、出来るだけ埋めていただけると助かります。
 - type: input
+  id: application_version
   attributes:
-    label: アプリケーションのバージョン
-    description: .exeファイルのプロパティや、「このアプリについて」ウィンドウから確認することができます。
+    label: "アプリケーションのバージョン"
+    description: ".exeファイルのプロパティや、「このアプリについて」ウィンドウから確認することができます。"
     placeholder: |
       0.3.20, 0.1.52, 0.2.4など
   validations:
     required: false
 - type: input
+  id: os_version
   attributes:
-    label: OSのバージョン
-    description: Win＋Pauseキーなどで確認できると思います。
+    label: "OSのバージョン"
+    description: "Win＋Pauseキーなどで確認できると思います。"
     placeholder: |
       Windows 10 Pro 20H2
   validations:
     required: false
 - type: textarea
+  id: dotnet_runtime_version
   attributes:
-    label: .NETランタイムのバージョン
+    label: ".NETランタイムのバージョン"
     description: "`dotnet --list-runtimes` コマンドを実行することで確認できると思います。"
     placeholder: |
       Microsoft.NETCore.App 3.1.22 [C:\Program Files\dotnet\shared\Microsoft.NETCore.App]
@@ -67,8 +74,9 @@ body:
   validations:
     required: false
 - type: textarea
+  id: additional_context
   attributes:
-    label: その他
+    label: "その他"
     description: |
       問題に関するその他の説明事項がある場合は、ここに何でも書いてください。
 
