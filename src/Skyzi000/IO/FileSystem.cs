@@ -33,10 +33,10 @@ namespace Skyzi000.IO
                     }));
 
         public static IEnumerable<string> EnumerateAllFilesIgnoringReparsePoints(string path,
-            IEnumerable<Regex>? ignoreDirectoryRegices,
+            IEnumerable<Regex>? ignoreDirectoryRegexes,
             int matchingStartIndex = -1)
         {
-            if (ignoreDirectoryRegices is null)
+            if (ignoreDirectoryRegexes is null)
             {
                 return File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint)
                     ? Enumerable.Empty<string>()
@@ -68,13 +68,13 @@ namespace Skyzi000.IO
                         .Where(d =>
                         {
                             var matchingPath = (d + Path.DirectorySeparatorChar)[matchingStartIndex..];
-                            return ignoreDirectoryRegices.All(r => !r.IsMatch(matchingPath));
+                            return ignoreDirectoryRegexes.All(r => !r.IsMatch(matchingPath));
                         })
                         .SelectMany(s =>
                         {
                             try
                             {
-                                return EnumerateAllFilesIgnoringReparsePoints(s, ignoreDirectoryRegices, matchingStartIndex);
+                                return EnumerateAllFilesIgnoringReparsePoints(s, ignoreDirectoryRegexes, matchingStartIndex);
                             }
                             catch (Exception e) when (e is UnauthorizedAccessException
                                                           or DirectoryNotFoundException
@@ -110,10 +110,10 @@ namespace Skyzi000.IO
                         }));
 
         public static IEnumerable<string> EnumerateAllDirectoriesIgnoringReparsePoints(string path,
-            IEnumerable<Regex>? ignoreDirectoryRegices = null,
+            IEnumerable<Regex>? ignoreDirectoryRegexes = null,
             int matchingStartIndex = -1)
         {
-            if (ignoreDirectoryRegices is null)
+            if (ignoreDirectoryRegexes is null)
             {
                 return File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint)
                     ? Enumerable.Empty<string>()
@@ -272,9 +272,9 @@ namespace Skyzi000.IO
                     }
                 }));
 
-        public static IEnumerable<string> EnumerateAllDirectories(string path, IEnumerable<Regex>? ignoreDirectoryRegices = null, int matchingStartIndex = -1)
+        public static IEnumerable<string> EnumerateAllDirectories(string path, IEnumerable<Regex>? ignoreDirectoryRegexes, int matchingStartIndex = -1)
         {
-            if (ignoreDirectoryRegices is null)
+            if (ignoreDirectoryRegexes is null)
             {
                 return Enumerable.Empty<string>()
                     .Append(path)
@@ -309,13 +309,13 @@ namespace Skyzi000.IO
                     .Where(d =>
                     {
                         var matchingPath = (d + Path.DirectorySeparatorChar)[matchingStartIndex..];
-                        return ignoreDirectoryRegices.All(r => !r.IsMatch(matchingPath));
+                        return ignoreDirectoryRegexes.All(r => !r.IsMatch(matchingPath));
                     })
                     .SelectMany(s =>
                     {
                         try
                         {
-                            return EnumerateAllDirectories(s, ignoreDirectoryRegices, matchingStartIndex);
+                            return EnumerateAllDirectories(s, ignoreDirectoryRegexes, matchingStartIndex);
                         }
                         catch (IOException e)
                         {
