@@ -22,7 +22,10 @@ namespace Skyzi000.IO
                         {
                             return EnumerateAllFilesIgnoringReparsePoints(s);
                         }
-                        catch (Exception e) when (e is UnauthorizedAccessException or DirectoryNotFoundException)
+                        catch (Exception e) when (e is UnauthorizedAccessException
+                                                      or DirectoryNotFoundException
+                                                      or FileNotFoundException
+                                                      or PathTooLongException)
                         {
                             Logger.Error(e, "'{0}'の列挙に失敗", s);
                             return Enumerable.Empty<string>();
@@ -30,10 +33,10 @@ namespace Skyzi000.IO
                     }));
 
         public static IEnumerable<string> EnumerateAllFilesIgnoringReparsePoints(string path,
-            IEnumerable<Regex>? ignoreDirectoryRegices,
+            IEnumerable<Regex>? ignoreDirectoryRegexes,
             int matchingStartIndex = -1)
         {
-            if (ignoreDirectoryRegices is null)
+            if (ignoreDirectoryRegexes is null)
             {
                 return File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint)
                     ? Enumerable.Empty<string>()
@@ -45,7 +48,10 @@ namespace Skyzi000.IO
                                 {
                                     return EnumerateAllFilesIgnoringReparsePoints(s);
                                 }
-                                catch (Exception e) when (e is UnauthorizedAccessException or DirectoryNotFoundException)
+                                catch (Exception e) when (e is UnauthorizedAccessException
+                                                              or DirectoryNotFoundException
+                                                              or FileNotFoundException
+                                                              or PathTooLongException)
                                 {
                                     Logger.Error(e, "'{0}'の列挙に失敗", s);
                                     return Enumerable.Empty<string>();
@@ -62,15 +68,18 @@ namespace Skyzi000.IO
                         .Where(d =>
                         {
                             var matchingPath = (d + Path.DirectorySeparatorChar)[matchingStartIndex..];
-                            return ignoreDirectoryRegices.All(r => !r.IsMatch(matchingPath));
+                            return ignoreDirectoryRegexes.All(r => !r.IsMatch(matchingPath));
                         })
                         .SelectMany(s =>
                         {
                             try
                             {
-                                return EnumerateAllFilesIgnoringReparsePoints(s, ignoreDirectoryRegices, matchingStartIndex);
+                                return EnumerateAllFilesIgnoringReparsePoints(s, ignoreDirectoryRegexes, matchingStartIndex);
                             }
-                            catch (Exception e) when (e is UnauthorizedAccessException or DirectoryNotFoundException)
+                            catch (Exception e) when (e is UnauthorizedAccessException
+                                                          or DirectoryNotFoundException
+                                                          or FileNotFoundException
+                                                          or PathTooLongException)
                             {
                                 Logger.Error(e, "'{0}'の列挙に失敗", s);
                                 return Enumerable.Empty<string>();
@@ -90,7 +99,10 @@ namespace Skyzi000.IO
                             {
                                 return EnumerateAllDirectoriesIgnoringReparsePoints(s);
                             }
-                            catch (Exception e) when (e is UnauthorizedAccessException or DirectoryNotFoundException)
+                            catch (Exception e) when (e is UnauthorizedAccessException
+                                                          or DirectoryNotFoundException
+                                                          or FileNotFoundException
+                                                          or PathTooLongException)
                             {
                                 Logger.Error(e, "'{0}'の列挙に失敗", s);
                                 return Enumerable.Empty<string>();
@@ -98,10 +110,10 @@ namespace Skyzi000.IO
                         }));
 
         public static IEnumerable<string> EnumerateAllDirectoriesIgnoringReparsePoints(string path,
-            IEnumerable<Regex>? ignoreDirectoryRegices = null,
+            IEnumerable<Regex>? ignoreDirectoryRegexes = null,
             int matchingStartIndex = -1)
         {
-            if (ignoreDirectoryRegices is null)
+            if (ignoreDirectoryRegexes is null)
             {
                 return File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint)
                     ? Enumerable.Empty<string>()
@@ -114,7 +126,10 @@ namespace Skyzi000.IO
                                 {
                                     return EnumerateAllDirectoriesIgnoringReparsePoints(s);
                                 }
-                                catch (Exception e) when (e is UnauthorizedAccessException or DirectoryNotFoundException)
+                                catch (Exception e) when (e is UnauthorizedAccessException
+                                                              or DirectoryNotFoundException
+                                                              or FileNotFoundException
+                                                              or PathTooLongException)
                                 {
                                     Logger.Error(e, "'{0}'の列挙に失敗", s);
                                     return Enumerable.Empty<string>();
@@ -132,15 +147,18 @@ namespace Skyzi000.IO
                         .Where(d =>
                         {
                             var matchingPath = (d + Path.DirectorySeparatorChar)[matchingStartIndex..];
-                            return ignoreDirectoryRegices.All(r => !r.IsMatch(matchingPath));
+                            return ignoreDirectoryRegexes.All(r => !r.IsMatch(matchingPath));
                         })
                         .SelectMany(s =>
                         {
                             try
                             {
-                                return EnumerateAllDirectoriesIgnoringReparsePoints(s, ignoreDirectoryRegices, matchingStartIndex);
+                                return EnumerateAllDirectoriesIgnoringReparsePoints(s, ignoreDirectoryRegexes, matchingStartIndex);
                             }
-                            catch (Exception e) when (e is UnauthorizedAccessException or DirectoryNotFoundException)
+                            catch (Exception e) when (e is UnauthorizedAccessException
+                                                          or DirectoryNotFoundException
+                                                          or FileNotFoundException
+                                                          or PathTooLongException)
                             {
                                 Logger.Error(e, "'{0}'の列挙に失敗", s);
                                 return Enumerable.Empty<string>();
@@ -161,16 +179,19 @@ namespace Skyzi000.IO
                         Logger.Error(e, SymLoopMessage);
                         return Enumerable.Empty<string>();
                     }
-                    catch (Exception e) when (e is UnauthorizedAccessException or DirectoryNotFoundException)
+                    catch (Exception e) when (e is UnauthorizedAccessException
+                                                  or DirectoryNotFoundException
+                                                  or FileNotFoundException
+                                                  or PathTooLongException)
                     {
                         Logger.Error(e, "'{0}'の列挙に失敗", s);
                         return Enumerable.Empty<string>();
                     }
                 }));
 
-        public static IEnumerable<string> EnumerateAllFiles(string path, IEnumerable<Regex>? ignoreDirectoryRegices, int matchingStartIndex = -1)
+        public static IEnumerable<string> EnumerateAllFiles(string path, IEnumerable<Regex>? ignoreDirectoryRegexes, int matchingStartIndex = -1)
         {
-            if (ignoreDirectoryRegices is null)
+            if (ignoreDirectoryRegexes is null)
             {
                 return Directory.EnumerateFiles(path)
                     .Union(Directory.EnumerateDirectories(path)
@@ -185,7 +206,10 @@ namespace Skyzi000.IO
                                 Logger.Error(e, SymLoopMessage);
                                 return Enumerable.Empty<string>();
                             }
-                            catch (Exception e) when (e is UnauthorizedAccessException or DirectoryNotFoundException)
+                            catch (Exception e) when (e is UnauthorizedAccessException
+                                                          or DirectoryNotFoundException
+                                                          or FileNotFoundException
+                                                          or PathTooLongException)
                             {
                                 Logger.Error(e, "'{0}'の列挙に失敗", s);
                                 return Enumerable.Empty<string>();
@@ -200,20 +224,23 @@ namespace Skyzi000.IO
                     .Where(d =>
                     {
                         var matchingPath = (d + Path.DirectorySeparatorChar)[matchingStartIndex..];
-                        return ignoreDirectoryRegices.All(r => !r.IsMatch(matchingPath));
+                        return ignoreDirectoryRegexes.All(r => !r.IsMatch(matchingPath));
                     })
                     .SelectMany(s =>
                     {
                         try
                         {
-                            return EnumerateAllFiles(s, ignoreDirectoryRegices, matchingStartIndex);
+                            return EnumerateAllFiles(s, ignoreDirectoryRegexes, matchingStartIndex);
                         }
                         catch (IOException e)
                         {
                             Logger.Error(e, SymLoopMessage);
                             return Enumerable.Empty<string>();
                         }
-                        catch (Exception e) when (e is UnauthorizedAccessException or DirectoryNotFoundException)
+                        catch (Exception e) when (e is UnauthorizedAccessException
+                                                      or DirectoryNotFoundException
+                                                      or FileNotFoundException
+                                                      or PathTooLongException)
                         {
                             Logger.Error(e, "'{0}'の列挙に失敗", s);
                             return Enumerable.Empty<string>();
@@ -235,16 +262,19 @@ namespace Skyzi000.IO
                         Logger.Error(e, SymLoopMessage);
                         return Enumerable.Empty<string>();
                     }
-                    catch (Exception e) when (e is UnauthorizedAccessException or DirectoryNotFoundException)
+                    catch (Exception e) when (e is UnauthorizedAccessException
+                                                  or DirectoryNotFoundException
+                                                  or FileNotFoundException
+                                                  or PathTooLongException)
                     {
                         Logger.Error(e, "'{0}'の列挙に失敗", s);
                         return Enumerable.Empty<string>();
                     }
                 }));
 
-        public static IEnumerable<string> EnumerateAllDirectories(string path, IEnumerable<Regex>? ignoreDirectoryRegices = null, int matchingStartIndex = -1)
+        public static IEnumerable<string> EnumerateAllDirectories(string path, IEnumerable<Regex>? ignoreDirectoryRegexes, int matchingStartIndex = -1)
         {
-            if (ignoreDirectoryRegices is null)
+            if (ignoreDirectoryRegexes is null)
             {
                 return Enumerable.Empty<string>()
                     .Append(path)
@@ -260,7 +290,10 @@ namespace Skyzi000.IO
                                 Logger.Error(e, SymLoopMessage);
                                 return Enumerable.Empty<string>();
                             }
-                            catch (Exception e) when (e is UnauthorizedAccessException or DirectoryNotFoundException)
+                            catch (Exception e) when (e is UnauthorizedAccessException
+                                                          or DirectoryNotFoundException
+                                                          or FileNotFoundException
+                                                          or PathTooLongException)
                             {
                                 Logger.Error(e, "'{0}'の列挙に失敗", s);
                                 return Enumerable.Empty<string>();
@@ -276,20 +309,23 @@ namespace Skyzi000.IO
                     .Where(d =>
                     {
                         var matchingPath = (d + Path.DirectorySeparatorChar)[matchingStartIndex..];
-                        return ignoreDirectoryRegices.All(r => !r.IsMatch(matchingPath));
+                        return ignoreDirectoryRegexes.All(r => !r.IsMatch(matchingPath));
                     })
                     .SelectMany(s =>
                     {
                         try
                         {
-                            return EnumerateAllDirectories(s, ignoreDirectoryRegices, matchingStartIndex);
+                            return EnumerateAllDirectories(s, ignoreDirectoryRegexes, matchingStartIndex);
                         }
                         catch (IOException e)
                         {
                             Logger.Error(e, SymLoopMessage);
                             return Enumerable.Empty<string>();
                         }
-                        catch (Exception e) when (e is UnauthorizedAccessException or DirectoryNotFoundException)
+                        catch (Exception e) when (e is UnauthorizedAccessException
+                                                      or DirectoryNotFoundException
+                                                      or FileNotFoundException
+                                                      or PathTooLongException)
                         {
                             Logger.Error(e, "'{0}'の列挙に失敗", s);
                             return Enumerable.Empty<string>();
