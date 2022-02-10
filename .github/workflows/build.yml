@@ -203,26 +203,28 @@ jobs:
           name: Win-x64-Release-${{ github.sha }}
           path: ${{ env.APPLICATION_NAME }}_${{ steps.get_tag.outputs.TAG }}
 
+      # .pdbファイルを削除してから.7zと.zipに圧縮する
+      - name: Archive exe files
+        run: |
+          find ./${{ env.APPLICATION_NAME }}_${{ steps.get_tag.outputs.TAG }}/ -name '*.pdb' -type f -delete
+          mkdir Release
+          7z a -mx=9 ./Release/${{ env.APPLICATION_NAME }}_${{ steps.get_tag.outputs.TAG }}.7z ${{ env.APPLICATION_NAME }}_${{ steps.get_tag.outputs.TAG }}
+          zip -r ./Release/${{ env.APPLICATION_NAME }}_${{ steps.get_tag.outputs.TAG }}.zip ${{ env.APPLICATION_NAME }}_${{ steps.get_tag.outputs.TAG }}
+
       # CHANGELOG.mdから最新タグの情報を抜き出してリリースノートを作る
       - name: Create release note
         run: |
           cat ./CHANGELOG.md | sed '1,/^## /d;/^## /,$d' >| ./release.md
 
-      # 実行ファイルのSHA-256を計算してリリースノートに追記する
-      - name: Calculate the hash values of exe files
+      # SHA-256を計算してリリースノートに追記する
+      - name: Calculate hash of files
         run: |
           echo '<details><summary>SHA-256 Hash</summary>' >> ./release.md
-          SHA256_SkyziBackupExe='${{ hashFiles('./${{ env.APPLICATION_NAME }}_${{ steps.get_tag.outputs.TAG }}/SkyziBackup.exe') }}'
-          echo 'SkyziBackup.exe: [${SHA256_SkyziBackupExe}](https://www.virustotal.com/gui/file/${SHA256_SkyziBackupExe})' >> ./release.md
+          echo '```' >> ./release.md
+          sha256sum ./${{ env.APPLICATION_NAME }}_${{ steps.get_tag.outputs.TAG }}/SkyziBackup.exe >> ./release.md
+          sha256sum ./Release/* >> ./release.md
+          echo '```' >> ./release.md
           echo '</details>' >> ./release.md
-
-      # .pdbファイルを削除してから.7zと.zipに圧縮する
-      - name: Archive exe files
-        run: |
-          find ./${{ env.APPLICATION_NAME }}_${{ steps.get_tag.outputs.TAG }}/ -name "*.pdb" -type f -delete
-          mkdir Release
-          7z a -mx=9 ./Release/${{ env.APPLICATION_NAME }}_${{ steps.get_tag.outputs.TAG }}.7z ${{ env.APPLICATION_NAME }}_${{ steps.get_tag.outputs.TAG }}
-          zip -r ./Release/${{ env.APPLICATION_NAME }}_${{ steps.get_tag.outputs.TAG }}.zip ${{ env.APPLICATION_NAME }}_${{ steps.get_tag.outputs.TAG }}
 
       # https://github.com/softprops/action-gh-release
       - name: Release
