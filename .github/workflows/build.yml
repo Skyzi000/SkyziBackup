@@ -220,10 +220,10 @@ jobs:
       - name: Calculate hash of files
         run: |
           echo '<details><summary>SHA-256 Hash</summary>' >> ./release.md
-          echo '```' >> ./release.md
+          printf "\n%s\n" '```' >> ./release.md
           sha256sum ./${{ env.APPLICATION_NAME }}_${{ steps.get_tag.outputs.TAG }}/SkyziBackup.exe >> ./release.md
           sha256sum ./Release/* >> ./release.md
-          echo '```' >> ./release.md
+          printf "\n%s\n" '```' >> ./release.md
           echo '</details>' >> ./release.md
 
       # https://github.com/softprops/action-gh-release
