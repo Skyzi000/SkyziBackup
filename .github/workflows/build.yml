@@ -42,20 +42,19 @@ name: Build
 
 on:
   push:
-    branches: [ develop ]
+    branches-ignore:
+      - gh-pages
     paths-ignore:
       - "**.md"
     # Publish version tags as releases.
     tags: ["v*.*"]
-  pull_request:
-    types: [opened, synchronize, reopened]
-    paths-ignore:
-      - "**.md"
+  # pull_request:
+  #   types: [opened, synchronize, reopened]
+  #   paths-ignore:
+  #     - "**.md"
 
 jobs:
-
   build:
-
     strategy:
       matrix:
         configuration: [ Release, Debug ]
@@ -74,7 +73,7 @@ jobs:
       uses: actions/setup-java@v1
       with:
         java-version: 1.11
-        
+
     - name: Checkout
       uses: actions/checkout@v2
       with:
@@ -101,7 +100,7 @@ jobs:
         path: ~\sonar\cache
         key: ${{ runner.os }}-sonar
         restore-keys: ${{ runner.os }}-sonar
-        
+
     - name: Cache SonarCloud scanner
       if: github.event_name != 'pull_request' && github.event_name != 'pull_request_target'
       id: cache-sonar-scanner
@@ -110,7 +109,7 @@ jobs:
         path: .\.sonar\scanner
         key: ${{ runner.os }}-sonar-scanner
         restore-keys: ${{ runner.os }}-sonar-scanner
-        
+
     - name: Install SonarCloud scanner
       if: |
         steps.cache-sonar-scanner.outputs.cache-hit != 'true' &&
@@ -119,7 +118,7 @@ jobs:
       run: |
         New-Item -Path .\.sonar\scanner -ItemType Directory
         dotnet tool update dotnet-sonarscanner --tool-path .\.sonar\scanner
-        
+
     # Restore the application to populate the obj folder with RuntimeIdentifiers
     - name: Restore the application
       run: msbuild $env:Solution_Name /t:Restore /p:Configuration=$env:Configuration
@@ -141,7 +140,7 @@ jobs:
 #         Appx_Bundle_Platforms: x64
 #         Appx_Package_Build_Mode: StoreUpload
 #         Configuration: ${{ matrix.configuration }}
-    
+
     - name: Build and analyze
       if: github.event_name != 'pull_request' && github.event_name != 'pull_request_target'
       env:
@@ -174,3 +173,59 @@ jobs:
         path: bin\x64\${{ matrix.configuration }}\net5.0-windows10.0.18362.0\win-x64\publish\
 #         name: MSIX Package
 #         path: ${{ env.Wap_Project_Directory }}\AppPackages
+
+  release:
+    needs: [ build ]
+    if: startsWith(github.ref, 'refs/tags/')
+    env:
+      TAGGED_APPLICATION_NAME: SkyziBackup_${GITHUB_REF##*/}
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Install p7zip
+        run: |
+          sudo add-apt-repository universe
+          sudo apt update
+          sudo apt install p7zip
+
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: Win-x64-Release-${{ github.sha }}
+          path: ${{ env.TAGGED_APPLICATION_NAME }}
+
+      # CHANGELOG.mdから最新タグの情報を抜き出してリリースノートを作る
+      - name: Create release note
+        run: |
+          cat ./CHANGELOG.md | sed '1,/^## /d;/^## /,$d' >| ./release.md
+
+      # 実行ファイルのSHA-256を計算してリリースノートに追記する
+      - name: Calculate the hash values of exe files
+        run: |
+          echo '<details><summary>SHA-256 Hash</summary>' >> ./release.md
+          SHA256_SkyziBackupExe='${{ hashFiles('./${{ env.TAGGED_APPLICATION_NAME }}/SkyziBackup.exe') }}'
+          echo 'SkyziBackup.exe: [${SHA256_SkyziBackupExe}](https://www.virustotal.com/gui/file/${SHA256_SkyziBackupExe})' >> ./release.md
+          echo '</details>' >> ./release.md
+
+      # .pdbファイルを削除してから.7zと.zipに圧縮する
+      - name: Archive exe files
+        run: |
+          find ./${{ env.TAGGED_APPLICATION_NAME }} -type f "*.pdb" -delete
+          mkdir Release
+          7z a -mx=9 ./Release/${{ env.TAGGED_APPLICATION_NAME }}.7z ${{ env.TAGGED_APPLICATION_NAME }}
+          zip -r ./Release/${{ env.TAGGED_APPLICATION_NAME }}.zip ${{ env.TAGGED_APPLICATION_NAME }}
+
+      # https://github.com/softprops/action-gh-release
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          body_path: ./release.md
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fail_on_unmatched_files: true
+          files: |
+            ./Release/${{ env.TAGGED_APPLICATION_NAME }}.7z
+            ./Release/${{ env.TAGGED_APPLICATION_NAME }}.zip
