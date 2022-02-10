@@ -219,7 +219,7 @@ jobs:
       # .pdbファイルを削除してから.7zと.zipに圧縮する
       - name: Archive exe files
         run: |
-          find ./${{ env.APPLICATION_NAME }}_${{ steps.get_tag.outputs.TAG }} -type f "*.pdb" -delete
+          find ./${{ env.APPLICATION_NAME }}_${{ steps.get_tag.outputs.TAG }}/ -name "*.pdb" -type f -delete
           mkdir Release
           7z a -mx=9 ./Release/${{ env.APPLICATION_NAME }}_${{ steps.get_tag.outputs.TAG }}.7z ${{ env.APPLICATION_NAME }}_${{ steps.get_tag.outputs.TAG }}
           zip -r ./Release/${{ env.APPLICATION_NAME }}_${{ steps.get_tag.outputs.TAG }}.zip ${{ env.APPLICATION_NAME }}_${{ steps.get_tag.outputs.TAG }}
