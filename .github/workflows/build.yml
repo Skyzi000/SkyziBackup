@@ -178,45 +178,53 @@ jobs:
     needs: [ build ]
     if: startsWith(github.ref, 'refs/tags/')
     env:
-      TAGGED_APPLICATION_NAME: SkyziBackup_${GITHUB_REF##*/}
+      APPLICATION_NAME: SkyziBackup
     runs-on: ubuntu-latest
     steps:
 
-      - name: Install p7zip
-        run: |
-          sudo add-apt-repository universe
-          sudo apt update
-          sudo apt install p7zip
+      # デフォルトで入ってるのでインストールする必要はない
+      # - name: Install p7zip
+      #   run: |
+      #     sudo add-apt-repository universe
+      #     sudo apt update
+      #     sudo apt install p7zip
 
       - name: Checkout
         uses: actions/checkout@v2
+
+      - name: Get tag name
+        id: get_tag
+        run: echo ::set-output name=TAG::${GITHUB_REF/refs\/tags\//}
+        shell: bash
 
       - name: Download build artifacts
         uses: actions/download-artifact@v2
         with:
           name: Win-x64-Release-${{ github.sha }}
-          path: ${{ env.TAGGED_APPLICATION_NAME }}
+          path: ${{ env.APPLICATION_NAME }}_${{ steps.get_tag.outputs.TAG }}
+
+      # .pdbファイルを削除してから.7zと.zipに圧縮する
+      - name: Archive exe files
+        run: |
+          find ./${{ env.APPLICATION_NAME }}_${{ steps.get_tag.outputs.TAG }}/ -name '*.pdb' -type f -delete
+          mkdir Release
+          7z a -mx=9 ./Release/${{ env.APPLICATION_NAME }}_${{ steps.get_tag.outputs.TAG }}.7z ${{ env.APPLICATION_NAME }}_${{ steps.get_tag.outputs.TAG }}
+          zip -r ./Release/${{ env.APPLICATION_NAME }}_${{ steps.get_tag.outputs.TAG }}.zip ${{ env.APPLICATION_NAME }}_${{ steps.get_tag.outputs.TAG }}
 
       # CHANGELOG.mdから最新タグの情報を抜き出してリリースノートを作る
       - name: Create release note
         run: |
           cat ./CHANGELOG.md | sed '1,/^## /d;/^## /,$d' >| ./release.md
 
-      # 実行ファイルのSHA-256を計算してリリースノートに追記する
-      - name: Calculate the hash values of exe files
+      # SHA-256を計算してリリースノートに追記する
+      - name: Calculate hash of files
         run: |
           echo '<details><summary>SHA-256 Hash</summary>' >> ./release.md
-          SHA256_SkyziBackupExe='${{ hashFiles('./${{ env.TAGGED_APPLICATION_NAME }}/SkyziBackup.exe') }}'
-          echo 'SkyziBackup.exe: [${SHA256_SkyziBackupExe}](https://www.virustotal.com/gui/file/${SHA256_SkyziBackupExe})' >> ./release.md
+          printf "\n%s\n" '```' >> ./release.md
+          sha256sum ./${{ env.APPLICATION_NAME }}_${{ steps.get_tag.outputs.TAG }}/SkyziBackup.exe >> ./release.md
+          sha256sum ./Release/* >> ./release.md
+          printf "\n%s\n" '```' >> ./release.md
           echo '</details>' >> ./release.md
-
-      # .pdbファイルを削除してから.7zと.zipに圧縮する
-      - name: Archive exe files
-        run: |
-          find ./${{ env.TAGGED_APPLICATION_NAME }} -type f "*.pdb" -delete
-          mkdir Release
-          7z a -mx=9 ./Release/${{ env.TAGGED_APPLICATION_NAME }}.7z ${{ env.TAGGED_APPLICATION_NAME }}
-          zip -r ./Release/${{ env.TAGGED_APPLICATION_NAME }}.zip ${{ env.TAGGED_APPLICATION_NAME }}
 
       # https://github.com/softprops/action-gh-release
       - name: Release
@@ -227,5 +235,5 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           fail_on_unmatched_files: true
           files: |
-            ./Release/${{ env.TAGGED_APPLICATION_NAME }}.7z
-            ./Release/${{ env.TAGGED_APPLICATION_NAME }}.zip
+            ./Release/${{ env.APPLICATION_NAME }}_${{ steps.get_tag.outputs.TAG }}.7z
+            ./Release/${{ env.APPLICATION_NAME }}_${{ steps.get_tag.outputs.TAG }}.zip
