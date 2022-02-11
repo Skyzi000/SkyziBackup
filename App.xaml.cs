@@ -1,7 +1,6 @@
-﻿using NLog;
-using System;
-using System.Data;
+﻿using System;
 using System.Diagnostics;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -9,16 +8,23 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Forms;
 using System.Windows.Threading;
+using System.Xml;
+using NLog;
+using NLog.Config;
+using SkyziBackup.Properties;
+using Application = System.Windows.Application;
 using MessageBox = System.Windows.MessageBox;
+
+// ReSharper disable CheckNamespace
 
 namespace SkyziBackup
 {
     /// <summary>
     /// Interaction logic for App.xaml
     /// </summary>
-    public partial class App : System.Windows.Application
+    public partial class App : Application
     {
-        public static NotifyIcon NotifyIcon { get; private set; } = new NotifyIcon();
+        public static NotifyIcon NotifyIcon { get; private set; } = new();
         public static AssemblyName AssemblyName = Assembly.GetExecutingAssembly().GetName();
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
@@ -26,28 +32,28 @@ namespace SkyziBackup
         {
             DispatcherUnhandledException += App_DispatcherUnhandledException;
             TaskScheduler.UnobservedTaskException += TaskScheduler_UnobservedTaskException;
-            if (SkyziBackup.Properties.Settings.Default.IsUpgradeRequired)
+            if (Settings.Default.IsUpgradeRequired)
             {
-                SkyziBackup.Properties.Settings.Default.Upgrade();
-                SkyziBackup.Properties.Settings.Default.IsUpgradeRequired = false;
-                SkyziBackup.Properties.Settings.Default.Save();
+                Settings.Default.Upgrade();
+                Settings.Default.IsUpgradeRequired = false;
+                Settings.Default.Save();
             }
 
-            if (string.IsNullOrEmpty(SkyziBackup.Properties.Settings.Default.AppDataPath))
+            if (string.IsNullOrEmpty(Settings.Default.AppDataPath))
             {
-                SkyziBackup.Properties.Settings.Default.AppDataPath = Path.Combine(
+                Settings.Default.AppDataPath = Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "Skyzi000", "SkyziBackup");
-                SkyziBackup.Properties.Settings.Default.Save();
-                Directory.CreateDirectory(SkyziBackup.Properties.Settings.Default.AppDataPath);
+                Settings.Default.Save();
+                Directory.CreateDirectory(Settings.Default.AppDataPath);
             }
 
             // NLog.configの読み取り
-            using (Stream? nlogConfigStream = GetResourceStream(new Uri("NLog.config", UriKind.Relative))?.Stream)
+            using (var nlogConfigStream = GetResourceStream(new Uri("NLog.config", UriKind.Relative))?.Stream)
             {
                 if (nlogConfigStream != null)
                 {
-                    using var xmlReader = System.Xml.XmlReader.Create(nlogConfigStream);
-                    LogManager.Configuration = new NLog.Config.XmlLoggingConfiguration(xmlReader);
+                    using var xmlReader = XmlReader.Create(nlogConfigStream);
+                    LogManager.Configuration = new XmlLoggingConfiguration(xmlReader);
                 }
             }
 
@@ -56,39 +62,42 @@ namespace SkyziBackup
             menu.Items.Add("メイン画面を表示する", null, MainShow_Click);
             menu.Items.Add("最新のログファイルを開く", null, OpenLog_Click);
             menu.Items.Add("終了する", null, Exit_Click);
-            using (Stream? icon = GetResourceStream(new Uri("SkyziBackup.ico", UriKind.Relative))?.Stream)
+            using (var icon = GetResourceStream(new Uri("SkyziBackup.ico", UriKind.Relative))?.Stream)
+            {
                 if (icon is { })
+                {
                     NotifyIcon = new NotifyIcon
                     {
                         Visible = true,
-                        Icon = new System.Drawing.Icon(icon),
+                        Icon = new Icon(icon),
                         Text = AssemblyName.Name,
-                        ContextMenuStrip = menu
+                        ContextMenuStrip = menu,
                     };
+                }
+            }
+
             NotifyIcon.MouseClick += NotifyIcon_Click;
         }
 
-        protected override async void OnStartup(StartupEventArgs e)
+        protected override async void OnStartup(StartupEventArgs args)
         {
-            base.OnStartup(e);
+            base.OnStartup(args);
 
             // アプリケーションの実行
-            if (!e.Args.Any())
-            {
+            if (!args.Args.Any())
                 ShowMainWindowIfClosed();
-            }
             // 引数2個の場合、バックアップを実行して終了する
-            else if (e.Args.Length == 2)
+            else if (args.Args.Length == 2)
             {
-                var originPath = e.Args[0];
-                var destPath = e.Args[1];
+                var originPath = args.Args[0];
+                var destPath = args.Args[1];
                 if (Directory.Exists(originPath))
                 {
-                    BackupSettings? settings = BackupSettings.LoadLocalSettings(originPath, destPath) ??
-                                               BackupSettings.Default;
-                    using BackupResults? results = await BackupManager.StartBackupAsync(originPath, destPath,
+                    var settings = BackupSettings.LoadLocalSettings(originPath, destPath) ??
+                                   BackupSettings.Default;
+                    using var results = await BackupManager.StartBackupAsync(originPath, destPath,
                         settings.IsRecordPassword ? settings.GetRawPassword() : null, settings);
-                    if (results is {isSuccess: false})
+                    if (results is { IsSuccess: false })
                         await Task.Delay(10000);
                 }
                 else
@@ -103,27 +112,27 @@ namespace SkyziBackup
             }
         }
 
-        private void TaskScheduler_UnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
+        private void TaskScheduler_UnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs args)
         {
-            Logger.Error(e.Exception, "バックグラウンドタスクで予期しない例外が発生しました");
+            Logger.Error(args.Exception, "バックグラウンドタスクで予期しない例外が発生しました");
             if (MessageBoxResult.Yes == MessageBox.Show(
-                $"バックグラウンドタスクで予期しない例外({e.Exception?.InnerException?.GetType().Name})が発生しました。プログラムを継続しますか？\n" +
-                $"エラーメッセージ: {e.Exception?.InnerException?.Message}\nスタックトレース: {e.Exception?.InnerException?.StackTrace}",
+                $"バックグラウンドタスクで予期しない例外({args.Exception?.InnerException?.GetType().Name})が発生しました。プログラムを継続しますか？\n" +
+                $"エラーメッセージ: {args.Exception?.InnerException?.Message}\nスタックトレース: {args.Exception?.InnerException?.StackTrace}",
                 $"{AssemblyName.Name} - エラー", MessageBoxButton.YesNo, MessageBoxImage.Error))
-                e.SetObserved();
+                args.SetObserved();
             else
                 Quit();
         }
 
-        private void App_DispatcherUnhandledException(object? sender, DispatcherUnhandledExceptionEventArgs e)
+        private void App_DispatcherUnhandledException(object? sender, DispatcherUnhandledExceptionEventArgs args)
         {
-            Logger.Error(e.Exception, "予期しない例外が発生しました: {3}", e.Exception?.TargetSite?.Name, e.Exception?.GetType().Name,
-                e.Exception?.Message);
+            Logger.Error(args.Exception, "予期しない例外が発生しました: {3}", args.Exception?.TargetSite?.Name, args.Exception?.GetType().Name,
+                args.Exception?.Message);
             if (MessageBoxResult.Yes == MessageBox.Show(
-                $"予期しない例外({e.Exception?.GetType().Name})が発生しました。プログラムを継続しますか？\n" +
-                $"エラーメッセージ: {e.Exception?.Message}\nスタックトレース: {e.Exception?.StackTrace}",
+                $"予期しない例外({args.Exception?.GetType().Name})が発生しました。プログラムを継続しますか？\n" +
+                $"エラーメッセージ: {args.Exception?.Message}\nスタックトレース: {args.Exception?.StackTrace}",
                 $"{AssemblyName.Name} - エラー", MessageBoxButton.YesNo, MessageBoxImage.Error))
-                e.Handled = true;
+                args.Handled = true;
             else
                 Quit();
         }
@@ -131,21 +140,24 @@ namespace SkyziBackup
         public static bool OpenLatestLog(bool showDialog = true)
         {
             var logsDirectory =
-                new DirectoryInfo(Path.Combine(SkyziBackup.Properties.Settings.Default.AppDataPath, "Logs"));
+                new DirectoryInfo(Path.Combine(Settings.Default.AppDataPath, "Logs"));
             if (logsDirectory.Exists && logsDirectory.EnumerateFiles("*.log").Any())
             {
                 Process.Start("explorer.exe",
-                    logsDirectory.EnumerateFiles("*.log").OrderByDescending((x) => x.LastWriteTime).First().FullName);
+                    logsDirectory.EnumerateFiles("*.log").OrderByDescending(x => x.LastWriteTime).First().FullName);
                 return true;
             }
 
             if (showDialog)
+            {
                 MessageBox.Show("ログファイルが存在しません。", $"{AssemblyName.Name} - 情報", MessageBoxButton.OK,
                     MessageBoxImage.Information);
+            }
+
             return false;
         }
 
-        private void OpenLog_Click(object? sender, EventArgs e) => OpenLatestLog();
+        private void OpenLog_Click(object? sender, EventArgs args) => OpenLatestLog();
 
         /// <summary>
         /// MainWindowが閉じられている場合は新規作成して開き、既に存在する場合はアクティベートする
@@ -162,14 +174,12 @@ namespace SkyziBackup
             MainWindow.Activate();
         }
 
-        private void MainShow_Click(object? sender, EventArgs e) => ShowMainWindowIfClosed();
+        private void MainShow_Click(object? sender, EventArgs args) => ShowMainWindowIfClosed();
 
-        private void NotifyIcon_Click(object? sender, MouseEventArgs e)
+        private void NotifyIcon_Click(object? sender, MouseEventArgs args)
         {
-            if (e.Button == MouseButtons.Left)
-            {
+            if (args.Button == MouseButtons.Left)
                 ShowMainWindowIfClosed();
-            }
         }
 
         public void Quit()
@@ -178,39 +188,39 @@ namespace SkyziBackup
                 Shutdown();
         }
 
-        public bool AcceptExit()
-        {
-            return !BackupManager.IsRunning || MessageBoxResult.Yes == MessageBox.Show("バックアップ実行中です。アプリケーションを終了しますか？",
+        public static bool AcceptExit() =>
+            !BackupManager.IsRunning || MessageBoxResult.Yes == MessageBox.Show("バックアップ実行中です。アプリケーションを終了しますか？",
                 $"{AssemblyName.Name} - 確認",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Warning);
-        }
 
-        private void Exit_Click(object? sender, EventArgs e) => Quit();
+        private void Exit_Click(object? sender, EventArgs args) => Quit();
 
-        protected override async void OnSessionEnding(SessionEndingCancelEventArgs e)
+        protected override async void OnSessionEnding(SessionEndingCancelEventArgs args)
         {
-            base.OnSessionEnding(e);
-            if (!BackupManager.IsRunning) return;
-            e.Cancel = true;
+            base.OnSessionEnding(args);
+            if (!BackupManager.IsRunning)
+                return;
+            args.Cancel = true;
             NotifyIcon.Text = $"{AssemblyName.Name} - バックアップを中断しています";
             Logger.Warn("バックアップを中断します: (セッションの終了)\n=============================\n\n");
             await BackupManager.CancelAllAsync();
             NotifyIcon.Text = AssemblyName.Name;
-            e.Cancel = false;
+            args.Cancel = false;
         }
 
-        protected override async void OnExit(ExitEventArgs e)
+        protected override async void OnExit(ExitEventArgs args)
         {
             NotifyIcon.Visible = false;
             if (BackupManager.IsRunning)
             {
                 Logger.Warn("バックアップを中断します: (強制終了)\n=============================\n\n");
                 await BackupManager.CancelAllAsync();
-                e.ApplicationExitCode = 2;
+                args.ApplicationExitCode = 2;
             }
+
             LogManager.Shutdown();
-            base.OnExit(e);
+            base.OnExit(args);
         }
     }
 }

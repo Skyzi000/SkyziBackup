@@ -12,6 +12,7 @@
     <Platforms>AnyCPU;x64;x86</Platforms>
     <RepositoryUrl>https://github.com/skyzi000/SkyziBackup</RepositoryUrl>
     <Nullable>enable</Nullable>
+    <RootNamespace />
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -41,8 +42,7 @@
 
   <ItemGroup>
     <PackageReference Include="ModernWpfUI" Version="0.9.4" />
-    <PackageReference Include="NLog" Version="4.7.9" />
-    <PackageReference Include="NLog.Config" Version="4.7.9" />
+    <PackageReference Include="NLog" Version="4.7.13" />
   </ItemGroup>
 
   <ItemGroup>

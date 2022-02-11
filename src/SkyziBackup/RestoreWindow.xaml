@@ -3,65 +3,65 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:SkyziBackup"
         xmlns:ui="http://schemas.modernwpf.com/2019"
         ui:WindowHelper.UseModernWindowStyle="True"
         mc:Ignorable="d"
         Closing="Window_Closing"
         Title="SkyziBackup - リストア(復元)" Height="500" Width="800">
-    <Grid >
+    <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="40"/>
-            <RowDefinition/>
-            <RowDefinition/>
+            <RowDefinition Height="40" />
+            <RowDefinition />
+            <RowDefinition />
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition/>
-            <ColumnDefinition/>
+            <ColumnDefinition />
+            <ColumnDefinition />
         </Grid.ColumnDefinitions>
         <StackPanel Margin="10,0" Grid.Row="1" Grid.ColumnSpan="2">
-            <Label x:Name="originPathLabel" Content="リストア元フォルダ" HorizontalAlignment="Left" VerticalAlignment="Top"/>
+            <Label x:Name="originPathLabel" Content="リストア元フォルダ" HorizontalAlignment="Left" VerticalAlignment="Top" />
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition/>
-                    <ColumnDefinition MaxWidth="50"/>
+                    <ColumnDefinition />
+                    <ColumnDefinition MaxWidth="50" />
                 </Grid.ColumnDefinitions>
-                <TextBox x:Name="originPath"  HorizontalAlignment="Stretch" TextWrapping="NoWrap" VerticalAlignment="Stretch" Grid.Row="0"/>
-                <Button Tag="OriginPath" Click="OpenDirectoryDialogButton_Click" Content="参照" Grid.Column="1"/>
+                <TextBox x:Name="originPath" HorizontalAlignment="Stretch" TextWrapping="NoWrap" VerticalAlignment="Stretch" Grid.Row="0" />
+                <Button Tag="OriginPath" Click="OpenDirectoryDialogButton_Click" Content="参照" Grid.Column="1" />
             </Grid>
-            <Label x:Name="destPathLabel" Content="リストア先フォルダ" HorizontalAlignment="Left" VerticalAlignment="Top"/>
+            <Label x:Name="destPathLabel" Content="リストア先フォルダ" HorizontalAlignment="Left" VerticalAlignment="Top" />
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition/>
-                    <ColumnDefinition MaxWidth="50"/>
+                    <ColumnDefinition />
+                    <ColumnDefinition MaxWidth="50" />
                 </Grid.ColumnDefinitions>
-                <TextBox x:Name="destPath" HorizontalAlignment="Stretch" TextWrapping="NoWrap" VerticalAlignment="Stretch" Grid.Row="0"/>
-                <Button Tag="DestPath" Click="OpenDirectoryDialogButton_Click" Content="参照" Grid.Column="1"/>
+                <TextBox x:Name="destPath" HorizontalAlignment="Stretch" TextWrapping="NoWrap" VerticalAlignment="Stretch" Grid.Row="0" />
+                <Button Tag="DestPath" Click="OpenDirectoryDialogButton_Click" Content="参照" Grid.Column="1" />
             </Grid>
-            <Label x:Name="passwordLabel" Content="パスワード" HorizontalAlignment="Left" VerticalAlignment="Top"/>
-            <PasswordBox x:Name="password" HorizontalAlignment="Stretch" VerticalAlignment="Top"/>
-            <Button x:Name="RestoreButton" Click="RestoreButton_ClickAsync" Content="リストア開始" Margin="10" VerticalAlignment="Top" Height="40" HorizontalAlignment="Stretch" Style="{ui:StaticResource AccentButtonStyle}"/>
-            <ProgressBar x:Name="progressBar" Margin="10,-10,10,10" IsIndeterminate="True" Grid.ColumnSpan="2" Visibility="Collapsed" />
+            <Label x:Name="passwordLabel" Content="パスワード" HorizontalAlignment="Left" VerticalAlignment="Top" />
+            <PasswordBox x:Name="password" HorizontalAlignment="Stretch" VerticalAlignment="Top" />
+            <Button x:Name="RestoreButton" Click="RestoreButton_ClickAsync" Content="リストア開始" Margin="10" VerticalAlignment="Top" Height="40"
+                    HorizontalAlignment="Stretch" Style="{ui:StaticResource AccentButtonStyle}" />
+            <ProgressBar x:Name="progressBar" Margin="10,-10,10,10" IsIndeterminate="True" Visibility="Collapsed" />
         </StackPanel>
 
         <GroupBox Header="メッセージ" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Margin="10,0">
-            <ScrollViewer Name="MessageScrollViewer" Grid.Row="2" Grid.ColumnSpan="2" TabIndex="2147483644" VerticalScrollBarVisibility="Auto">
-                <TextBlock Name="Message" HorizontalAlignment="Left" Text="" TextWrapping="Wrap" VerticalAlignment="Top"/>
+            <ScrollViewer Name="MessageScrollViewer" TabIndex="2147483644" VerticalScrollBarVisibility="Auto">
+                <TextBlock Name="Message" HorizontalAlignment="Left" Text="" TextWrapping="Wrap" VerticalAlignment="Top" />
             </ScrollViewer>
         </GroupBox>
         <DockPanel LastChildFill="False" Grid.Column="0" Grid.ColumnSpan="2" VerticalAlignment="Top">
             <Menu DockPanel.Dock="Top">
                 <MenuItem Header="ファイル(_F)">
-                    <MenuItem Name="ImportSettingsMenu" Header="設定をファイルからインポート(_I)" Click="ImportSettingsMenu_Click"/>
-                    <MenuItem x:Name="DiscardImportedSettings" Header="インポートされた設定を破棄(_D)" Click="DiscardImportedSettings_Click" IsEnabled="False"/>
-                    <MenuItem Name="CloseButton" Header="閉じる(_X)" Click="CloseButton_Click"/>
+                    <MenuItem Name="ImportSettingsMenu" Header="設定をファイルからインポート(_I)" Click="ImportSettingsMenu_Click" />
+                    <MenuItem x:Name="DiscardImportedSettings" Header="インポートされた設定を破棄(_D)" Click="DiscardImportedSettings_Click" IsEnabled="False" />
+                    <MenuItem Name="CloseButton" Header="閉じる(_X)" Click="CloseButton_Click" />
                 </MenuItem>
                 <MenuItem Header="表示(_V)">
-                    <MenuItem Name="ShowCurrentSettings" Header="現在の設定を表示(_C)" Click="ShowCurrentSettings_Click"/>
+                    <MenuItem Name="ShowCurrentSettings" Header="現在の設定を表示(_C)" Click="ShowCurrentSettings_Click" />
                 </MenuItem>
                 <MenuItem Header="オプション(_O)">
-                    <MenuItem x:Name="GlobalSettingsMenu" Header="デフォルト設定(_D)" Click="GlobalSettingsMenu_Click"/>
-                    <MenuItem x:Name="LocalSettingsMenu" Header="ローカル設定(_L)" Click="LocalSettingsMenu_Click"/>
+                    <MenuItem x:Name="GlobalSettingsMenu" Header="デフォルト設定(_D)" Click="GlobalSettingsMenu_Click" />
+                    <MenuItem x:Name="LocalSettingsMenu" Header="ローカル設定(_L)" Click="LocalSettingsMenu_Click" />
                     <MenuItem Header="リストア用特殊オプション(プレビュー)">
                         <MenuItem Name="copyAttributesOnDatabaseCheck" IsCheckable="True" Header="データベースからファイル属性をリストアする" StaysOpenOnClick="True" />
                         <MenuItem Name="copyOnlyAttributesCheck" IsCheckable="True" Header="ファイル属性だけをコピーする" StaysOpenOnClick="True" />
