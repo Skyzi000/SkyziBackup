@@ -1,16 +1,38 @@
 # Changelog (変更履歴)
 
-## [🔜未リリース](https://github.com/Skyzi000/SkyziBackup/tree/HEAD)
+## [v0.4](https://github.com/Skyzi000/SkyziBackup/tree/v0.4) (2022-02-11)
 
-[Full Changelog](https://github.com/Skyzi000/SkyziBackup/compare/v0.3...HEAD)
+[Full Changelog](https://github.com/Skyzi000/SkyziBackup/compare/v0.3...v0.4)
+
+### 🐞バグ修正
+
+- バックアップ中のオリジナルファイルを移動させると予期しない例外が発生する [\#75](https://github.com/Skyzi000/SkyziBackup/issues/75)
+
+### 📝ドキュメントの変更
+
+- タグがpushされたときにReleaseを自動生成する [\#86](https://github.com/Skyzi000/SkyziBackup/issues/86)
+- ChangeLogを自動生成する [\#82](https://github.com/Skyzi000/SkyziBackup/issues/82)
+- ドキュメントを作成する [\#59](https://github.com/Skyzi000/SkyziBackup/issues/59)
 
 ### ✔その他変更など
 
 - CodeQL Analysisを有効にしてみる [\#83](https://github.com/Skyzi000/SkyziBackup/issues/83)
+- Issueテンプレートを用意する [\#78](https://github.com/Skyzi000/SkyziBackup/issues/78)
+- リファクタリングする [\#66](https://github.com/Skyzi000/SkyziBackup/issues/66)
 
 ### Ⓜマージ済みのプルリクエスト
 
+- 自動リリース用のGitHub Actionが正しく動作するよう修正する [\#98](https://github.com/Skyzi000/SkyziBackup/pull/98) ([Skyzi000](https://github.com/Skyzi000))
+- ファイル列挙時のFileNotFoundExceptionとPathTooLongExceptionに対応する [\#95](https://github.com/Skyzi000/SkyziBackup/pull/95) ([Skyzi000](https://github.com/Skyzi000))
+- 英語版Issueフォームの修正 [\#94](https://github.com/Skyzi000/SkyziBackup/pull/94) ([Skyzi000](https://github.com/Skyzi000))
+- 機能していない日本語版Issueフォームの修正 [\#93](https://github.com/Skyzi000/SkyziBackup/pull/93) ([Skyzi000](https://github.com/Skyzi000))
+- Issueフォームを作成 [\#92](https://github.com/Skyzi000/SkyziBackup/pull/92) ([Skyzi000](https://github.com/Skyzi000))
+- フィードバック送信用Googleフォームを作成 [\#91](https://github.com/Skyzi000/SkyziBackup/pull/91) ([Skyzi000](https://github.com/Skyzi000))
+- Bump Nerdbank.GitVersioning from 3.4.244 to 3.4.255 [\#90](https://github.com/Skyzi000/SkyziBackup/pull/90) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Bump NLog from 4.7.12 to 4.7.13 [\#87](https://github.com/Skyzi000/SkyziBackup/pull/87) ([dependabot[bot]](https://github.com/apps/dependabot))
+- github-changelog-generatorの導入 [\#85](https://github.com/Skyzi000/SkyziBackup/pull/85) ([Skyzi000](https://github.com/Skyzi000))
 - Create codeql-analysis.yml [\#84](https://github.com/Skyzi000/SkyziBackup/pull/84) ([Skyzi000](https://github.com/Skyzi000))
+- リファクタリングなど、細かな改善 [\#81](https://github.com/Skyzi000/SkyziBackup/pull/81) ([Skyzi000](https://github.com/Skyzi000))
 - Bump Nerdbank.GitVersioning from 3.4.194 to 3.4.244 [\#80](https://github.com/Skyzi000/SkyziBackup/pull/80) ([dependabot[bot]](https://github.com/apps/dependabot))
 - Bump NLog from 4.7.10 to 4.7.12 [\#79](https://github.com/Skyzi000/SkyziBackup/pull/79) ([dependabot[bot]](https://github.com/apps/dependabot))
 - NuGetパッケージの更新 [\#73](https://github.com/Skyzi000/SkyziBackup/pull/73) ([Skyzi000](https://github.com/Skyzi000))
