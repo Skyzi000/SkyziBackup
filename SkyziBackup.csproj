@@ -42,7 +42,7 @@
 
   <ItemGroup>
     <PackageReference Include="ModernWpfUI" Version="0.9.4" />
-    <PackageReference Include="NLog" Version="4.7.13" />
+    <PackageReference Include="NLog" Version="4.7.14" />
   </ItemGroup>
 
   <ItemGroup>
