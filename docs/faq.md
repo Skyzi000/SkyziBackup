@@ -59,9 +59,14 @@ permalink: faq
 
 ## バグ報告や機能の提案はどこからできますか？
 
-現在は[Twitter(@skyzi000)](https://twitter.com/skyzi000)のDMや、GitHubの[Issue](https://github.com/Skyzi000/SkyziBackup/issues)、[Discussions](https://github.com/Skyzi000/SkyziBackup/discussions)ページなどで受け付けています。
+GitHubの[Issue](https://github.com/Skyzi000/SkyziBackup/issues/new/choose)、[Discussions](https://github.com/Skyzi000/SkyziBackup/discussions)ページなどで受け付けています。  
+また、[Googleフォーム](https://forms.gle/WevPFNfJR5FRphi37)も設置しました！
 
-GoogleフォームやDiscord、Gitter等の利用も検討中です。
+FlowCryptを使った[暗号化メールフォーム](https://flowcrypt.com/me/skyzi000)も試験的に設置しています。
+
+お好きなものをお使いください。
+
+ただ、対応が遅くなったり、必ずしも対応できるとは限らなかったりすることがある点は予めご了承ください。
 
 ## 「予期しない例外」が発生したのですがどうしたらいいですか？
 
