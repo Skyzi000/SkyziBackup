@@ -98,10 +98,10 @@ namespace SkyziBackup
         private async Task<BackupDatabase> LoadOrCreateDatabaseAsync()
         {
             string databasePath;
-            var isExists = File.Exists(databasePath = DataFileWriter.GetDatabasePath(OriginBaseDirPath, DestBaseDirPath));
+            var isExists = File.Exists(databasePath = BackupDatabase.GetDatabasePath(OriginBaseDirPath, DestBaseDirPath));
             Logger.Info(Results.Message = isExists ? $"既存のデータベースをロード: '{databasePath}'" : "新規データベースを初期化");
             return isExists
-                ? await DataFileWriter.ReadAsync<BackupDatabase>(DataFileWriter.GetDatabaseFileName(OriginBaseDirPath, DestBaseDirPath))
+                ? await DataFileWriter.ReadAsync<BackupDatabase>(BackupDatabase.GetDatabaseFileName(OriginBaseDirPath, DestBaseDirPath))
                   ?? new BackupDatabase(OriginBaseDirPath, DestBaseDirPath)
                 : new BackupDatabase(OriginBaseDirPath, DestBaseDirPath);
         }

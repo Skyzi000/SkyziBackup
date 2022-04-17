@@ -38,11 +38,11 @@ namespace SkyziBackup
             Settings = settings ?? BackupSettings.LoadLocalSettings(_destBaseDirPath, _sourceBaseDirPath) ?? BackupSettings.Default;
             //if (Settings.isUseDatabase && Settings.comparisonMethod.HasFlag(ComparisonMethod.FileContentsSHA1))
             // TODO: データベースに記録されたSHA1と比較できるようにする
-            if (isCopyAttributesOnDatabase && File.Exists(DataFileWriter.GetDatabasePath(_destBaseDirPath, _sourceBaseDirPath)))
+            if (isCopyAttributesOnDatabase && File.Exists(BackupDatabase.GetDatabasePath(_destBaseDirPath, _sourceBaseDirPath)))
             {
                 try
                 {
-                    Database = DataFileWriter.Read<BackupDatabase>(DataFileWriter.GetDatabaseFileName(_destBaseDirPath, _sourceBaseDirPath));
+                    Database = DataFileWriter.Read<BackupDatabase>(BackupDatabase.GetDatabaseFileName(_destBaseDirPath, _sourceBaseDirPath));
                 }
                 catch (Exception) { }
             }
@@ -51,8 +51,8 @@ namespace SkyziBackup
             _isEnableWriteDatabase = isEnableWriteDatabase;
             if (_isEnableWriteDatabase && Database == null)
             {
-                Database = File.Exists(DataFileWriter.GetDatabasePath(_destBaseDirPath, _sourceBaseDirPath))
-                    ? DataFileWriter.Read<BackupDatabase>(DataFileWriter.GetDatabaseFileName(_destBaseDirPath, _sourceBaseDirPath))
+                Database = File.Exists(BackupDatabase.GetDatabasePath(_destBaseDirPath, _sourceBaseDirPath))
+                    ? DataFileWriter.Read<BackupDatabase>(BackupDatabase.GetDatabaseFileName(_destBaseDirPath, _sourceBaseDirPath))
                     : new BackupDatabase(_destBaseDirPath, _sourceBaseDirPath);
             }
 

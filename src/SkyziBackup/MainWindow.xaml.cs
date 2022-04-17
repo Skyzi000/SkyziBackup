@@ -177,13 +177,13 @@ namespace SkyziBackup
         private bool DeleteDatabase()
         {
             string databasePath;
-            if (LoadCurrentSettings.IsUseDatabase && File.Exists(databasePath = DataFileWriter.GetDatabasePath(originPath.Text, destPath.Text)))
+            if (LoadCurrentSettings.IsUseDatabase && File.Exists(databasePath = BackupDatabase.GetDatabasePath(originPath.Text, destPath.Text)))
             {
                 var deleteDatabase = MessageBox.Show($"{databasePath}\n上記データベースを削除しますか？", $"{App.AssemblyName.Name} - 確認", MessageBoxButton.YesNo);
                 switch (deleteDatabase)
                 {
                     case MessageBoxResult.Yes:
-                        DataFileWriter.DeleteDatabase(originPath.Text, destPath.Text);
+                        BackupDatabase.DeleteDatabase(originPath.Text, destPath.Text);
                         MessageBox.Show("データベースを削除しました。");
                         return true;
                     case MessageBoxResult.No:

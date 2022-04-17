@@ -354,7 +354,7 @@ namespace SkyziBackup.Data
         }
 
         public static string GetLocalSettingsFileName(string originBaseDirPath, string destBaseDirPath) =>
-            Path.Combine(DataFileWriter.GetDatabaseDirectoryName(originBaseDirPath, destBaseDirPath), FileName);
+            Path.Combine(DataFileWriter.GetDataDirectoryName(originBaseDirPath, destBaseDirPath), FileName);
 
         /// <summary>
         /// デフォルト設定をファイルから読み込み直す。読み込めない場合は何もしない。

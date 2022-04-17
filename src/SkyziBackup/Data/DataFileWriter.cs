@@ -8,7 +8,7 @@ using SkyziBackup.Properties;
 
 namespace SkyziBackup.Data
 {
-    public class DataFileWriter
+    public static class DataFileWriter
     {
         public const string JsonExtension = ".json";
         public static readonly string DefaultExtension = JsonExtension;
@@ -31,29 +31,12 @@ namespace SkyziBackup.Data
         /// </summary>
         /// <remarks>GetQualifiedもついでに呼んでるので予めTrim()したりする必要はないよ♡</remarks>
         /// <returns>AppDataPathからの相対パス</returns>
-        public static string GetDatabaseDirectoryName(string originBaseDirPath, string destBaseDirPath) => Path.Combine(ParentDirectoryName,
+        public static string GetDataDirectoryName(string originBaseDirPath, string destBaseDirPath) => Path.Combine(ParentDirectoryName,
             BackupManager.ComputeStringSHA1(
                 BackupController.GetQualifiedDirectoryPath(originBaseDirPath) +
                 BackupController.GetQualifiedDirectoryPath(destBaseDirPath)
             )
         );
-
-        // TODO: ここ以下のデータベース関連メソッドはBackupDatabaseクラスの方に移動させる
-        /// <summary>
-        /// <see cref="BackupDatabase.FileName" />と<see cref="GetDatabaseDirectoryName(string, string)" />でAppDataPathからの相対ファイルパスを求める。
-        /// </summary>
-        /// <remarks>引数はもちろん予めTrim()したりする必要はない</remarks>
-        /// <returns>AppDataPathからの相対パス</returns>
-        public static string GetDatabaseFileName(string originBaseDirPath, string destBaseDirPath) =>
-            Path.Combine(GetDatabaseDirectoryName(originBaseDirPath, destBaseDirPath), BackupDatabase.FileName);
-
-        /// <summary>
-        /// <see cref="GetDatabaseFileName(string, string)" />と<see cref="GetPath(string)" />で絶対パスを得る。
-        /// </summary>
-        /// <remarks>引数は生で良い</remarks>
-        /// <returns>データベースの絶対パス</returns>
-        public static string GetDatabasePath(string originBaseDirPath, string destBaseDirPath) =>
-            GetPath(GetDatabaseFileName(originBaseDirPath, destBaseDirPath));
 
         public static async Task WriteAsync(SaveableData obj, string? filePath = null, bool makeBackup = false, CancellationToken cancellationToken = default)
         {
@@ -108,8 +91,5 @@ namespace SkyziBackup.Data
         public static T? Read<T>(string fileName) where T : SaveableData => ReadAsync<T>(fileName).Result;
         public static void Delete(SaveableData obj) => File.Delete(GetPath(obj));
         public static void Delete<T>(string fileName) where T : SaveableData => File.Delete(GetPath(fileName));
-
-        public static void DeleteDatabase(string originBaseDirPath, string destBaseDirPath) =>
-            Delete<BackupDatabase>(GetDatabaseFileName(originBaseDirPath, destBaseDirPath));
     }
 }

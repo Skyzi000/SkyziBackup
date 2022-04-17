@@ -29,7 +29,7 @@ namespace SkyziBackup.Data
         /// ファイル名は(<see cref="OriginBaseDirPath" /> + <see cref="DestBaseDirPath" />)のSHA1
         /// </summary>
         [JsonIgnore]
-        public override string SaveFileName => DataFileWriter.GetDatabaseFileName(OriginBaseDirPath, DestBaseDirPath);
+        public override string SaveFileName => GetDatabaseFileName(OriginBaseDirPath, DestBaseDirPath);
 
         public static readonly string FileName = "Database" + DataFileWriter.DefaultExtension;
 
@@ -70,5 +70,24 @@ namespace SkyziBackup.Data
                 Semaphore.Release();
             }
         }
+
+        /// <summary>
+        /// <see cref="BackupDatabase.FileName" />と<see cref="DataFileWriter.GetDataDirectoryName" />でAppDataPathからの相対ファイルパスを求める。
+        /// </summary>
+        /// <remarks>引数はもちろん予めTrim()したりする必要はない</remarks>
+        /// <returns>AppDataPathからの相対パス</returns>
+        public static string GetDatabaseFileName(string originBaseDirPath, string destBaseDirPath) =>
+            Path.Combine(DataFileWriter.GetDataDirectoryName(originBaseDirPath, destBaseDirPath), FileName);
+
+        /// <summary>
+        /// <see cref="GetDatabaseFileName(string, string)" />と<see cref="DataFileWriter.GetPath(string)" />で絶対パスを得る。
+        /// </summary>
+        /// <remarks>引数は生で良い</remarks>
+        /// <returns>データベースの絶対パス</returns>
+        public static string GetDatabasePath(string originBaseDirPath, string destBaseDirPath) =>
+            DataFileWriter.GetPath(GetDatabaseFileName(originBaseDirPath, destBaseDirPath));
+
+        public static void DeleteDatabase(string originBaseDirPath, string destBaseDirPath) =>
+            DataFileWriter.Delete<BackupDatabase>(GetDatabaseFileName(originBaseDirPath, destBaseDirPath));
     }
 }
