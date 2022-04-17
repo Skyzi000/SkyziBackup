@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Reflection;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Threading;
@@ -10,11 +11,16 @@ namespace SkyziBackup.Data
     public static class DataFileWriter
     {
         public const string JsonExtension = ".json";
-        public static readonly string DefaultExtension = JsonExtension;
-        public static string BaseDirectoryPath = AppDomain.CurrentDomain.BaseDirectory;
-        public static string ParentDirectoryName = "Data";
         public static readonly string TempFileExtension = ".tmp";
         public static readonly string BackupFileExtension = ".bac";
+        public static readonly string DefaultExtension = JsonExtension;
+
+        public static readonly string DefaultBaseDirectoryPath =
+            Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? AppDomain.CurrentDomain.BaseDirectory;
+
+        public static readonly string DefaultParentDirectoryName = "Data";
+        public static string BaseDirectoryPath = DefaultBaseDirectoryPath;
+        public static string ParentDirectoryName = DefaultParentDirectoryName;
 
         private static JsonSerializerOptions SerializerOptions { get; } = new()
         {
