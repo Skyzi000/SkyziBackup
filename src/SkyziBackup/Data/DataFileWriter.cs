@@ -4,7 +4,6 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using SkyziBackup.Properties;
 
 namespace SkyziBackup.Data
 {
@@ -12,7 +11,8 @@ namespace SkyziBackup.Data
     {
         public const string JsonExtension = ".json";
         public static readonly string DefaultExtension = JsonExtension;
-        public static readonly string ParentDirectoryName = "Data";
+        public static string BaseDirectoryPath = AppDomain.CurrentDomain.BaseDirectory;
+        public static string ParentDirectoryName = "Data";
         public static readonly string TempFileExtension = ".tmp";
         public static readonly string BackupFileExtension = ".bac";
 
@@ -24,7 +24,7 @@ namespace SkyziBackup.Data
         };
 
         public static string GetPath(SaveableData obj) => GetPath(obj.SaveFileName ?? throw new ArgumentException(nameof(obj.SaveFileName)));
-        public static string GetPath(string fileName) => Path.Combine(Settings.Default.AppDataPath, fileName);
+        public static string GetPath(string fileName) => Path.Combine(BaseDirectoryPath, fileName);
 
         /// <summary>
         /// <see cref="ParentDirectoryName" />とSHA1ハッシュ値でAppDataPathからの相対ディレクトリパスを求める。

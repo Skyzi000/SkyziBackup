@@ -48,6 +48,8 @@ namespace SkyziBackup
                 Directory.CreateDirectory(Settings.Default.AppDataPath);
             }
 
+            DataFileWriter.BaseDirectoryPath = Settings.Default.AppDataPath;
+
             // NLog.configの読み取り
             using (var nlogConfigStream = GetResourceStream(new Uri("NLog.config", UriKind.Relative))?.Stream)
             {
