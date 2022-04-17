@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text.Json.Serialization;
 
-namespace SkyziBackup
+namespace SkyziBackup.Data
 {
     public class BackupDatabase : SaveableData
     {

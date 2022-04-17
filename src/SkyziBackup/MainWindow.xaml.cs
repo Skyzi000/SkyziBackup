@@ -8,6 +8,7 @@ using System.Windows.Forms;
 using System.Windows.Threading;
 using NLog;
 using Skyzi000.Cryptography;
+using SkyziBackup.Data;
 using SkyziBackup.Properties;
 using Application = System.Windows.Application;
 using Button = System.Windows.Controls.Button;
@@ -239,7 +240,7 @@ namespace SkyziBackup
 
         private void OpenLog_Click(object sender, RoutedEventArgs args) => App.OpenLatestLog();
 
-        private void Exit_Click(object sender, RoutedEventArgs args) => ((App) Application.Current).Quit();
+        private void Exit_Click(object sender, RoutedEventArgs args) => ((App)Application.Current).Quit();
 
         private void Window_Closing(object sender, CancelEventArgs args) => SaveStates();
 
@@ -255,7 +256,7 @@ namespace SkyziBackup
             using var ofd = new OpenFileDialog { FileName = "SelectFolder", Filter = "Folder|.", CheckFileExists = false };
             if (ofd.ShowDialog() == System.Windows.Forms.DialogResult.OK)
             {
-                switch (((Button) sender).Tag)
+                switch (((Button)sender).Tag)
                 {
                     case "OriginPath":
                         originPath.Text = BackupController.GetQualifiedDirectoryPath(Path.GetDirectoryName(ofd.FileName) ?? string.Empty);

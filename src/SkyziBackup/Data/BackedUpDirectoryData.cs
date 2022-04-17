@@ -2,7 +2,7 @@
 using System.IO;
 using System.Text.Json.Serialization;
 
-namespace SkyziBackup
+namespace SkyziBackup.Data
 {
     /// <summary>
     /// バックアップ済みディレクトリの詳細データ保管用クラス

@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using NLog;
+using SkyziBackup.Data;
 
 namespace SkyziBackup
 {

@@ -10,7 +10,7 @@ using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using Skyzi000.Cryptography;
 
-namespace SkyziBackup
+namespace SkyziBackup.Data
 {
     /// <summary>
     /// ファイルの変更を検知する方法

@@ -4,7 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Timer = System.Timers.Timer;
 
-namespace SkyziBackup
+namespace SkyziBackup.Data
 {
     public abstract class SaveableData : IDisposable
     {

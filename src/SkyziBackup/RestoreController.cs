@@ -7,6 +7,7 @@ using System.Linq;
 using NLog;
 using Skyzi000;
 using Skyzi000.Cryptography;
+using SkyziBackup.Data;
 using static Skyzi000.IO.FileSystem;
 
 namespace SkyziBackup
@@ -263,7 +264,7 @@ namespace SkyziBackup
                         else
                         {
                             // データベースに記録されたディレクトリ属性をコピーする(もし記録されていないものがあれば実際のディレクトリを参照する)
-                            BackedUpDirectoryData data = Database.BackedUpDirectoriesDict[originDirPath];
+                            var data = Database.BackedUpDirectoriesDict[originDirPath];
                             var _ = new DirectoryInfo(destDirPath)
                             {
                                 CreationTime = data.CreationTime ?? (originInfo = new DirectoryInfo(originDirPath)).CreationTime,

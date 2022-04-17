@@ -6,7 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using SkyziBackup.Properties;
 
-namespace SkyziBackup
+namespace SkyziBackup.Data
 {
     public class DataFileWriter
     {

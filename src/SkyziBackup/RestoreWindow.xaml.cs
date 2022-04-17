@@ -7,6 +7,7 @@ using System.Windows.Forms;
 using System.Windows.Threading;
 using NLog;
 using Skyzi000.Cryptography;
+using SkyziBackup.Data;
 using SkyziBackup.Properties;
 using Button = System.Windows.Controls.Button;
 using MessageBox = System.Windows.MessageBox;
@@ -55,7 +56,7 @@ namespace SkyziBackup
 
             RestoreButton.IsEnabled = false;
             progressBar.Visibility = Visibility.Visible;
-            BackupSettings settings = LoadCurrentSettings;
+            var settings = LoadCurrentSettings;
             if (settings.IsRecordPassword && settings.IsDifferentPassword(password.Password))
             {
                 var changePassword = MessageBox.Show("入力されたパスワードが保存されているパスワードと異なります。\nこのまま続行しますか？",
@@ -108,9 +109,9 @@ namespace SkyziBackup
             if (!RestoreButton.IsEnabled)
             {
                 if (MessageBoxResult.Yes != MessageBox.Show("リストア実行中です。ウィンドウを閉じますか？",
-                    "確認",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Information))
+                        "確認",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Information))
                     args.Cancel = true;
             }
         }
@@ -131,7 +132,7 @@ namespace SkyziBackup
             using var ofd = new OpenFileDialog { FileName = "SelectFolder", Filter = "Folder|.", CheckFileExists = false };
             if (ofd.ShowDialog() == System.Windows.Forms.DialogResult.OK)
             {
-                switch (((Button) sender).Tag)
+                switch (((Button)sender).Tag)
                 {
                     case "OriginPath":
                         originPath.Text = BackupController.GetQualifiedDirectoryPath(Path.GetDirectoryName(ofd.FileName) ?? string.Empty);

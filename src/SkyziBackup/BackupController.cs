@@ -12,6 +12,7 @@ using Microsoft.VisualBasic.FileIO;
 using NLog;
 using Skyzi000;
 using Skyzi000.Cryptography;
+using SkyziBackup.Data;
 using static Skyzi000.IO.FileSystem;
 
 namespace SkyziBackup
@@ -186,14 +187,14 @@ namespace SkyziBackup
                 await Task.Run(async () =>
                 {
                     foreach (var originFilePath in Settings.SymbolicLink is SymbolicLinkHandling.IgnoreAll or SymbolicLinkHandling.IgnoreOnlyDirectories
-                        ? EnumerateAllFilesIgnoringReparsePoints(OriginBaseDirPath, Settings.Regexes)
-                        : EnumerateAllFiles(OriginBaseDirPath, Settings.Regexes))
+                                 ? EnumerateAllFilesIgnoringReparsePoints(OriginBaseDirPath, Settings.Regexes)
+                                 : EnumerateAllFiles(OriginBaseDirPath, Settings.Regexes))
                     {
                         var destFilePath = originFilePath.Replace(OriginBaseDirPath, DestBaseDirPath);
                         // 除外パターンと一致せず、バックアップ済みファイルと一致しないファイルをバックアップする
                         if (!IsIgnoredFile(originFilePath) && !(Settings.IsUseDatabase
-                            ? IsUnchangedFileOnDatabase(originFilePath, destFilePath)
-                            : IsUnchangedFileWithoutDatabase(originFilePath, destFilePath)))
+                                ? IsUnchangedFileOnDatabase(originFilePath, destFilePath)
+                                : IsUnchangedFileWithoutDatabase(originFilePath, destFilePath)))
                             await Task.Run(() => BackupFile(originFilePath, destFilePath), cToken).ConfigureAwait(false);
                     }
                 }, cToken).ConfigureAwait(false);
@@ -268,8 +269,8 @@ namespace SkyziBackup
             else // データベースを使わない
             {
                 foreach (var destDirPath in Settings.SymbolicLink is SymbolicLinkHandling.IgnoreOnlyDirectories or SymbolicLinkHandling.IgnoreAll
-                    ? EnumerateAllDirectoriesIgnoringReparsePoints(DestBaseDirPath, Settings.Regexes)
-                    : EnumerateAllDirectories(DestBaseDirPath, Settings.Regexes))
+                             ? EnumerateAllDirectoriesIgnoringReparsePoints(DestBaseDirPath, Settings.Regexes)
+                             : EnumerateAllDirectories(DestBaseDirPath, Settings.Regexes))
                 {
                     var originDirPath = destDirPath.Replace(DestBaseDirPath, OriginBaseDirPath);
                     if (Results.SuccessfulDirectories.Contains(originDirPath) || Results.FailedDirectories.Contains(originDirPath))
@@ -357,8 +358,8 @@ namespace SkyziBackup
             else // データベースを使わない
             {
                 foreach (var destFilePath in Settings.SymbolicLink is SymbolicLinkHandling.IgnoreOnlyDirectories or SymbolicLinkHandling.IgnoreAll
-                    ? EnumerateAllFilesIgnoringReparsePoints(DestBaseDirPath, Settings.Regexes)
-                    : EnumerateAllFiles(DestBaseDirPath, Settings.Regexes))
+                             ? EnumerateAllFilesIgnoringReparsePoints(DestBaseDirPath, Settings.Regexes)
+                             : EnumerateAllFiles(DestBaseDirPath, Settings.Regexes))
                 {
                     var originFilePath = destFilePath.Replace(DestBaseDirPath, OriginBaseDirPath);
                     if (Results.SuccessfulFiles.Contains(originFilePath) || Results.FailedFiles.Contains(originFilePath) ||
@@ -634,7 +635,7 @@ namespace SkyziBackup
             if (Settings.ComparisonMethod == ComparisonMethod.NoComparison)
                 return false;
             FileInfo? originFileInfo = null;
-            BackedUpFileData destFileData = Database.BackedUpFilesDict[originFilePath];
+            var destFileData = Database.BackedUpFilesDict[originFilePath];
 
             // Archive属性
             if (Settings.ComparisonMethod.HasFlag(ComparisonMethod.ArchiveAttribute))

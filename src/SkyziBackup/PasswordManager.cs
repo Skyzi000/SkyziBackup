@@ -5,6 +5,7 @@ using System.Text;
 using System.Windows;
 using NLog;
 using SkyziBackup;
+using SkyziBackup.Data;
 
 namespace Skyzi000.Cryptography
 {
