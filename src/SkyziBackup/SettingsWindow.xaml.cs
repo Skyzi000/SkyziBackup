@@ -7,6 +7,7 @@ using System.Windows;
 using System.Windows.Input;
 using NLog;
 using Skyzi000.Cryptography;
+using Skyzi000.Data;
 using SkyziBackup.Data;
 using SkyziBackup.Properties;
 

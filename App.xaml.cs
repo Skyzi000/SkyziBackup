@@ -11,6 +11,7 @@ using System.Windows.Threading;
 using System.Xml;
 using NLog;
 using NLog.Config;
+using Skyzi000.Data;
 using SkyziBackup.Data;
 using SkyziBackup.Properties;
 using Application = System.Windows.Application;

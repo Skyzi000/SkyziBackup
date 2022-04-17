@@ -9,6 +9,7 @@ using System.Text;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using Skyzi000.Cryptography;
+using Skyzi000.Data;
 
 namespace SkyziBackup.Data
 {
@@ -354,7 +355,7 @@ namespace SkyziBackup.Data
         }
 
         public static string GetLocalSettingsFileName(string originBaseDirPath, string destBaseDirPath) =>
-            Path.Combine(DataFileWriter.GetDataDirectoryName(originBaseDirPath, destBaseDirPath), FileName);
+            Path.Combine(BackupDatabase.GetDataDirectoryName(originBaseDirPath, destBaseDirPath), FileName);
 
         /// <summary>
         /// デフォルト設定をファイルから読み込み直す。読み込めない場合は何もしない。

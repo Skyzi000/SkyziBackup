@@ -12,6 +12,7 @@ using Microsoft.VisualBasic.FileIO;
 using NLog;
 using Skyzi000;
 using Skyzi000.Cryptography;
+using Skyzi000.Data;
 using SkyziBackup.Data;
 using static Skyzi000.IO.FileSystem;
 

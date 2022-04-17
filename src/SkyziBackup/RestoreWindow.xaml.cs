@@ -7,6 +7,7 @@ using System.Windows.Forms;
 using System.Windows.Threading;
 using NLog;
 using Skyzi000.Cryptography;
+using Skyzi000.Data;
 using SkyziBackup.Data;
 using SkyziBackup.Properties;
 using Button = System.Windows.Controls.Button;

@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Windows;
 using NLog;
+using Skyzi000.Data;
 using SkyziBackup;
 using SkyziBackup.Data;
 

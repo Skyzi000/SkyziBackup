@@ -6,7 +6,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace SkyziBackup.Data
+namespace Skyzi000.Data
 {
     public static class DataFileWriter
     {
@@ -31,18 +31,6 @@ namespace SkyziBackup.Data
 
         public static string GetPath(SaveableData obj) => GetPath(obj.SaveFileName ?? throw new ArgumentException(nameof(obj.SaveFileName)));
         public static string GetPath(string fileName) => Path.Combine(BaseDirectoryPath, fileName);
-
-        /// <summary>
-        /// <see cref="ParentDirectoryName" />とSHA1ハッシュ値でAppDataPathからの相対ディレクトリパスを求める。
-        /// </summary>
-        /// <remarks>GetQualifiedもついでに呼んでるので予めTrim()したりする必要はないよ♡</remarks>
-        /// <returns>AppDataPathからの相対パス</returns>
-        public static string GetDataDirectoryName(string originBaseDirPath, string destBaseDirPath) => Path.Combine(ParentDirectoryName,
-            BackupManager.ComputeStringSHA1(
-                BackupController.GetQualifiedDirectoryPath(originBaseDirPath) +
-                BackupController.GetQualifiedDirectoryPath(destBaseDirPath)
-            )
-        );
 
         public static async Task WriteAsync(SaveableData obj, string? filePath = null, bool makeBackup = false, CancellationToken cancellationToken = default)
         {

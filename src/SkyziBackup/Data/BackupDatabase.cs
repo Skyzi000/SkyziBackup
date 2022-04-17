@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json.Serialization;
+using Skyzi000.Data;
 
 namespace SkyziBackup.Data
 {
@@ -72,12 +73,24 @@ namespace SkyziBackup.Data
         }
 
         /// <summary>
-        /// <see cref="BackupDatabase.FileName" />と<see cref="DataFileWriter.GetDataDirectoryName" />でAppDataPathからの相対ファイルパスを求める。
+        /// <see cref="DataFileWriter.ParentDirectoryName" />とSHA1ハッシュ値でAppDataPathからの相対ディレクトリパスを求める。
+        /// </summary>
+        /// <remarks>GetQualifiedもついでに呼んでるので予めTrim()したりする必要はないよ♡</remarks>
+        /// <returns>AppDataPathからの相対パス</returns>
+        public static string GetDataDirectoryName(string originBaseDirPath, string destBaseDirPath) => Path.Combine(DataFileWriter.ParentDirectoryName,
+            BackupManager.ComputeStringSHA1(
+                BackupController.GetQualifiedDirectoryPath(originBaseDirPath) +
+                BackupController.GetQualifiedDirectoryPath(destBaseDirPath)
+            )
+        );
+
+        /// <summary>
+        /// <see cref="BackupDatabase.FileName" />と<see cref="GetDataDirectoryName" />でAppDataPathからの相対ファイルパスを求める。
         /// </summary>
         /// <remarks>引数はもちろん予めTrim()したりする必要はない</remarks>
         /// <returns>AppDataPathからの相対パス</returns>
         public static string GetDatabaseFileName(string originBaseDirPath, string destBaseDirPath) =>
-            Path.Combine(DataFileWriter.GetDataDirectoryName(originBaseDirPath, destBaseDirPath), FileName);
+            Path.Combine(GetDataDirectoryName(originBaseDirPath, destBaseDirPath), FileName);
 
         /// <summary>
         /// <see cref="GetDatabaseFileName(string, string)" />と<see cref="DataFileWriter.GetPath(string)" />で絶対パスを得る。
