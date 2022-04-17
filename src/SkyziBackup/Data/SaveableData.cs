@@ -9,7 +9,7 @@ namespace SkyziBackup.Data
     public abstract class SaveableData : IDisposable
     {
         [JsonIgnore]
-        public virtual string? SaveFileName { get; }
+        public abstract string? SaveFileName { get; }
 
         [JsonIgnore]
         public Timer SaveTimer
