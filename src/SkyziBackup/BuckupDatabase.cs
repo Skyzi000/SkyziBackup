@@ -19,7 +19,11 @@ namespace SkyziBackup
         [JsonIgnore]
         public Timer SaveTimer
         {
-            get => _saveTimer ??= new Timer();
+            get
+            {
+                ThrowIfDisposed();
+                return _saveTimer ??= new Timer();
+            }
             set => _saveTimer = value;
         }
 
@@ -28,15 +32,23 @@ namespace SkyziBackup
         [JsonIgnore]
         public SemaphoreSlim Semaphore
         {
-            get => _semaphore ??= new SemaphoreSlim(1, 1);
+            get
+            {
+                ThrowIfDisposed();
+                return _semaphore ??= new SemaphoreSlim(1, 1);
+            }
             set => _semaphore = value;
         }
 
+        [JsonIgnore]
+        public bool IsDisposed { get; private set; }
+
         private SemaphoreSlim? _semaphore;
-        private bool _disposedValue;
+
 
         public virtual void StartAutoSave(double intervalMsec)
         {
+            ThrowIfDisposed();
             _saveTimer?.Stop();
             _saveTimer?.Dispose();
             _saveTimer = null;
@@ -53,6 +65,7 @@ namespace SkyziBackup
 
         public virtual void Save(string? filePath = null)
         {
+            ThrowIfDisposed();
             Semaphore.Wait();
             try
             {
@@ -66,7 +79,8 @@ namespace SkyziBackup
 
         public virtual async Task SaveAsync(string? filePath = null, CancellationToken cancellationToken = default)
         {
-            await Semaphore.WaitAsync();
+            ThrowIfDisposed();
+            await Semaphore.WaitAsync(CancellationToken.None);
             try
             {
                 await DataFileWriter.WriteAsync(this, filePath, true, cancellationToken).ConfigureAwait(false);
@@ -79,6 +93,7 @@ namespace SkyziBackup
 
         public virtual void Delete()
         {
+            ThrowIfDisposed();
             Semaphore.Wait();
             try
             {
@@ -90,18 +105,26 @@ namespace SkyziBackup
             }
         }
 
+        protected void ThrowIfDisposed()
+        {
+            if (IsDisposed)
+                throw new ObjectDisposedException(GetType().FullName);
+        }
+
         protected virtual void Dispose(bool disposing)
         {
-            if (!_disposedValue)
+            if (!IsDisposed)
             {
                 if (disposing)
                 {
                     _semaphore?.Dispose();
+                    _semaphore = null;
                     _saveTimer?.Stop();
                     _saveTimer?.Dispose();
+                    _saveTimer = null;
                 }
 
-                _disposedValue = true;
+                IsDisposed = true;
             }
         }
 
@@ -156,6 +179,7 @@ namespace SkyziBackup
 
         public override void AutoSave()
         {
+            ThrowIfDisposed();
             Semaphore.Wait();
             try
             {

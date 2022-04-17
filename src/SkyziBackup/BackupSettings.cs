@@ -407,6 +407,7 @@ namespace SkyziBackup
 
         public BackupSettings ConvertToLocalSettings(string originBaseDirPath, string destBaseDirPath)
         {
+            ThrowIfDisposed();
             OriginBaseDirPath = originBaseDirPath;
             DestBaseDirPath = destBaseDirPath;
             return this;
@@ -414,12 +415,14 @@ namespace SkyziBackup
 
         public HashSet<Regex> PatternToRegexes(string pattern)
         {
+            ThrowIfDisposed();
             var patStrArr = pattern.Split(new[] { "\r\n", "\n", "\r", "|" }, StringSplitOptions.None);
             return new HashSet<Regex>(patStrArr.Select(ConvertToRegex));
         }
 
         internal string GetRawPassword()
         {
+            ThrowIfDisposed();
             if (!IsRecordPassword || string.IsNullOrEmpty(ProtectedPassword))
                 return string.Empty;
             return PasswordManager.Decrypt(ProtectedPassword, PasswordProtectionScope);
@@ -429,6 +432,7 @@ namespace SkyziBackup
 
         private Regex ConvertToRegex(string strPattern)
         {
+            ThrowIfDisposed();
             var sb = new StringBuilder("^");
             if (Path.IsPathFullyQualified(strPattern) && !IsDefault && OriginBaseDirPath != null)
                 strPattern = Path.DirectorySeparatorChar + Path.GetRelativePath(OriginBaseDirPath, strPattern);
