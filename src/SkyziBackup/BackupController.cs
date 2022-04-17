@@ -12,6 +12,8 @@ using Microsoft.VisualBasic.FileIO;
 using NLog;
 using Skyzi000;
 using Skyzi000.Cryptography;
+using Skyzi000.Data;
+using SkyziBackup.Data;
 using static Skyzi000.IO.FileSystem;
 
 namespace SkyziBackup
@@ -97,10 +99,10 @@ namespace SkyziBackup
         private async Task<BackupDatabase> LoadOrCreateDatabaseAsync()
         {
             string databasePath;
-            var isExists = File.Exists(databasePath = DataFileWriter.GetDatabasePath(OriginBaseDirPath, DestBaseDirPath));
+            var isExists = File.Exists(databasePath = BackupDatabase.GetDatabasePath(OriginBaseDirPath, DestBaseDirPath));
             Logger.Info(Results.Message = isExists ? $"既存のデータベースをロード: '{databasePath}'" : "新規データベースを初期化");
             return isExists
-                ? await DataFileWriter.ReadAsync<BackupDatabase>(DataFileWriter.GetDatabaseFileName(OriginBaseDirPath, DestBaseDirPath))
+                ? await DataFileWriter.ReadAsync<BackupDatabase>(BackupDatabase.GetDatabaseFileName(OriginBaseDirPath, DestBaseDirPath))
                   ?? new BackupDatabase(OriginBaseDirPath, DestBaseDirPath)
                 : new BackupDatabase(OriginBaseDirPath, DestBaseDirPath);
         }
@@ -186,14 +188,14 @@ namespace SkyziBackup
                 await Task.Run(async () =>
                 {
                     foreach (var originFilePath in Settings.SymbolicLink is SymbolicLinkHandling.IgnoreAll or SymbolicLinkHandling.IgnoreOnlyDirectories
-                        ? EnumerateAllFilesIgnoringReparsePoints(OriginBaseDirPath, Settings.Regexes)
-                        : EnumerateAllFiles(OriginBaseDirPath, Settings.Regexes))
+                                 ? EnumerateAllFilesIgnoringReparsePoints(OriginBaseDirPath, Settings.Regexes)
+                                 : EnumerateAllFiles(OriginBaseDirPath, Settings.Regexes))
                     {
                         var destFilePath = originFilePath.Replace(OriginBaseDirPath, DestBaseDirPath);
                         // 除外パターンと一致せず、バックアップ済みファイルと一致しないファイルをバックアップする
                         if (!IsIgnoredFile(originFilePath) && !(Settings.IsUseDatabase
-                            ? IsUnchangedFileOnDatabase(originFilePath, destFilePath)
-                            : IsUnchangedFileWithoutDatabase(originFilePath, destFilePath)))
+                                ? IsUnchangedFileOnDatabase(originFilePath, destFilePath)
+                                : IsUnchangedFileWithoutDatabase(originFilePath, destFilePath)))
                             await Task.Run(() => BackupFile(originFilePath, destFilePath), cToken).ConfigureAwait(false);
                     }
                 }, cToken).ConfigureAwait(false);
@@ -268,8 +270,8 @@ namespace SkyziBackup
             else // データベースを使わない
             {
                 foreach (var destDirPath in Settings.SymbolicLink is SymbolicLinkHandling.IgnoreOnlyDirectories or SymbolicLinkHandling.IgnoreAll
-                    ? EnumerateAllDirectoriesIgnoringReparsePoints(DestBaseDirPath, Settings.Regexes)
-                    : EnumerateAllDirectories(DestBaseDirPath, Settings.Regexes))
+                             ? EnumerateAllDirectoriesIgnoringReparsePoints(DestBaseDirPath, Settings.Regexes)
+                             : EnumerateAllDirectories(DestBaseDirPath, Settings.Regexes))
                 {
                     var originDirPath = destDirPath.Replace(DestBaseDirPath, OriginBaseDirPath);
                     if (Results.SuccessfulDirectories.Contains(originDirPath) || Results.FailedDirectories.Contains(originDirPath))
@@ -292,19 +294,19 @@ namespace SkyziBackup
             string revDirPath;
             switch (Settings.Versioning)
             {
-                case VersioningMethod.PermanentDeletion:
+                case VersioningMode.PermanentDeletion:
                     Directory.Delete(directoryPath);
                     break;
-                case VersioningMethod.RecycleBin:
+                case VersioningMode.RecycleBin:
                     FileSystem.DeleteDirectory(directoryPath, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
                     break;
-                case VersioningMethod.Replace:
-                case VersioningMethod.FileTimeStamp:
+                case VersioningMode.Replace:
+                case VersioningMode.FileTimeStamp:
                     revDirPath = directoryPath.Replace(DestBaseDirPath,
                         Settings.RevisionsDirPath ?? throw new NullReferenceException(nameof(Settings.RevisionsDirPath)));
                     CopyDirectoryAttributes(directoryPath, revDirPath);
                     break;
-                case VersioningMethod.DirectoryTimeStamp:
+                case VersioningMode.DirectoryTimeStamp:
                     revDirPath = Path.Combine(Settings.RevisionsDirPath ?? throw new NullReferenceException(nameof(Settings.RevisionsDirPath)),
                         StartTime.ToString("yyyy-MM-dd_HHmmss"), directoryPath.Replace(DestBaseDirPath, null));
                     CopyDirectoryAttributes(directoryPath, revDirPath);
@@ -357,8 +359,8 @@ namespace SkyziBackup
             else // データベースを使わない
             {
                 foreach (var destFilePath in Settings.SymbolicLink is SymbolicLinkHandling.IgnoreOnlyDirectories or SymbolicLinkHandling.IgnoreAll
-                    ? EnumerateAllFilesIgnoringReparsePoints(DestBaseDirPath, Settings.Regexes)
-                    : EnumerateAllFiles(DestBaseDirPath, Settings.Regexes))
+                             ? EnumerateAllFilesIgnoringReparsePoints(DestBaseDirPath, Settings.Regexes)
+                             : EnumerateAllFiles(DestBaseDirPath, Settings.Regexes))
                 {
                     var originFilePath = destFilePath.Replace(DestBaseDirPath, OriginBaseDirPath);
                     if (Results.SuccessfulFiles.Contains(originFilePath) || Results.FailedFiles.Contains(originFilePath) ||
@@ -391,21 +393,21 @@ namespace SkyziBackup
             string revisionFilePath;
             switch (Settings.Versioning)
             {
-                case VersioningMethod.PermanentDeletion:
+                case VersioningMode.PermanentDeletion:
                     File.Delete(filePath);
                     return;
-                case VersioningMethod.RecycleBin:
+                case VersioningMode.RecycleBin:
                     FileSystem.DeleteFile(filePath, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
                     return;
-                case VersioningMethod.Replace:
+                case VersioningMode.Replace:
                     revisionFilePath = filePath.Replace(DestBaseDirPath,
                         Settings.RevisionsDirPath ?? throw new NullReferenceException(nameof(Settings.RevisionsDirPath)));
                     break;
-                case VersioningMethod.DirectoryTimeStamp:
+                case VersioningMode.DirectoryTimeStamp:
                     revisionFilePath = Path.Combine(Settings.RevisionsDirPath ?? throw new NullReferenceException(nameof(Settings.RevisionsDirPath)),
                         StartTime.ToString("yyyy-MM-dd_HHmmss"), filePath.Replace(DestBaseDirPath, "").TrimStart(Path.DirectorySeparatorChar));
                     break;
-                case VersioningMethod.FileTimeStamp:
+                case VersioningMode.FileTimeStamp:
                     revisionFilePath =
                         filePath.Replace(DestBaseDirPath, Settings.RevisionsDirPath ?? throw new NullReferenceException(nameof(Settings.RevisionsDirPath))) +
                         StartTime.ToString("_yyyy-MM-dd_HHmmss") + Path.GetExtension(filePath);
@@ -436,7 +438,7 @@ namespace SkyziBackup
             bool isForceCreateDirectoryAndReturnDictionary = false,
             bool isRestoreAttributesFromDatabase = false,
             SymbolicLinkHandling symbolicLink = SymbolicLinkHandling.IgnoreOnlyDirectories,
-            VersioningMethod versioning = VersioningMethod.PermanentDeletion)
+            VersioningMode versioning = VersioningMode.PermanentDeletion)
         {
             if (isRestoreAttributesFromDatabase && backedUpDirectoriesDict == null)
                 throw new ArgumentNullException(nameof(backedUpDirectoriesDict));
@@ -508,7 +510,7 @@ namespace SkyziBackup
             bool isForceCreateDirectoryAndReturnDictionary = false,
             bool isRestoreAttributesFromDatabase = false,
             SymbolicLinkHandling symbolicLinkHandling = SymbolicLinkHandling.IgnoreOnlyDirectories,
-            VersioningMethod versioning = VersioningMethod.PermanentDeletion)
+            VersioningMode versioning = VersioningMode.PermanentDeletion)
         {
             try
             {
@@ -519,10 +521,10 @@ namespace SkyziBackup
                     (originDirInfo ??= new DirectoryInfo(originDirPath)).Attributes.HasFlag(FileAttributes.ReparsePoint))
                 {
                     var destDirPath = originDirPath.Replace(sourceBaseDirPath, destBaseDirPath);
-                    if (versioning != VersioningMethod.PermanentDeletion &&
+                    if (versioning != VersioningMode.PermanentDeletion &&
                         (destDirInfo = new DirectoryInfo(destDirPath)).Attributes.HasFlag(FileAttributes.ReparsePoint))
                         DeleteDirectory(destDirPath);
-                    CopyReparsePoint(originDirPath, destDirPath, versioning == VersioningMethod.PermanentDeletion);
+                    CopyReparsePoint(originDirPath, destDirPath, versioning == VersioningMode.PermanentDeletion);
                 }
                 // データベースのデータを使わない場合
                 else if (backedUpDirectoriesDict is null || !backedUpDirectoriesDict.TryGetValue(originDirPath, out var data) ||
@@ -634,7 +636,7 @@ namespace SkyziBackup
             if (Settings.ComparisonMethod == ComparisonMethod.NoComparison)
                 return false;
             FileInfo? originFileInfo = null;
-            BackedUpFileData destFileData = Database.BackedUpFilesDict[originFilePath];
+            var destFileData = Database.BackedUpFilesDict[originFilePath];
 
             // Archive属性
             if (Settings.ComparisonMethod.HasFlag(ComparisonMethod.ArchiveAttribute))
@@ -863,7 +865,7 @@ namespace SkyziBackup
                     RemoveHiddenAttribute(originFilePath, destFilePath);
                 }
 
-                if (Settings.Versioning != VersioningMethod.PermanentDeletion &&
+                if (Settings.Versioning != VersioningMode.PermanentDeletion &&
                     (Database?.BackedUpFilesDict.ContainsKey(originFilePath) ?? File.Exists(destFilePath)))
                 {
                     try
@@ -879,7 +881,7 @@ namespace SkyziBackup
 
                 if (Settings.SymbolicLink == SymbolicLinkHandling.Direct && File.GetAttributes(originFilePath).HasFlag(FileAttributes.ReparsePoint))
                 {
-                    CopyReparsePoint(originFilePath, destFilePath, Settings.Versioning == VersioningMethod.PermanentDeletion);
+                    CopyReparsePoint(originFilePath, destFilePath, Settings.Versioning == VersioningMode.PermanentDeletion);
                     CopyFileAttributesAndUpdateDatabase(originFilePath, destFilePath);
                 }
                 else if (AesCryptor != null)

@@ -11,6 +11,8 @@ using System.Windows.Threading;
 using System.Xml;
 using NLog;
 using NLog.Config;
+using Skyzi000.Data;
+using SkyziBackup.Data;
 using SkyziBackup.Properties;
 using Application = System.Windows.Application;
 using MessageBox = System.Windows.MessageBox;
@@ -46,6 +48,8 @@ namespace SkyziBackup
                 Settings.Default.Save();
                 Directory.CreateDirectory(Settings.Default.AppDataPath);
             }
+
+            DataFileWriter.BaseDirectoryPath = Settings.Default.AppDataPath;
 
             // NLog.configの読み取り
             using (var nlogConfigStream = GetResourceStream(new Uri("NLog.config", UriKind.Relative))?.Stream)
@@ -116,9 +120,9 @@ namespace SkyziBackup
         {
             Logger.Error(args.Exception, "バックグラウンドタスクで予期しない例外が発生しました");
             if (MessageBoxResult.Yes == MessageBox.Show(
-                $"バックグラウンドタスクで予期しない例外({args.Exception?.InnerException?.GetType().Name})が発生しました。プログラムを継続しますか？\n" +
-                $"エラーメッセージ: {args.Exception?.InnerException?.Message}\nスタックトレース: {args.Exception?.InnerException?.StackTrace}",
-                $"{AssemblyName.Name} - エラー", MessageBoxButton.YesNo, MessageBoxImage.Error))
+                    $"バックグラウンドタスクで予期しない例外({args.Exception?.InnerException?.GetType().Name})が発生しました。プログラムを継続しますか？\n" +
+                    $"エラーメッセージ: {args.Exception?.InnerException?.Message}\nスタックトレース: {args.Exception?.InnerException?.StackTrace}",
+                    $"{AssemblyName.Name} - エラー", MessageBoxButton.YesNo, MessageBoxImage.Error))
                 args.SetObserved();
             else
                 Quit();
@@ -129,9 +133,9 @@ namespace SkyziBackup
             Logger.Error(args.Exception, "予期しない例外が発生しました: {3}", args.Exception?.TargetSite?.Name, args.Exception?.GetType().Name,
                 args.Exception?.Message);
             if (MessageBoxResult.Yes == MessageBox.Show(
-                $"予期しない例外({args.Exception?.GetType().Name})が発生しました。プログラムを継続しますか？\n" +
-                $"エラーメッセージ: {args.Exception?.Message}\nスタックトレース: {args.Exception?.StackTrace}",
-                $"{AssemblyName.Name} - エラー", MessageBoxButton.YesNo, MessageBoxImage.Error))
+                    $"予期しない例外({args.Exception?.GetType().Name})が発生しました。プログラムを継続しますか？\n" +
+                    $"エラーメッセージ: {args.Exception?.Message}\nスタックトレース: {args.Exception?.StackTrace}",
+                    $"{AssemblyName.Name} - エラー", MessageBoxButton.YesNo, MessageBoxImage.Error))
                 args.Handled = true;
             else
                 Quit();

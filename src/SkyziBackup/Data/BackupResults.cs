@@ -2,8 +2,9 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json.Serialization;
+using Skyzi000.Data;
 
-namespace SkyziBackup
+namespace SkyziBackup.Data
 {
     public class BackupResults : SaveableData
     {
@@ -115,6 +116,6 @@ namespace SkyziBackup
         }
 
         private static string GetFileName(string originBaseDirPath, string destBaseDirPath) =>
-            Path.Combine(DataFileWriter.GetDatabaseDirectoryName(originBaseDirPath, destBaseDirPath), FileName);
+            Path.Combine(BackupDatabase.GetDataDirectoryName(originBaseDirPath, destBaseDirPath), FileName);
     }
 }

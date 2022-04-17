@@ -7,6 +7,8 @@ using System.Linq;
 using NLog;
 using Skyzi000;
 using Skyzi000.Cryptography;
+using Skyzi000.Data;
+using SkyziBackup.Data;
 using static Skyzi000.IO.FileSystem;
 
 namespace SkyziBackup
@@ -37,11 +39,11 @@ namespace SkyziBackup
             Settings = settings ?? BackupSettings.LoadLocalSettings(_destBaseDirPath, _sourceBaseDirPath) ?? BackupSettings.Default;
             //if (Settings.isUseDatabase && Settings.comparisonMethod.HasFlag(ComparisonMethod.FileContentsSHA1))
             // TODO: データベースに記録されたSHA1と比較できるようにする
-            if (isCopyAttributesOnDatabase && File.Exists(DataFileWriter.GetDatabasePath(_destBaseDirPath, _sourceBaseDirPath)))
+            if (isCopyAttributesOnDatabase && File.Exists(BackupDatabase.GetDatabasePath(_destBaseDirPath, _sourceBaseDirPath)))
             {
                 try
                 {
-                    Database = DataFileWriter.Read<BackupDatabase>(DataFileWriter.GetDatabaseFileName(_destBaseDirPath, _sourceBaseDirPath));
+                    Database = DataFileWriter.Read<BackupDatabase>(BackupDatabase.GetDatabaseFileName(_destBaseDirPath, _sourceBaseDirPath));
                 }
                 catch (Exception) { }
             }
@@ -50,8 +52,8 @@ namespace SkyziBackup
             _isEnableWriteDatabase = isEnableWriteDatabase;
             if (_isEnableWriteDatabase && Database == null)
             {
-                Database = File.Exists(DataFileWriter.GetDatabasePath(_destBaseDirPath, _sourceBaseDirPath))
-                    ? DataFileWriter.Read<BackupDatabase>(DataFileWriter.GetDatabaseFileName(_destBaseDirPath, _sourceBaseDirPath))
+                Database = File.Exists(BackupDatabase.GetDatabasePath(_destBaseDirPath, _sourceBaseDirPath))
+                    ? DataFileWriter.Read<BackupDatabase>(BackupDatabase.GetDatabaseFileName(_destBaseDirPath, _sourceBaseDirPath))
                     : new BackupDatabase(_destBaseDirPath, _sourceBaseDirPath);
             }
 
@@ -263,7 +265,7 @@ namespace SkyziBackup
                         else
                         {
                             // データベースに記録されたディレクトリ属性をコピーする(もし記録されていないものがあれば実際のディレクトリを参照する)
-                            BackedUpDirectoryData data = Database.BackedUpDirectoriesDict[originDirPath];
+                            var data = Database.BackedUpDirectoriesDict[originDirPath];
                             var _ = new DirectoryInfo(destDirPath)
                             {
                                 CreationTime = data.CreationTime ?? (originInfo = new DirectoryInfo(originDirPath)).CreationTime,
@@ -414,7 +416,7 @@ namespace SkyziBackup
             bool isForceCreateDirectoryAndReturnDictionary = false,
             bool isRestoreAttributesFromDatabase = false,
             SymbolicLinkHandling symbolicLink = SymbolicLinkHandling.IgnoreOnlyDirectories,
-            VersioningMethod versioning = VersioningMethod.PermanentDeletion)
+            VersioningMode versioning = VersioningMode.PermanentDeletion)
         {
             if (string.IsNullOrEmpty(sourceBaseDirPath))
                 throw new ArgumentException($"'{nameof(sourceBaseDirPath)}' を null または空にすることはできません", nameof(sourceBaseDirPath));
@@ -445,7 +447,7 @@ namespace SkyziBackup
             bool isForceCreateDirectoryAndReturnDictionary = false,
             bool isRestoreAttributesFromDatabase = false,
             SymbolicLinkHandling symbolicLinkHandling = SymbolicLinkHandling.IgnoreOnlyDirectories,
-            VersioningMethod versioning = VersioningMethod.PermanentDeletion)
+            VersioningMode versioning = VersioningMode.PermanentDeletion)
         {
             try
             {
