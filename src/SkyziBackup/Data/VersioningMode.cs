@@ -3,7 +3,7 @@
     /// <summary>
     /// 削除・上書き時の動作
     /// </summary>
-    public enum VersioningMethod
+    public enum VersioningMode
     {
         /// <summary>
         /// 完全消去する(バージョン管理を行わない)

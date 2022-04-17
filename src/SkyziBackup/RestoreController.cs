@@ -416,7 +416,7 @@ namespace SkyziBackup
             bool isForceCreateDirectoryAndReturnDictionary = false,
             bool isRestoreAttributesFromDatabase = false,
             SymbolicLinkHandling symbolicLink = SymbolicLinkHandling.IgnoreOnlyDirectories,
-            VersioningMethod versioning = VersioningMethod.PermanentDeletion)
+            VersioningMode versioning = VersioningMode.PermanentDeletion)
         {
             if (string.IsNullOrEmpty(sourceBaseDirPath))
                 throw new ArgumentException($"'{nameof(sourceBaseDirPath)}' を null または空にすることはできません", nameof(sourceBaseDirPath));
@@ -447,7 +447,7 @@ namespace SkyziBackup
             bool isForceCreateDirectoryAndReturnDictionary = false,
             bool isRestoreAttributesFromDatabase = false,
             SymbolicLinkHandling symbolicLinkHandling = SymbolicLinkHandling.IgnoreOnlyDirectories,
-            VersioningMethod versioning = VersioningMethod.PermanentDeletion)
+            VersioningMode versioning = VersioningMode.PermanentDeletion)
         {
             try
             {

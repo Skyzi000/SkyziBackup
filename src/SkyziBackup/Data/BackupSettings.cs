@@ -70,7 +70,7 @@ namespace SkyziBackup.Data
         /// <summary>
         /// 削除または上書きされたファイルのバージョン管理方法
         /// </summary>
-        public VersioningMethod Versioning { get; set; }
+        public VersioningMode Versioning { get; set; }
 
         /// <summary>
         /// 削除または上書きされたファイルの移動先ディレクトリ
@@ -183,7 +183,7 @@ namespace SkyziBackup.Data
             IsCopyAttributes = true;
             IsOverwriteReadonly = false;
             IsEnableDeletion = false;
-            Versioning = VersioningMethod.PermanentDeletion;
+            Versioning = VersioningMode.PermanentDeletion;
             RevisionsDirPath = null;
             IsRecordPassword = true;
             PasswordProtectionScope = DataProtectionScope.LocalMachine;

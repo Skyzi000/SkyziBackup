@@ -29,7 +29,7 @@ namespace SkyziBackup
             ContentRendered += (_, _) =>
             {
                 NoComparisonLBI.Selected += (_, _) => ComparisonMethodListBox.SelectedIndex = 0;
-                VersioningPanel.IsEnabled = (int)_settings.Versioning >= (int)VersioningMethod.Replace;
+                VersioningPanel.IsEnabled = (int)_settings.Versioning >= (int)VersioningMode.Replace;
                 if ((SymbolicLinkHandling)SymbolicLinkHandlingBox.SelectedIndex == SymbolicLinkHandling.Direct)
                     SymbolicLinkHandlingBox.IsEnabled = false;
             };
@@ -66,9 +66,9 @@ namespace SkyziBackup
             isOverwriteReadonlyCheckBox.IsChecked = _settings.IsOverwriteReadonly;
             //isEnableTempFileCheckBox = 
             isEnableDeletionCheckBox.IsChecked = _settings.IsEnableDeletion;
-            if (_settings.Versioning == VersioningMethod.RecycleBin)
+            if (_settings.Versioning == VersioningMode.RecycleBin)
                 RecycleButton.IsChecked = true;
-            else if (_settings.Versioning == VersioningMethod.PermanentDeletion)
+            else if (_settings.Versioning == VersioningMode.PermanentDeletion)
                 PermanentButton.IsChecked = true;
             else
             {
@@ -112,11 +112,11 @@ namespace SkyziBackup
             newSettings.IsOverwriteReadonly = isOverwriteReadonlyCheckBox.IsChecked ?? _settings.IsOverwriteReadonly;
             newSettings.IsEnableDeletion = isEnableDeletionCheckBox.IsChecked ?? _settings.IsEnableDeletion;
             if (RecycleButton.IsChecked ?? false)
-                newSettings.Versioning = VersioningMethod.RecycleBin;
+                newSettings.Versioning = VersioningMode.RecycleBin;
             else if (PermanentButton.IsChecked ?? false)
-                newSettings.Versioning = VersioningMethod.PermanentDeletion;
+                newSettings.Versioning = VersioningMode.PermanentDeletion;
             else if (VersioningButton.IsChecked ?? false)
-                newSettings.Versioning = (VersioningMethod)int.Parse(VersioningMethodBox.SelectedValue.ToString() ?? "0");
+                newSettings.Versioning = (VersioningMode)int.Parse(VersioningMethodBox.SelectedValue.ToString() ?? "0");
             else
                 newSettings.Versioning = _settings.Versioning;
             newSettings.RevisionsDirPath = RevisionDirectory.Text;
@@ -187,7 +187,7 @@ namespace SkyziBackup
         private void OkButton_Click(object sender, RoutedEventArgs args)
         {
             var newSettings = GetNewSettings();
-            if ((int)newSettings.Versioning >= (int)VersioningMethod.Replace && !Directory.Exists(newSettings.RevisionsDirPath))
+            if ((int)newSettings.Versioning >= (int)VersioningMode.Replace && !Directory.Exists(newSettings.RevisionsDirPath))
             {
                 MessageBox.Show("バージョン管理の移動先ディレクトリが存在しません。\n正しいパスを入力してください。", $"{App.AssemblyName.Name} - 警告", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
@@ -216,7 +216,7 @@ namespace SkyziBackup
                 var r = MessageBox.Show("設定を保存しますか？", "設定変更の確認", MessageBoxButton.YesNoCancel);
                 if (r == MessageBoxResult.Yes)
                 {
-                    if ((int)newSettings.Versioning >= (int)VersioningMethod.Replace && !Directory.Exists(newSettings.RevisionsDirPath))
+                    if ((int)newSettings.Versioning >= (int)VersioningMode.Replace && !Directory.Exists(newSettings.RevisionsDirPath))
                     {
                         MessageBox.Show("バージョン管理の移動先ディレクトリが存在しません。\n正しいパスを入力してください。", $"{App.AssemblyName.Name} - 警告", MessageBoxButton.OK,
                             MessageBoxImage.Warning);
