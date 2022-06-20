@@ -23,7 +23,7 @@ permalink: screenshots
 ![バックアップ設定](https://user-images.githubusercontent.com/38061609/140841061-a5ca6a4a-96f3-45ca-ab1c-3b2f21ff0d57.png)  
 *ミラーリングやバージョン管理等の設定が可能*
 
-![除外設定](https://user-images.githubusercontent.com/38061609/140841059-254401ea-6803-41c2-9c13-b677a118c340.png)  
+![除外設定](https://user-images.githubusercontent.com/38061609/174557340-7fca5b14-a1fc-4334-baec-c89671a3ba75.png)  
 *柔軟かつ簡単な除外パターン設定*
 
 ![ファイル比較方法の選択](https://user-images.githubusercontent.com/38061609/174555257-313fcd61-a1b9-43b8-80db-d06c2644ad58.png)  
