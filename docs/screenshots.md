@@ -26,7 +26,7 @@ permalink: screenshots
 ![除外設定](https://user-images.githubusercontent.com/38061609/140841059-254401ea-6803-41c2-9c13-b677a118c340.png)  
 *柔軟かつ簡単な除外パターン設定*
 
-![ファイル比較方法の選択](https://user-images.githubusercontent.com/38061609/140841058-9b799bac-a920-4a17-97b4-33c462af66f5.png)  
+![ファイル比較方法の選択](https://user-images.githubusercontent.com/38061609/174555257-313fcd61-a1b9-43b8-80db-d06c2644ad58.png)  
 *ファイルの比較方法は複数選択*
 
 ![暗号化設定](https://user-images.githubusercontent.com/38061609/140841057-00301a63-7dfe-4577-9eb0-1a690618b5ed.png)  
