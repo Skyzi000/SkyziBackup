@@ -107,6 +107,7 @@ Visual Studio 2019 以降が必要です。
 - [Googleフォーム(匿名)](https://forms.gle/WevPFNfJR5FRphi37)
 - [新規Issue](https://github.com/Skyzi000/SkyziBackup/issues/new/choose)
 - [Discussions](https://github.com/Skyzi000/SkyziBackup/discussions)
+- [暗号化メールフォーム(FlowCrypt)](https://flowcrypt.com/me/skyzi000)
 
 必ずしも対応できるとは限りません。予めご了承ください。  
 
