@@ -21,7 +21,7 @@ permalink: privacy
 
 Googleアナリティクスの詳細については以下のGoogleのウェブサイトをご覧ください。
 
-[Terms of Service | Google Analytics – Google](https://marketingplatform.google.com/about/analytics/terms/jp/)
+[Terms of Service \| Google Analytics – Google](https://marketingplatform.google.com/about/analytics/terms/jp/)
 
 [Google のサービスを使用するサイトやアプリから収集した情報の Google による使用 – ポリシーと規約 – Google](https://policies.google.com/technologies/partner-sites?hl=ja)
 
