@@ -10,17 +10,26 @@
 
 <meta property="og:url" content="{{ site.url }}{{ page.url }}" />
 <meta property="og:type" content="article" />
-<meta property="og:title" content="{{ page.title }}" />
 <meta property="og:site_name" content="{{ site.title | default: site.github.repository_name }}" />
 {% if page.description %}
-<meta property="og:description" content="{{ page.description }}" />
+    {% if page.title %}
+        <meta property="og:title" content="{{ page.description }} - {{ page.title }}" />
+    {% else %}
+        <meta property="og:title" content="{{ page.description }} - {{ site.title }}" />
+    {% endif %}
+    <meta property="og:description" content="{{ page.description }}" />
 {% else %}
-<meta property="og:description" content="{{ site.description | default: site.github.project_tagline }}" />
+    {% if page.title %}
+        <meta property="og:title" content="{{ page.title }}" />
+    {% else %}
+        <meta property="og:title" content="{{ site.title }}" />
+    {% endif %}
+    <meta property="og:description" content="{{ site.description | default: site.github.project_tagline }}" />
 {% endif %}
 {% if page.og_image %}
-<meta property="og:image" content="{{ page.og_image }}" />
+    <meta property="og:image" content="{{ page.og_image }}" />
 {% else %}
-<meta property="og:image" content="{{ site.og_image }}" />
+    <meta property="og:image" content="{{ site.og_image }}" />
 {% endif %}
 
 <!-- end custom head snippets -->
