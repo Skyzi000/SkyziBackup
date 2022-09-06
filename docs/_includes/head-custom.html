@@ -6,4 +6,21 @@
 <!-- You can set your favicon here -->
 <link rel="shortcut icon" type="image/x-icon" href="{{ './favicon.ico' | relative_url }}">
 
+<!-- OGP -->
+
+<meta property="og:url" content="{{ site.url }}{{ page.url }}" />
+<meta property="og:type" content="article" />
+<meta property="og:title" content="{{ page.title }}" />
+<meta property="og:site_name" content="{{ site.title | default: site.github.repository_name }}" />
+{% if page.description %}
+<meta property="og:description" content="{{ page.description }}" />
+{% else %}
+<meta property="og:description" content="{{ site.description | default: site.github.project_tagline }}" />
+{% endif %}
+{% if page.preview %}
+<meta property="og:image" content="{{ page.og_image }}" />
+{% else %}
+<meta property="og:image" content="{{ site.og_image }}" />
+{% endif %}
+
 <!-- end custom head snippets -->
