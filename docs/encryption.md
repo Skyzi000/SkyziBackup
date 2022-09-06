@@ -3,6 +3,7 @@ title: SkyziBackup
 description: 暗号化方式について
 layout: default
 permalink: encryption
+og_image: https://user-images.githubusercontent.com/38061609/188533108-20200a7c-d74d-4277-8a16-f498fd0a7427.png
 ---
 
 
