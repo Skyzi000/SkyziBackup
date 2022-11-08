@@ -83,7 +83,7 @@ jobs:
     - name: Install .NET Core
       uses: actions/setup-dotnet@v1
       with:
-        dotnet-version: 5.0.x
+        dotnet-version: 6.0.x
 
     # Add  MSBuild to the PATH: https://github.com/microsoft/setup-msbuild
     - name: Setup MSBuild.exe
@@ -170,7 +170,7 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: Win-x64-${{ matrix.configuration }}-${{ github.sha }}
-        path: bin\x64\${{ matrix.configuration }}\net5.0-windows10.0.18362.0\win-x64\publish\
+        path: bin\x64\${{ matrix.configuration }}\net6.0-windows\win-x64\publish\
 #         name: MSIX Package
 #         path: ${{ env.Wap_Project_Directory }}\AppPackages
 

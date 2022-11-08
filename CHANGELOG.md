@@ -1,5 +1,20 @@
 # Changelog (変更履歴)
 
+## [v0.6](https://github.com/Skyzi000/SkyziBackup/tree/v0.6) (2022-11-08)
+
+[Full Changelog](https://github.com/Skyzi000/SkyziBackup/compare/v0.5...v0.6)
+
+### 概要
+v0.6以上を使うには.NET 6.0のデスクトップランタイムをインストールしてください！
+https://dotnet.microsoft.com/ja-jp/download/dotnet/6.0
+
+### 関連
+#89 
+
+### 💥破壊的変更
+
+- .NET 6.0へ移行 [\#89](https://github.com/Skyzi000/SkyziBackup/issues/89)
+
 ## [v0.5](https://github.com/Skyzi000/SkyziBackup/tree/v0.5) (2022-11-08)
 
 [Full Changelog](https://github.com/Skyzi000/SkyziBackup/compare/v0.4...v0.5)

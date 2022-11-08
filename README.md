@@ -50,10 +50,10 @@
 
 ## 動作環境
 
-Windows 10 Version 1903 (64bit) 以降  
-最新の .NET Desktop Runtime 5.0 (x64) がインストールされている必要があります。  
+Windows 10, 11 (64bit)
+最新の .NET デスクトップ ランタイム (x64) がインストールされている必要があります。  
 必要なランタイムは以下のページからインストールできます。  
-<https://dotnet.microsoft.com/download/dotnet/5.0>  
+<https://dotnet.microsoft.com/ja-jp/download/dotnet/6.0>  
 .NET "Desktop" Runtime でないと動かないので気を付けてください！
 
 ## ダウンロード
@@ -91,7 +91,7 @@ PowerShellを利用して解凍することができます。
 
 ## ビルド
 
-Visual Studio 2019 以降が必要です。  
+Visual Studio 2022 が必要です。  
 
 ## 連絡先
 
