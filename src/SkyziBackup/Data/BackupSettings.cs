@@ -9,111 +9,10 @@ using System.Text;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using Skyzi000.Cryptography;
+using Skyzi000.Data;
 
-namespace SkyziBackup
+namespace SkyziBackup.Data
 {
-    /// <summary>
-    /// ファイルの変更を検知する方法
-    /// </summary>
-    [Flags]
-    public enum ComparisonMethod
-    {
-        /// <summary>
-        /// 比較しない
-        /// </summary>
-        /// <remarks>他の値と同時に指定することはできない</remarks>
-        NoComparison = 0,
-
-        /// <summary>
-        /// Archive属性による比較
-        /// </summary>
-        /// <remarks>バックアップ時に元ファイルのArchive属性を変更する点に注意</remarks>
-        ArchiveAttribute = 1,
-
-        /// <summary>
-        /// 更新日時による比較
-        /// </summary>
-        WriteTime = 1 << 1,
-
-        /// <summary>
-        /// サイズによる比較
-        /// </summary>
-        Size = 1 << 2,
-
-        /// <summary>
-        /// SHA1による比較
-        /// </summary>
-        FileContentsSHA1 = 1 << 3,
-
-        /// <summary>
-        /// 生データによるバイナリ比較
-        /// </summary>
-        /// <remarks>データベースを利用出来ず、暗号化や圧縮と併用できない点に注意</remarks>
-        FileContentsBinary = 1 << 4,
-    }
-
-    /// <summary>
-    /// 削除・上書き時の動作
-    /// </summary>
-    public enum VersioningMethod
-    {
-        /// <summary>
-        /// 完全消去する(バージョン管理を行わない)
-        /// </summary>
-        PermanentDeletion = 0,
-
-        /// <summary>
-        /// ゴミ箱に送る(ゴミ箱が利用できない時は完全消去する)
-        /// </summary>
-        RecycleBin = 1,
-
-        /// <summary>
-        /// 指定されたディレクトリにそのまま移動し、既存のファイルを置き換える
-        /// </summary>
-        Replace = 2,
-
-        /// <summary>
-        /// 新規作成されたタイムスタンプ付きのディレクトリ以下に移動する
-        /// <code>\YYYY-MM-DD_hhmmss\Directory\hoge.txt</code>
-        /// </summary>
-        DirectoryTimeStamp = 3,
-
-        /// <summary>
-        /// タイムスタンプを追加したファイル名で、指定されたディレクトリに移動する
-        /// <code>\Directory\File.txt_YYYY-MM-DD_hhmmss.txt</code>
-        /// </summary>
-        FileTimeStamp = 4,
-    }
-
-    /// <summary>
-    /// シンボリックリンクやジャンクション(リパースポイント)の取り扱い
-    /// </summary>
-    public enum SymbolicLinkHandling
-    {
-        /// <summary>
-        /// リパースポイントのディレクトリを無視して、ファイルへのシンボリックリンクの場合はターゲットの実体をバックアップする(デフォルト動作)
-        /// </summary>
-        /// <remarks>ファイルの属性を確認しない分ちょっと速いかも</remarks>
-        IgnoreOnlyDirectories = 0,
-
-        /// <summary>
-        /// ディレクトリだけでなくファイルのシンボリックリンクも無視する
-        /// </summary>
-        IgnoreAll = 1,
-
-        /// <summary>
-        /// ターゲットの実体をバックアップする
-        /// </summary>
-        /// <remarks>無限ループになる可能性があるので注意</remarks>
-        Follow = 2,
-
-        /// <summary>
-        /// シンボリックリンク/ジャンクション自体をバックアップ先に可能な限り再現する(ターゲットパスは変更しない)
-        /// </summary>
-        /// <remarks>ミラーリング機能を有効にしている場合、リンク先の実体が削除される恐れがあるので注意</remarks>
-        Direct = 3,
-    }
-
     public class BackupSettings : SaveableData
     {
         private static BackupSettings? _default;
@@ -171,7 +70,7 @@ namespace SkyziBackup
         /// <summary>
         /// 削除または上書きされたファイルのバージョン管理方法
         /// </summary>
-        public VersioningMethod Versioning { get; set; }
+        public VersioningMode Versioning { get; set; }
 
         /// <summary>
         /// 削除または上書きされたファイルの移動先ディレクトリ
@@ -284,7 +183,7 @@ namespace SkyziBackup
             IsCopyAttributes = true;
             IsOverwriteReadonly = false;
             IsEnableDeletion = false;
-            Versioning = VersioningMethod.PermanentDeletion;
+            Versioning = VersioningMode.PermanentDeletion;
             RevisionsDirPath = null;
             IsRecordPassword = true;
             PasswordProtectionScope = DataProtectionScope.LocalMachine;
@@ -354,7 +253,7 @@ namespace SkyziBackup
         }
 
         public static string GetLocalSettingsFileName(string originBaseDirPath, string destBaseDirPath) =>
-            Path.Combine(DataFileWriter.GetDatabaseDirectoryName(originBaseDirPath, destBaseDirPath), FileName);
+            Path.Combine(BackupDatabase.GetDataDirectoryName(originBaseDirPath, destBaseDirPath), FileName);
 
         /// <summary>
         /// デフォルト設定をファイルから読み込み直す。読み込めない場合は何もしない。
@@ -407,6 +306,7 @@ namespace SkyziBackup
 
         public BackupSettings ConvertToLocalSettings(string originBaseDirPath, string destBaseDirPath)
         {
+            ThrowIfDisposed();
             OriginBaseDirPath = originBaseDirPath;
             DestBaseDirPath = destBaseDirPath;
             return this;
@@ -414,12 +314,14 @@ namespace SkyziBackup
 
         public HashSet<Regex> PatternToRegexes(string pattern)
         {
+            ThrowIfDisposed();
             var patStrArr = pattern.Split(new[] { "\r\n", "\n", "\r", "|" }, StringSplitOptions.None);
             return new HashSet<Regex>(patStrArr.Select(ConvertToRegex));
         }
 
         internal string GetRawPassword()
         {
+            ThrowIfDisposed();
             if (!IsRecordPassword || string.IsNullOrEmpty(ProtectedPassword))
                 return string.Empty;
             return PasswordManager.Decrypt(ProtectedPassword, PasswordProtectionScope);
@@ -429,6 +331,7 @@ namespace SkyziBackup
 
         private Regex ConvertToRegex(string strPattern)
         {
+            ThrowIfDisposed();
             var sb = new StringBuilder("^");
             if (Path.IsPathFullyQualified(strPattern) && !IsDefault && OriginBaseDirPath != null)
                 strPattern = Path.DirectorySeparatorChar + Path.GetRelativePath(OriginBaseDirPath, strPattern);
