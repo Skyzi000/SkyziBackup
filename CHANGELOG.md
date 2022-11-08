@@ -1,5 +1,33 @@
 # Changelog (変更履歴)
 
+## [v0.5](https://github.com/Skyzi000/SkyziBackup/tree/v0.5) (2022-11-08)
+
+[Full Changelog](https://github.com/Skyzi000/SkyziBackup/compare/v0.4...v0.5)
+
+### 📝ドキュメントの変更
+
+- よくある質問ページの「バグ報告や機能の提案はどこからできますか？」の情報が古い [\#102](https://github.com/Skyzi000/SkyziBackup/issues/102)
+
+### ✔その他変更など
+
+- データ関連クラスを複数ファイルに分割するなど、ファイルを整理する [\#105](https://github.com/Skyzi000/SkyziBackup/issues/105)
+- Dispose後のSaveableDataにアクセスできないようにする [\#104](https://github.com/Skyzi000/SkyziBackup/issues/104)
+
+### Ⓜマージ済みのプルリクエスト
+
+- Bump NLog from 5.0.4 to 5.0.5 [\#123](https://github.com/Skyzi000/SkyziBackup/pull/123) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Bump Nerdbank.GitVersioning from 3.5.113 to 3.5.119 [\#122](https://github.com/Skyzi000/SkyziBackup/pull/122) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Bump Nerdbank.GitVersioning from 3.5.109 to 3.5.113 [\#121](https://github.com/Skyzi000/SkyziBackup/pull/121) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Bump NLog from 5.0.2 to 5.0.4 [\#120](https://github.com/Skyzi000/SkyziBackup/pull/120) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Bump NLog from 5.0.1 to 5.0.2 [\#118](https://github.com/Skyzi000/SkyziBackup/pull/118) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Bump Nerdbank.GitVersioning from 3.5.107 to 3.5.109 [\#117](https://github.com/Skyzi000/SkyziBackup/pull/117) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Bump ModernWpfUI from 0.9.5 to 0.9.6 [\#115](https://github.com/Skyzi000/SkyziBackup/pull/115) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Bump NLog from 4.7.15 to 5.0.1 [\#114](https://github.com/Skyzi000/SkyziBackup/pull/114) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Bump ModernWpfUI from 0.9.4 to 0.9.5 [\#112](https://github.com/Skyzi000/SkyziBackup/pull/112) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Bump Nerdbank.GitVersioning from 3.4.255 to 3.5.107 [\#111](https://github.com/Skyzi000/SkyziBackup/pull/111) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Bump NLog from 4.7.14 to 4.7.15 [\#103](https://github.com/Skyzi000/SkyziBackup/pull/103) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Bump NLog from 4.7.13 to 4.7.14 [\#101](https://github.com/Skyzi000/SkyziBackup/pull/101) ([dependabot[bot]](https://github.com/apps/dependabot))
+
 ## [v0.4](https://github.com/Skyzi000/SkyziBackup/tree/v0.4) (2022-02-11)
 
 [Full Changelog](https://github.com/Skyzi000/SkyziBackup/compare/v0.3...v0.4)
