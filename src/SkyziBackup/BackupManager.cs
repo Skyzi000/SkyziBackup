@@ -18,7 +18,7 @@ namespace SkyziBackup
         public static bool IsRunning => RunningBackups.Any();
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         private static readonly Dictionary<(string, string), BackupController> RunningBackups = new();
-        private static readonly HashAlgorithm SHA1Provider = new SHA1CryptoServiceProvider();
+        private static readonly HashAlgorithm SHA1Provider = SHA1.Create();
 
         public static async Task<BackupResults?> StartBackupAsync(string originPath, string destPath, string? password = null, BackupSettings? settings = null)
         {
