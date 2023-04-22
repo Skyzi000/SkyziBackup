@@ -50,6 +50,7 @@ namespace SkyziBackup
             }
 
             DataFileWriter.BaseDirectoryPath = Settings.Default.AppDataPath;
+            SetRegexDefaultMatchTimeout(TimeSpan.FromSeconds(10));
 
             // NLog.configの読み取り
             using (var nlogConfigStream = GetResourceStream(new Uri("NLog.config", UriKind.Relative))?.Stream)
@@ -82,6 +83,9 @@ namespace SkyziBackup
 
             NotifyIcon.MouseClick += NotifyIcon_Click;
         }
+
+        private static void SetRegexDefaultMatchTimeout(TimeSpan timeout) =>
+            AppDomain.CurrentDomain.SetData("REGEX_DEFAULT_MATCH_TIMEOUT", timeout);
 
         protected override async void OnStartup(StartupEventArgs args)
         {
