@@ -4,7 +4,7 @@ using Skyzi000.Cryptography;
 
 namespace Skyzi000
 {
-    public static class ExtendedMethods
+    public static class StreamExtension
     {
         /// <summary>
         /// <see cref="Stream" />を圧縮/展開しながらコピーします。
