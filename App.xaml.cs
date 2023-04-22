@@ -27,7 +27,7 @@ namespace SkyziBackup
     public partial class App : Application
     {
         public static NotifyIcon NotifyIcon { get; private set; } = new();
-        public static AssemblyName AssemblyName = Assembly.GetExecutingAssembly().GetName();
+        public static readonly AssemblyName AssemblyName = Assembly.GetExecutingAssembly().GetName();
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
         public App()
@@ -42,46 +42,54 @@ namespace SkyziBackup
             }
 
             if (string.IsNullOrEmpty(Settings.Default.AppDataPath))
-            {
-                Settings.Default.AppDataPath = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "Skyzi000", "SkyziBackup");
-                Settings.Default.Save();
-                Directory.CreateDirectory(Settings.Default.AppDataPath);
-            }
+                InitAppDataPath();
 
             DataFileWriter.BaseDirectoryPath = Settings.Default.AppDataPath;
             SetRegexDefaultMatchTimeout(TimeSpan.FromSeconds(10));
+            LoadNLogConfig();
+            CreateNotifyIcon();
+        }
 
-            // NLog.configの読み取り
-            using (var nlogConfigStream = GetResourceStream(new Uri("NLog.config", UriKind.Relative))?.Stream)
-            {
-                if (nlogConfigStream != null)
-                {
-                    using var xmlReader = XmlReader.Create(nlogConfigStream);
-                    LogManager.Configuration = new XmlLoggingConfiguration(xmlReader);
-                }
-            }
+        private static void InitAppDataPath()
+        {
+            Settings.Default.AppDataPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "Skyzi000", "SkyziBackup");
+            Settings.Default.Save();
+            Directory.CreateDirectory(Settings.Default.AppDataPath);
+        }
 
-            // NotifyIconの作成
+        private void CreateNotifyIcon()
+        {
             var menu = new ContextMenuStrip();
             menu.Items.Add("メイン画面を表示する", null, MainShow_Click);
             menu.Items.Add("最新のログファイルを開く", null, OpenLog_Click);
             menu.Items.Add("終了する", null, Exit_Click);
-            using (var icon = GetResourceStream(new Uri("SkyziBackup.ico", UriKind.Relative))?.Stream)
+            using Stream? icon = GetResourceStream(new Uri("SkyziBackup.ico", UriKind.Relative))?.Stream;
+            if (icon is null)
             {
-                if (icon is { })
-                {
-                    NotifyIcon = new NotifyIcon
-                    {
-                        Visible = true,
-                        Icon = new Icon(icon),
-                        Text = AssemblyName.Name,
-                        ContextMenuStrip = menu,
-                    };
-                }
+                Logger.Error("アイコンファイルが見つかりませんでした。");
+                MessageBox.Show("アイコンファイルが見つかりませんでした。", $"{AssemblyName.Name} - エラー", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
             }
 
+            NotifyIcon = new NotifyIcon
+            {
+                Visible = true,
+                Icon = new Icon(icon),
+                Text = AssemblyName.Name,
+                ContextMenuStrip = menu,
+            };
+
             NotifyIcon.MouseClick += NotifyIcon_Click;
+        }
+
+        private static void LoadNLogConfig()
+        {
+            using Stream? stream = GetResourceStream(new Uri("NLog.config", UriKind.Relative))?.Stream;
+            if (stream == null)
+                return;
+            using var xmlReader = XmlReader.Create(stream);
+            LogManager.Configuration = new XmlLoggingConfiguration(xmlReader);
         }
 
         private static void SetRegexDefaultMatchTimeout(TimeSpan timeout) =>
