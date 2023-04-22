@@ -156,8 +156,8 @@ namespace Skyzi000.Cryptography
         private byte[] GenerateSalt(int saltLength)
         {
             var result = new byte[saltLength];
-            using var csp = new RNGCryptoServiceProvider();
-            csp.GetBytes(result);
+            using var rng = RandomNumberGenerator.Create();
+            rng.GetBytes(result);
             return result;
         }
 
