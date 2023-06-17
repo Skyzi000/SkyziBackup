@@ -47,7 +47,6 @@ namespace SkyziBackup
             DataFileWriter.BaseDirectoryPath = Settings.Default.AppDataPath;
             SetRegexDefaultMatchTimeout(TimeSpan.FromSeconds(10));
             LoadNLogConfig();
-            CreateNotifyIcon();
         }
 
         private static void InitAppDataPath()
@@ -98,6 +97,7 @@ namespace SkyziBackup
         protected override async void OnStartup(StartupEventArgs args)
         {
             base.OnStartup(args);
+            CreateNotifyIcon();
 
             // アプリケーションの実行
             if (!args.Args.Any())
