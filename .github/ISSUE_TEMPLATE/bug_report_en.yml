@@ -51,13 +51,18 @@ body:
       0.3.20, 0.1.52, 0.2.4, etc.
   validations:
     required: false
-- type: input
+- type: textarea
   id: os_version
   attributes:
     label: OS Version
     description: You can check this by pressing Win + Pause key.
     placeholder: |
-      Windows 10 Pro 20H2
+      Edition	Windows 11 Pro
+      Version	22H2
+      Installed on	2022/11/06
+      OS build	22621.1778
+      Experience	Windows Feature Experience Pack 1000.22642.1000.0
+    render: TSV
   validations:
     required: false
 - type: textarea

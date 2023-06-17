@@ -50,13 +50,18 @@ body:
       0.3.20, 0.1.52, 0.2.4など
   validations:
     required: false
-- type: input
+- type: textarea
   id: os_version
   attributes:
     label: "OSのバージョン"
     description: "Win＋Pauseキーなどで確認できると思います。"
     placeholder: |
-      Windows 10 Pro 20H2
+      エディション	Windows 11 Pro
+      バージョン	22H2
+      インストール日	2022/11/06
+      OS ビルド	22621.1778
+      エクスペリエンス	Windows Feature Experience Pack 1000.22642.1000.0
+    render: TSV
   validations:
     required: false
 - type: textarea
