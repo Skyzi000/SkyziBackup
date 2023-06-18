@@ -37,7 +37,7 @@
   <ItemGroup>
     <PackageReference Include="ModernWpfUI" Version="0.9.6" />
     <PackageReference Include="NLog" Version="5.1.3" />
-    <PackageReference Include="Microsoft.DotNet.UpgradeAssistant.Extensions.Default.Analyzers" Version="0.4.346202">
+    <PackageReference Include="Microsoft.DotNet.UpgradeAssistant.Extensions.Default.Analyzers" Version="0.4.421302">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.Windows.Compatibility" Version="7.0.3" />
