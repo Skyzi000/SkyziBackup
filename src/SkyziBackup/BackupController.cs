@@ -295,7 +295,7 @@ namespace SkyziBackup
             switch (Settings.Versioning)
             {
                 case VersioningMode.PermanentDeletion:
-                    Directory.Delete(directoryPath);
+                    Directory.Delete(directoryPath, true);
                     break;
                 case VersioningMode.RecycleBin:
                     FileSystem.DeleteDirectory(directoryPath, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
