@@ -96,6 +96,10 @@ namespace SkyziBackup
             return Path.GetFullPath(s.EndsWith(Path.DirectorySeparatorChar) ? s : s + Path.DirectorySeparatorChar);
         }
 
+        private string ToDestPath(string originPath) => originPath.Replace(OriginBaseDirPath, DestBaseDirPath);
+
+        private string ToOriginPath(string destPath) => destPath.Replace(DestBaseDirPath, OriginBaseDirPath);
+
         private async Task<BackupDatabase> LoadOrCreateDatabaseAsync()
         {
             string databasePath;
@@ -191,7 +195,7 @@ namespace SkyziBackup
                                  ? EnumerateAllFilesIgnoringReparsePoints(OriginBaseDirPath, Settings.Regexes)
                                  : EnumerateAllFiles(OriginBaseDirPath, Settings.Regexes))
                     {
-                        var destFilePath = originFilePath.Replace(OriginBaseDirPath, DestBaseDirPath);
+                        var destFilePath = ToDestPath(originFilePath);
                         // 除外パターンと一致せず、バックアップ済みファイルと一致しないファイルをバックアップする
                         if (!IsIgnoredFile(originFilePath) && !(Settings.IsUseDatabase
                                 ? IsUnchangedFileOnDatabase(originFilePath, destFilePath)
@@ -248,7 +252,7 @@ namespace SkyziBackup
                 {
                     if (Results.SuccessfulDirectories.Contains(originDirPath) || Results.FailedDirectories.Contains(originDirPath))
                         continue;
-                    var destDirPath = originDirPath.Replace(OriginBaseDirPath, DestBaseDirPath);
+                    var destDirPath = ToDestPath(originDirPath);
                     if (!Directory.Exists(destDirPath))
                     {
                         Database.BackedUpDirectoriesDict.Remove(originDirPath);
@@ -273,7 +277,7 @@ namespace SkyziBackup
                              ? EnumerateAllDirectoriesIgnoringReparsePoints(DestBaseDirPath, Settings.Regexes)
                              : EnumerateAllDirectories(DestBaseDirPath, Settings.Regexes))
                 {
-                    var originDirPath = destDirPath.Replace(DestBaseDirPath, OriginBaseDirPath);
+                    var originDirPath = ToOriginPath(destDirPath);
                     if (Results.SuccessfulDirectories.Contains(originDirPath) || Results.FailedDirectories.Contains(originDirPath))
                         continue;
                     try
@@ -346,7 +350,7 @@ namespace SkyziBackup
                     if (Results.SuccessfulFiles.Contains(originFilePath) || Results.FailedFiles.Contains(originFilePath) ||
                         (Results.UnchangedFiles?.Contains(originFilePath) ?? false))
                         continue;
-                    var destFilePath = originFilePath.Replace(OriginBaseDirPath, DestBaseDirPath);
+                    var destFilePath = ToDestPath(originFilePath);
                     if (!File.Exists(destFilePath))
                     {
                         Database.BackedUpFilesDict.Remove(originFilePath);
@@ -362,7 +366,7 @@ namespace SkyziBackup
                              ? EnumerateAllFilesIgnoringReparsePoints(DestBaseDirPath, Settings.Regexes)
                              : EnumerateAllFiles(DestBaseDirPath, Settings.Regexes))
                 {
-                    var originFilePath = destFilePath.Replace(DestBaseDirPath, OriginBaseDirPath);
+                    var originFilePath = ToOriginPath(destFilePath);
                     if (Results.SuccessfulFiles.Contains(originFilePath) || Results.FailedFiles.Contains(originFilePath) ||
                         (Results.UnchangedFiles?.Contains(originFilePath) ?? false))
                         continue;
@@ -1060,7 +1064,7 @@ namespace SkyziBackup
             {
                 foreach (var originFilePath in Results.FailedFiles.ToArray())
                 {
-                    var destFilePath = originFilePath.Replace(OriginBaseDirPath, DestBaseDirPath);
+                    var destFilePath = ToDestPath(originFilePath);
                     await Task.Run(() => BackupFile(originFilePath, destFilePath), cancellationToken);
                 }
             }
