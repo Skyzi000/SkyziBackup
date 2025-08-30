@@ -95,7 +95,7 @@ jobs:
 
     - name: Cache SonarCloud packages
       if: github.event_name != 'pull_request' && github.event_name != 'pull_request_target'
-      uses: actions/cache@v1
+      uses: actions/cache@v4
       with:
         path: ~\sonar\cache
         key: ${{ runner.os }}-sonar
@@ -104,7 +104,7 @@ jobs:
     - name: Cache SonarCloud scanner
       if: github.event_name != 'pull_request' && github.event_name != 'pull_request_target'
       id: cache-sonar-scanner
-      uses: actions/cache@v1
+      uses: actions/cache@v4
       with:
         path: .\.sonar\scanner
         key: ${{ runner.os }}-sonar-scanner
@@ -167,7 +167,7 @@ jobs:
 
     # Upload the MSIX package: https://github.com/marketplace/actions/upload-artifact
     - name: Upload build artifacts
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: Win-x64-${{ matrix.configuration }}-${{ github.sha }}
         path: bin\x64\${{ matrix.configuration }}\net6.0-windows\win-x64\publish\
@@ -198,7 +198,7 @@ jobs:
         shell: bash
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
         with:
           name: Win-x64-Release-${{ github.sha }}
           path: ${{ env.APPLICATION_NAME }}_${{ steps.get_tag.outputs.TAG }}
