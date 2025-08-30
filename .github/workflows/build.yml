@@ -69,18 +69,13 @@ jobs:
       Wap_Project_Path: SkyziBackup.csproj                      # Replace with the path to your Wap project, i.e. MyWpf.App.Package\MyWpfApp.Package.wapproj.
 
     steps:
-    - name: Set up JDK 11
-      uses: actions/setup-java@v1
-      with:
-        java-version: 1.11
-
     - name: Checkout
       uses: actions/checkout@v2
       with:
         fetch-depth: 0
 
     # Install the .NET Core workload
-    - name: Install .NET Core
+    - name: Install .NET
       uses: actions/setup-dotnet@v1
       with:
         dotnet-version: 6.0.x
@@ -95,30 +90,17 @@ jobs:
 
     - name: Cache SonarCloud packages
       if: github.event_name != 'pull_request' && github.event_name != 'pull_request_target'
-      uses: actions/cache@v1
+      uses: actions/cache@v4
       with:
         path: ~\sonar\cache
         key: ${{ runner.os }}-sonar
         restore-keys: ${{ runner.os }}-sonar
-
-    - name: Cache SonarCloud scanner
+        
+    - name: Install SonarScanner (tool)
       if: github.event_name != 'pull_request' && github.event_name != 'pull_request_target'
-      id: cache-sonar-scanner
-      uses: actions/cache@v1
-      with:
-        path: .\.sonar\scanner
-        key: ${{ runner.os }}-sonar-scanner
-        restore-keys: ${{ runner.os }}-sonar-scanner
-
-    - name: Install SonarCloud scanner
-      if: |
-        steps.cache-sonar-scanner.outputs.cache-hit != 'true' &&
-        github.event_name != 'pull_request' && github.event_name != 'pull_request_target'
-      shell: powershell
-      run: |
-        New-Item -Path .\.sonar\scanner -ItemType Directory
-        dotnet tool update dotnet-sonarscanner --tool-path .\.sonar\scanner
-
+      run: dotnet tool install --global dotnet-sonarscanner
+      shell: pwsh
+        
     # Restore the application to populate the obj folder with RuntimeIdentifiers
     - name: Restore the application
       run: msbuild $env:Solution_Name /t:Restore /p:Configuration=$env:Configuration
@@ -141,21 +123,45 @@ jobs:
 #         Appx_Package_Build_Mode: StoreUpload
 #         Configuration: ${{ matrix.configuration }}
 
-    - name: Build and analyze
+    - name: Sonar Begin
+      if: github.event_name != 'pull_request' && github.event_name != 'pull_request_target'
+      shell: pwsh
+      env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      run: |
+        $ErrorActionPreference = 'Stop'
+        dotnet sonarscanner begin `
+          /k:"Skyzi000_SkyziBackup" `
+          /o:"skyzi000" `
+          /d:sonar.host.url="https://sonarcloud.io" `
+          /d:sonar.token="$env:SONAR_TOKEN"
+        if ($LASTEXITCODE -ne 0) { throw "Sonar BEGIN failed $LASTEXITCODE" }
+
+    - name: Build
       if: github.event_name != 'pull_request' && github.event_name != 'pull_request_target'
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         Configuration: ${{ matrix.configuration }}
-      shell: powershell
+      shell: pwsh
       run: |
-        .\.sonar\scanner\dotnet-sonarscanner begin /k:"Skyzi000_SkyziBackup" /o:"skyzi000" /d:sonar.login="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io"
+        $ErrorActionPreference = 'Stop'
         dotnet publish $env:Solution_Name -r win-x64 -v n /p:Configuration=$env:Configuration /p:Platform="x64" /p:PublishSingleFile=true /p:PublishReadyToRun=true /p:SelfContained=false
-        .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.login="${{ secrets.SONAR_TOKEN }}"
-
+        if ($LASTEXITCODE -ne 0) { throw "BUILD failed $LASTEXITCODE" }
+        
+    - name: Sonar End
+      if: github.event_name != 'pull_request' && github.event_name != 'pull_request_target'
+      shell: pwsh
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      run: |
+        $ErrorActionPreference = 'Stop'
+        dotnet sonarscanner end /d:sonar.token="$env:SONAR_TOKEN"
+        if ($LASTEXITCODE -ne 0) { throw "Sonar END failed $LASTEXITCODE" }
+        
     - name: Build without analyze
       if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
-      shell: powershell
+      shell: pwsh
       env:
         Configuration: ${{ matrix.configuration }}
       run: |
@@ -167,7 +173,7 @@ jobs:
 
     # Upload the MSIX package: https://github.com/marketplace/actions/upload-artifact
     - name: Upload build artifacts
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: Win-x64-${{ matrix.configuration }}-${{ github.sha }}
         path: bin\x64\${{ matrix.configuration }}\net6.0-windows\win-x64\publish\
@@ -198,7 +204,7 @@ jobs:
         shell: bash
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
         with:
           name: Win-x64-Release-${{ github.sha }}
           path: ${{ env.APPLICATION_NAME }}_${{ steps.get_tag.outputs.TAG }}
