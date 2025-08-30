@@ -5,4 +5,92 @@ github:
 lang: ja
 google_analytics_4: G-JB6HFY9JHS
 title: SkyziBackup
+description: "高度な暗号化機能を備えた安全なファイルバックアップソリューション。Windows、macOS、Linuxに対応し、AES-256暗号化でデータを保護します。"
 og_image: https://user-images.githubusercontent.com/38061609/188530853-7033b497-3849-477e-9d34-e9dccf250a0c.png
+
+# SEO設定
+url: "https://skyzibackup.skyzi.jp"
+baseurl: ""
+version: "1.2.0"
+twitter_username: "skyzi000"
+
+# サイト設定
+timezone: Asia/Tokyo
+encoding: utf-8
+
+# Jekyll設定
+incremental: true
+highlighter: rouge
+markdown: kramdown
+kramdown:
+  input: GFM
+  syntax_highlighter: rouge
+
+# プラグイン
+plugins:
+  - jekyll-feed
+  - jekyll-sitemap
+  - jekyll-seo-tag
+
+# Sass設定
+sass:
+  style: compressed
+  sass_dir: _sass
+
+# 除外ファイル
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - node_modules
+  - vendor/bundle/
+  - vendor/cache/
+  - vendor/gems/
+  - vendor/ruby/
+  - .gitignore
+  - README.md
+  - LICENSE
+  - package.json
+  - package-lock.json
+  - yarn.lock
+  - webpack.config.js
+
+# Include files
+include:
+  - _pages
+  - manifest.json
+  - sw.js
+  - robots.txt
+  - sitemap.xml
+  - browserconfig.xml
+
+# デフォルト設定
+defaults:
+  - scope:
+      path: ""
+      type: "pages"
+    values:
+      layout: "default"
+      author: "Skyzi000"
+
+# PWA設定
+pwa:
+  enabled: true
+  sw_src_filepath: sw.js
+  sw_dest_filename: sw.js
+  precache_glob_directory: "/docs"
+  precache_glob_patterns:
+    - "**/*.{js,css,html,txt,xml,json}"
+  precache_glob_ignores:
+    - "sw.js"
+    - "Gemfile*"
+
+# パフォーマンス設定
+liquid:
+  error_mode: warn
+  strict_filters: false
+  strict_variables: false
+
+# コンテンツ設定
+permalink: pretty
+future: false
+unpublished: false

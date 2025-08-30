@@ -1,0 +1,70 @@
+---
+layout: null
+---
+# SkyziBackup robots.txt
+# Generated automatically for optimal SEO
+
+User-agent: *
+Allow: /
+
+# 特別な指示
+Allow: /assets/
+Allow: /images/
+Allow: /manifest.json
+Allow: /sitemap.xml
+
+# 除外するディレクトリ
+Disallow: /_site/
+Disallow: /node_modules/
+Disallow: /.git/
+Disallow: /.github/
+Disallow: /vendor/
+
+# サイトマップの場所
+Sitemap: {{ site.url }}/sitemap.xml
+
+# クロール遅延（オプション）
+Crawl-delay: 1
+
+# 特定の検索エンジン向けの指示
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 0
+
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 1
+
+User-agent: Slurp
+Allow: /
+Crawl-delay: 2
+
+# ソーシャルメディアボット
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: Twitterbot
+Allow: /
+
+User-agent: LinkedInBot
+Allow: /
+
+# アーカイブボット
+User-agent: ia_archiver
+Allow: /
+
+User-agent: Wayback
+Allow: /
+
+# 悪意のあるボットをブロック（例）
+User-agent: SemrushBot
+Disallow: /
+
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: MJ12bot
+Disallow: /
+
+# ホスト指定（推奨）
+Host: {{ site.url | remove: 'http://' | remove: 'https://' }}

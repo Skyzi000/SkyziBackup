@@ -1,0 +1,140 @@
+{
+  "name": "SkyziBackup",
+  "short_name": "SkyziBackup",
+  "description": "高度な暗号化機能を備えた安全なファイルバックアップソリューション",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ABF4FF",
+  "theme_color": "#ABF4FF",
+  "orientation": "any",
+  "scope": "/",
+  "lang": "ja",
+  "dir": "ltr",
+  "categories": ["utilities", "productivity", "security"],
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon",
+      "purpose": "any"
+    },
+    {
+      "src": "/images/icon-72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/images/icon-96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/images/icon-128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/images/icon-144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/images/icon-152.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/images/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/images/icon-384.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/images/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "マニュアル",
+      "short_name": "マニュアル",
+      "description": "SkyziBackupの使い方ガイド",
+      "url": "/manual",
+      "icons": [
+        {
+          "src": "/images/shortcut-manual.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "FAQ",
+      "short_name": "FAQ",
+      "description": "よくある質問",
+      "url": "/faq",
+      "icons": [
+        {
+          "src": "/images/shortcut-faq.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "暗号化について",
+      "short_name": "暗号化",
+      "description": "暗号化方式の詳細",
+      "url": "/encryption",
+      "icons": [
+        {
+          "src": "/images/shortcut-encryption.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/images/screenshot-desktop.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "SkyziBackup デスクトップ版の画面"
+    },
+    {
+      "src": "/images/screenshot-mobile.png",
+      "sizes": "375x667",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "SkyziBackup モバイル版の画面"
+    }
+  ],
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
+  "handle_links": "preferred",
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
+  "protocol_handlers": [
+    {
+      "protocol": "skyzibackup",
+      "url": "/?protocol=%s"
+    }
+  ]
+}

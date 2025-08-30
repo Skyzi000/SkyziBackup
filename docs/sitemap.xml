@@ -1,0 +1,86 @@
+---
+layout: null
+---
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" 
+        xmlns:xhtml="http://www.w3.org/1999/xhtml"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+  
+  <!-- ホームページ -->
+  <url>
+    <loc>{{ site.url }}/</loc>
+    <lastmod>{{ site.time | date_to_xmlschema }}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+    <xhtml:link rel="alternate" hreflang="ja" href="{{ site.url }}/" />
+    {% if site.og_image %}
+    <image:image>
+      <image:loc>{{ site.og_image }}</image:loc>
+      <image:title>{{ site.title }}</image:title>
+      <image:caption>{{ site.description | default: site.github.project_tagline }}</image:caption>
+    </image:image>
+    {% endif %}
+  </url>
+  
+  <!-- マニュアルページ -->
+  <url>
+    <loc>{{ site.url }}/manual</loc>
+    <lastmod>{{ site.time | date_to_xmlschema }}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+    <xhtml:link rel="alternate" hreflang="ja" href="{{ site.url }}/manual" />
+  </url>
+  
+  <!-- FAQページ -->
+  <url>
+    <loc>{{ site.url }}/faq</loc>
+    <lastmod>{{ site.time | date_to_xmlschema }}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="ja" href="{{ site.url }}/faq" />
+  </url>
+  
+  <!-- 暗号化ページ -->
+  <url>
+    <loc>{{ site.url }}/encryption</loc>
+    <lastmod>{{ site.time | date_to_xmlschema }}</lastmod>
+    <changefreq>quarterly</changefreq>
+    <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="ja" href="{{ site.url }}/encryption" />
+  </url>
+  
+  <!-- スクリーンショットページ -->
+  <url>
+    <loc>{{ site.url }}/screenshots</loc>
+    <lastmod>{{ site.time | date_to_xmlschema }}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="ja" href="{{ site.url }}/screenshots" />
+    <!-- スクリーンショット画像 -->
+    <image:image>
+      <image:loc>{{ site.url }}/images/main.png</image:loc>
+      <image:title>SkyziBackup メイン画面</image:title>
+      <image:caption>SkyziBackupのメインインターフェース</image:caption>
+    </image:image>
+    <image:image>
+      <image:loc>{{ site.url }}/images/image_2021-11-08_10-49-13.png</image:loc>
+      <image:title>SkyziBackup 設定画面</image:title>
+      <image:caption>バックアップ設定の詳細画面</image:caption>
+    </image:image>
+    <image:image>
+      <image:loc>{{ site.url }}/images/image_2021-11-08_10-49-13%20(2).png</image:loc>
+      <image:title>SkyziBackup 実行画面</image:title>
+      <image:caption>バックアップ実行中の画面</image:caption>
+    </image:image>
+  </url>
+  
+  <!-- プライバシーポリシーページ -->
+  <url>
+    <loc>{{ site.url }}/privacy</loc>
+    <lastmod>{{ site.time | date_to_xmlschema }}</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+    <xhtml:link rel="alternate" hreflang="ja" href="{{ site.url }}/privacy" />
+  </url>
+  
+</urlset>

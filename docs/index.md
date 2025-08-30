@@ -22,29 +22,102 @@ layout: default
 
 ファイル単位で圧縮と暗号化のできる、インストール不要の無料ファイルバックアップソフトです。
 
-## ページ
+<!-- フィーチャーセクション -->
+<div class="card-grid fade-in">
+  <div class="feature-card">
+    <div class="feature-icon">
+      🔐
+    </div>
+    <h3 class="feature-title">強力な暗号化</h3>
+    <p class="feature-description">AES256(CBCモード)による高速で安全な暗号化。OpenSSLとの互換性も確保。</p>
+    <a href="./encryption" class="feature-link">
+      詳細を見る
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"/>
+      </svg>
+    </a>
+  </div>
 
-- [スクリーンショット](./screenshots)
-- [マニュアル(使い方)](./manual)
-- [暗号化方式について](./encryption)
-- [よくある質問](./faq)
+  <div class="feature-card">
+    <div class="feature-icon">
+      ⚡
+    </div>
+    <h3 class="feature-title">高速バックアップ</h3>
+    <p class="feature-description">データベースを活用した高速ファイル比較。大容量データも効率的に処理。</p>
+    <a href="./manual" class="feature-link">
+      使い方を見る
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"/>
+      </svg>
+    </a>
+  </div>
 
-## 特徴
+  <div class="feature-card">
+    <div class="feature-icon">
+      📦
+    </div>
+    <h3 class="feature-title">インストール不要</h3>
+    <p class="feature-description">ポータブル設計でどこでも使用可能。レジストリを汚さずクリーンな運用。</p>
+    <a href="./screenshots" class="feature-link">
+      スクリーンショット
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"/>
+      </svg>
+    </a>
+  </div>
 
-- オープンソース
-- インストール不要
-- AesCngクラスを利用した高速かつ強力なAES256(CBCモード)暗号化
-- 暗号化したファイルはOpenSSLを使って個別に復号可能
-- ファイル単位で圧縮＆暗号化が可能
-- データベースを利用することで、バックアップ先ドライブが低速な場合でも高速にファイルの比較が可能
-- 作成日時・更新日時・ファイル属性をコピー可能(セキュリティ属性や、圧縮/暗号化/スパース属性は未対応)
-- 削除または上書きされたファイルのバージョン管理機能を搭載
-- 除外パターンで柔軟な除外設定が可能
-- ハッシュ値(SHA1)によるファイルの比較が可能
-- リパースポイント(シンボリックリンク/ジャンクション)の取り扱い方を選択可能
-- 同時に複数のバックアップを実行可能
-- 260字以上の長いファイルパスに対応
-- 詳細なログ出力
+  <div class="feature-card">
+    <div class="feature-icon">
+      🎯
+    </div>
+    <h3 class="feature-title">柔軟な設定</h3>
+    <p class="feature-description">除外パターン、バージョン管理、圧縮設定など豊富なカスタマイズオプション。</p>
+    <a href="./faq" class="feature-link">
+      FAQ
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"/>
+      </svg>
+    </a>
+  </div>
+</div>
+
+## 主な機能
+
+<div class="content-card fade-in">
+  <div class="content-card-header">
+    <h3 class="content-card-title">セキュリティ機能</h3>
+  </div>
+  <ul>
+    <li><strong>AES256暗号化</strong>: AesCngクラスによる高速かつ強力な暗号化</li>
+    <li><strong>OpenSSL互換</strong>: 暗号化ファイルをOpenSSLで個別復号可能</li>
+    <li><strong>パスワード保護</strong>: 暗号化パスワードの安全な管理</li>
+  </ul>
+</div>
+
+<div class="content-card fade-in">
+  <div class="content-card-header">
+    <h3 class="content-card-title">パフォーマンス機能</h3>
+  </div>
+  <ul>
+    <li><strong>高速比較</strong>: データベースによる効率的なファイル比較</li>
+    <li><strong>並列処理</strong>: 同時に複数のバックアップを実行可能</li>
+    <li><strong>長いパス対応</strong>: 260字以上のファイルパスに対応</li>
+    <li><strong>ハッシュ値比較</strong>: SHA1ハッシュによる正確なファイル比較</li>
+  </ul>
+</div>
+
+<div class="content-card fade-in">
+  <div class="content-card-header">
+    <h3 class="content-card-title">運用機能</h3>
+  </div>
+  <ul>
+    <li><strong>バージョン管理</strong>: 削除・上書きファイルの履歴保持</li>
+    <li><strong>除外設定</strong>: 柔軟な除外パターンの設定</li>
+    <li><strong>属性保持</strong>: 作成日時・更新日時・ファイル属性のコピー</li>
+    <li><strong>リパースポイント対応</strong>: シンボリックリンク・ジャンクションの取り扱い選択</li>
+    <li><strong>詳細ログ</strong>: 充実したログ出力機能</li>
+  </ul>
+</div>
 
 ## 目次
 
@@ -67,51 +140,104 @@ Windows 10 Version 1903 (64bit) 以降
 
 ## ダウンロード
 
-<https://github.com/skyzi000/SkyziBackup/releases/latest>
+<div class="content-card fade-in">
+  <div class="content-card-header">
+    <h3 class="content-card-title">最新版をダウンロード</h3>
+    <div class="content-card-meta">オープンソース・無料・インストール不要</div>
+  </div>
+  <p>最新の安定版をGitHubリリースページからダウンロードできます。</p>
+  <div class="btn-group">
+    <a href="https://github.com/skyzi000/SkyziBackup/releases/latest" class="btn btn-primary">
+      <svg class="btn-icon" width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M7.47 10.78a.75.75 0 001.06 0l3.75-3.75a.75.75 0 00-1.06-1.06L8.75 8.44V1.75a.75.75 0 00-1.5 0v6.69L4.78 5.97a.75.75 0 00-1.06 1.06l3.75 3.75zM3.75 13a.75.75 0 000 1.5h8.5a.75.75 0 000-1.5h-8.5z"/>
+      </svg>
+      最新版ダウンロード
+    </a>
+    <a href="https://github.com/Skyzi000/SkyziBackup" class="btn btn-secondary">
+      <svg class="btn-icon" width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+      </svg>
+      ソースコード
+    </a>
+  </div>
+</div>
 
-## コマンドライン引数
+## 使い方
 
-```cmd
-SkyziBackup.exe バックアップ元フォルダ バックアップ先フォルダ
-```
+<div class="card-grid-2 fade-in">
+  <div class="content-card">
+    <div class="content-card-header">
+      <h3 class="content-card-title">GUI での使用</h3>
+    </div>
+    <ol>
+      <li>バックアップ元フォルダを指定</li>
+      <li>バックアップ先フォルダを指定</li>
+      <li>暗号化したい場合はパスワードを入力</li>
+      <li>バックアップ開始ボタンを押す</li>
+      <li>バックアップ完了</li>
+    </ol>
+    <a href="./manual" class="btn btn-ghost btn-sm">詳細マニュアル</a>
+  </div>
 
-上の例のように引数を2つ与えることで、バックグラウンドで起動しバックアップした後、自動的にプログラムを終了します。  
-タスクスケジューラに登録すると自動的にバックアップできるので便利です。  
-(暗号化する場合は一度手動でバックアップして暗号化パスワードを記録しておく必要があります)  
+  <div class="content-card">
+    <div class="content-card-header">
+      <h3 class="content-card-title">コマンドライン</h3>
+    </div>
+    <p>引数を2つ与えることで、バックグラウンドで起動しバックアップ後に自動終了します。</p>
+    <pre><code>SkyziBackup.exe バックアップ元フォルダ バックアップ先フォルダ</code></pre>
+    <p><small>タスクスケジューラに登録すると自動バックアップが可能です。</small></p>
+  </div>
+</div>
 
-## リストア(復元)
+## リストア（復元）
 
-表示(V)メニューからリストアウィンドウを開いて復元します。  
-復元時はバックアップ時と同じ設定にしてください。  
-オプション(O) > ローカル設定(L)から手動で設定するか、ファイル(F) > 設定をファイルからインポート(I)で設定ファイル(.json)を読み込むことができます。  
+<div class="content-card fade-in">
+  <div class="content-card-header">
+    <h3 class="content-card-title">復元方法</h3>
+  </div>
+  <p>表示(V)メニューからリストアウィンドウを開いて復元します。復元時はバックアップ時と同じ設定にしてください。</p>
+  
+  <h4>設定の復元方法</h4>
+  <ul>
+    <li><strong>手動設定</strong>: オプション(O) > ローカル設定(L)から設定</li>
+    <li><strong>設定ファイル</strong>: ファイル(F) > 設定をファイルからインポート(I)で.jsonファイルを読み込み</li>
+  </ul>
 
-### このアプリケーションを使わずに復元する方法(推奨はしません)
+  <details>
+    <summary><strong>OpenSSLを使った復元（上級者向け）</strong></summary>
+    <p>このアプリケーションを使わずにOpenSSLで復号することも可能です（OpenSSL 1.1.1kで確認）:</p>
+    <pre><code>openssl enc -d -aes256 -pbkdf2 -in 復号したいファイル -out 復号後のファイル -k "password"</code></pre>
+    <p>圧縮と暗号化を両方有効にしている場合は、復号してから解凍が必要です。</p>
+    <a href="https://gist.github.com/skyzi000/2c3b8710aea35f0fd7d5f97fdfbda16c" class="btn btn-text btn-sm">PowerShell解凍例</a>
+  </details>
+</div>
 
-このアプリケーションを使って暗号化したファイルは、OpenSSLで復号することもできます。(OpenSSL 1.1.1kで確認)  
-例）
+## サポート・連絡先
 
-```cmd
-openssl enc -d -aes256 -pbkdf2 -in 復号したいファイル -out 復号後のファイル -k "password"
-```
-
-また、圧縮と暗号化を両方有効にしている場合は、復号してから解凍します。  
-PowerShellを利用して解凍することができます。  
-(例: <https://gist.github.com/skyzi000/2c3b8710aea35f0fd7d5f97fdfbda16c> )  
-
-## ビルド
-
-Visual Studio 2019 以降が必要です。  
-
-## 連絡先
-
-- [Googleフォーム(匿名)](https://forms.gle/WevPFNfJR5FRphi37)
-- [新規Issue](https://github.com/Skyzi000/SkyziBackup/issues/new/choose)
-- [Discussions](https://github.com/Skyzi000/SkyziBackup/discussions)
-- [暗号化メールフォーム(FlowCrypt)](https://flowcrypt.com/me/skyzi000)
-
-必ずしも対応できるとは限りません。予めご了承ください。  
-
-[よくある質問ページ](https://skyzibackup.skyzi.jp/faq)もどうぞ。
+<div class="content-card fade-in">
+  <div class="content-card-header">
+    <h3 class="content-card-title">お問い合わせ</h3>
+    <div class="content-card-meta">バグ報告・機能要望・質問など</div>
+  </div>
+  <p>以下の方法でお気軽にお問い合わせください。必ずしも対応できるとは限りませんが、可能な限りサポートいたします。</p>
+  
+  <div class="btn-group">
+    <a href="https://forms.gle/WevPFNfJR5FRphi37" class="btn btn-primary btn-sm">
+      📝 Googleフォーム（匿名）
+    </a>
+    <a href="https://github.com/Skyzi000/SkyziBackup/issues/new/choose" class="btn btn-secondary btn-sm">
+      🐛 新規Issue
+    </a>
+    <a href="https://github.com/Skyzi000/SkyziBackup/discussions" class="btn btn-ghost btn-sm">
+      💬 Discussions
+    </a>
+    <a href="https://flowcrypt.com/me/skyzi000" class="btn btn-text btn-sm">
+      🔐 暗号化メール
+    </a>
+  </div>
+  
+  <p><a href="./faq" class="feature-link">よくある質問ページ</a>もあわせてご確認ください。</p>
+</div>
 
 ## ライセンス
 
