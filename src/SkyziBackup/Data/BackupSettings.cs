@@ -324,7 +324,15 @@ namespace SkyziBackup.Data
             ThrowIfDisposed();
             if (!IsRecordPassword || string.IsNullOrEmpty(ProtectedPassword))
                 return string.Empty;
-            return PasswordManager.Decrypt(ProtectedPassword, PasswordProtectionScope);
+            try
+            {
+                return PasswordManager.Decrypt(ProtectedPassword, PasswordProtectionScope);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                return string.Empty;
+            }
         }
 
         public bool IsDifferentPassword(string newPassword) => GetRawPassword() != newPassword;

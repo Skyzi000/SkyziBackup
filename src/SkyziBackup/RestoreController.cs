@@ -317,7 +317,7 @@ namespace SkyziBackup
                     }
                 }
 
-                if (_isEnableWriteDatabase && newDirDict != null && newFileDict != null)
+                if (_isEnableWriteDatabase && newDirDict != null && newFileDict != null && Database != null)
                 {
                     Database.BackedUpDirectoriesDict = newDirDict;
                     Database.BackedUpFilesDict = newFileDict;
@@ -408,11 +408,11 @@ namespace SkyziBackup
         }
 
         [return: NotNullIfNotNull("backedUpDirectoriesDict")]
-        public static Dictionary<string, BackedUpDirectoryData>? CopyDirectoryStructure(string sourceBaseDirPath,
+        public static IDictionary<string, BackedUpDirectoryData>? CopyDirectoryStructure(string sourceBaseDirPath,
             string destBaseDirPath,
             BackupResults results,
             bool isCopyAttributes = true,
-            Dictionary<string, BackedUpDirectoryData>? backedUpDirectoriesDict = null,
+            IDictionary<string, BackedUpDirectoryData>? backedUpDirectoriesDict = null,
             bool isForceCreateDirectoryAndReturnDictionary = false,
             bool isRestoreAttributesFromDatabase = false,
             SymbolicLinkHandling symbolicLink = SymbolicLinkHandling.IgnoreOnlyDirectories,
@@ -438,12 +438,12 @@ namespace SkyziBackup
                     symbolicLink, versioning));
         }
 
-        private static Dictionary<string, BackedUpDirectoryData>? CopyDirectory(string originDirPath,
+        private static IDictionary<string, BackedUpDirectoryData>? CopyDirectory(string originDirPath,
             string sourceBaseDirPath,
             string destBaseDirPath,
             BackupResults results,
             bool isCopyAttributes = true,
-            Dictionary<string, BackedUpDirectoryData>? backedUpDirectoriesDict = null,
+            IDictionary<string, BackedUpDirectoryData>? backedUpDirectoriesDict = null,
             bool isForceCreateDirectoryAndReturnDictionary = false,
             bool isRestoreAttributesFromDatabase = false,
             SymbolicLinkHandling symbolicLinkHandling = SymbolicLinkHandling.IgnoreOnlyDirectories,

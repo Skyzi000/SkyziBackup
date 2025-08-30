@@ -24,6 +24,7 @@ namespace SkyziBackup
         public CompressiveAesCryptor? AesCryptor { get; }
         public BackupSettings Settings { get; set; }
         public BackupDatabase? Database { get; private set; }
+        private SqliteBackupStateStore? _sqliteStore;
         public CancellationTokenSource? Cts { get; private set; }
         public readonly string OriginBaseDirPath;
         public readonly string DestBaseDirPath;
@@ -58,19 +59,22 @@ namespace SkyziBackup
             if (Settings.IsUseDatabase)
             {
                 Database = await (_loadBackupDatabaseTask ?? LoadOrCreateDatabaseAsync());
-                // 万が一データベースと一致しない場合は読み込みなおす(データベースファイルを一旦削除かリネームする処理を入れても良いかも)
-                if (Database.DestBaseDirPath != DestBaseDirPath)
+                if (_sqliteStore == null)
                 {
-                    Database = await LoadOrCreateDatabaseAsync();
+                    // 旧JSON運用時のみオートセーブ
                     if (Database.DestBaseDirPath != DestBaseDirPath)
                     {
-                        Logger.Error(Results.Message = $"データベースの読み込み失敗: 既存のデータベース'{DataFileWriter.GetPath(Database)}'を利用できません。");
-                        Database = new BackupDatabase(OriginBaseDirPath, DestBaseDirPath);
+                        Database = await LoadOrCreateDatabaseAsync();
+                        if (Database.DestBaseDirPath != DestBaseDirPath)
+                        {
+                            Logger.Error(Results.Message = $"データベースの読み込み失敗: 既存のデータベース'{DataFileWriter.GetPath(Database)}'を利用できません。");
+                            Database = new BackupDatabase(OriginBaseDirPath, DestBaseDirPath);
+                        }
                     }
-                }
 
-                Database.StartAutoSave(60000);
-                Database.SaveTimer.Elapsed += (s, e) => { Logger.Info("現時点のデータベースを保存: '{0}'", DataFileWriter.GetPath(Database)); };
+                    Database.StartAutoSave(60000);
+                    Database.SaveTimer.Elapsed += (s, e) => { Logger.Info("現時点のデータベースを保存(JSON): '{0}'", DataFileWriter.GetPath(Database)); };
+                }
             }
             else
                 Database = null;
@@ -98,9 +102,28 @@ namespace SkyziBackup
 
         private async Task<BackupDatabase> LoadOrCreateDatabaseAsync()
         {
-            string databasePath;
-            var isExists = File.Exists(databasePath = BackupDatabase.GetDatabasePath(OriginBaseDirPath, DestBaseDirPath));
-            Logger.Info(Results.Message = isExists ? $"既存のデータベースをロード: '{databasePath}'" : "新規データベースを初期化");
+            var legacyJsonPath = BackupDatabase.GetDatabasePath(OriginBaseDirPath, DestBaseDirPath);
+            // まずSQLiteを試行（自動移行含む）
+            try
+            {
+                _sqliteStore = SqliteBackupStateStore.OpenOrMigrate(OriginBaseDirPath, DestBaseDirPath);
+                Logger.Info(Results.Message = $"SQLiteストアを利用: '{legacyJsonPath}' -> 'database.sqlite'");
+                // JSONと互換のため空の BackupDatabase インスタンスを作成し、内部辞書をSQLiteラッパで差し替える
+                var db = new BackupDatabase(OriginBaseDirPath, DestBaseDirPath)
+                {
+                    BackedUpDirectoriesDict = new SqliteDirectoryDictionary(_sqliteStore),
+                    BackedUpFilesDict = new SqliteFileDictionary(_sqliteStore),
+                };
+                return db;
+            }
+            catch (Exception e)
+            {
+                Logger.Error(e, "SQLite初期化/移行失敗。JSON方式へフォールバック");
+                _sqliteStore = null;
+            }
+
+            var isExists = File.Exists(legacyJsonPath);
+            Logger.Info(Results.Message = isExists ? $"既存のデータベースをロード(JSON): '{legacyJsonPath}'" : "新規データベースを初期化(JSON)");
             return isExists
                 ? await DataFileWriter.ReadAsync<BackupDatabase>(BackupDatabase.GetDatabaseFileName(OriginBaseDirPath, DestBaseDirPath))
                   ?? new BackupDatabase(OriginBaseDirPath, DestBaseDirPath)
@@ -110,17 +133,19 @@ namespace SkyziBackup
         private void CleanUpDatabase()
         {
             Database?.Dispose();
+            _sqliteStore?.Dispose();
+            _sqliteStore = null;
             Database = null;
         }
 
         public async Task SaveDatabaseAsync()
         {
-            if (Settings.IsUseDatabase && Database != null)
+            if (Settings.IsUseDatabase && Database != null && _sqliteStore == null)
             {
                 Database.SaveTimer.Stop();
-                Logger.Info("データベースを保存: '{0}'", DataFileWriter.GetPath(Database));
+                Logger.Info("データベースを保存(JSON): '{0}'", DataFileWriter.GetPath(Database));
                 await Database.SaveAsync().ConfigureAwait(false);
-                Logger.Debug("データベース保存完了: '{0}'", DataFileWriter.GetPath(Database));
+                Logger.Debug("データベース保存完了(JSON): '{0}'", DataFileWriter.GetPath(Database));
             }
         }
 
@@ -429,12 +454,12 @@ namespace SkyziBackup
 
         // TODO: これをstaticにしたのは失敗と思われる。RestoreControllerのとは共通化せず、それぞれインスタンスメソッドに書き直す。
         [return: NotNullIfNotNull("backedUpDirectoriesDict")]
-        public Dictionary<string, BackedUpDirectoryData>? CopyDirectoryStructure(string sourceBaseDirPath,
+        public IDictionary<string, BackedUpDirectoryData>? CopyDirectoryStructure(string sourceBaseDirPath,
             string destBaseDirPath,
             BackupResults results,
             bool isCopyAttributes = true,
             IEnumerable<Regex>? regices = null,
-            Dictionary<string, BackedUpDirectoryData>? backedUpDirectoriesDict = null,
+            IDictionary<string, BackedUpDirectoryData>? backedUpDirectoriesDict = null,
             bool isForceCreateDirectoryAndReturnDictionary = false,
             bool isRestoreAttributesFromDatabase = false,
             SymbolicLinkHandling symbolicLink = SymbolicLinkHandling.IgnoreOnlyDirectories,
@@ -501,12 +526,12 @@ namespace SkyziBackup
             }
         }
 
-        private Dictionary<string, BackedUpDirectoryData>? CopyDirectory(string originDirPath,
+        private IDictionary<string, BackedUpDirectoryData>? CopyDirectory(string originDirPath,
             string sourceBaseDirPath,
             string destBaseDirPath,
             BackupResults results,
             bool isCopyAttributes = true,
-            Dictionary<string, BackedUpDirectoryData>? backedUpDirectoriesDict = null,
+            IDictionary<string, BackedUpDirectoryData>? backedUpDirectoriesDict = null,
             bool isForceCreateDirectoryAndReturnDictionary = false,
             bool isRestoreAttributesFromDatabase = false,
             SymbolicLinkHandling symbolicLinkHandling = SymbolicLinkHandling.IgnoreOnlyDirectories,

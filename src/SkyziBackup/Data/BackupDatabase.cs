@@ -18,13 +18,13 @@ namespace SkyziBackup.Data
         /// originDirPathをキーとするバックアップ済みディレクトリの辞書
         /// </summary>
         [JsonPropertyName("dd")]
-        public Dictionary<string, BackedUpDirectoryData> BackedUpDirectoriesDict { get; set; } = new();
+        public IDictionary<string, BackedUpDirectoryData> BackedUpDirectoriesDict { get; set; } = new Dictionary<string, BackedUpDirectoryData>();
 
         /// <summary>
         /// originFilePathをキーとするバックアップ済みファイルの辞書
         /// </summary>
         [JsonPropertyName("fd")]
-        public Dictionary<string, BackedUpFileData> BackedUpFilesDict { get; set; } = new();
+        public IDictionary<string, BackedUpFileData> BackedUpFilesDict { get; set; } = new Dictionary<string, BackedUpFileData>();
 
         /// <summary>
         /// ファイル名は(<see cref="OriginBaseDirPath" /> + <see cref="DestBaseDirPath" />)のSHA1
