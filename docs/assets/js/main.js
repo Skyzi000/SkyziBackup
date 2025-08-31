@@ -184,14 +184,67 @@ class SkyziBackupSite {
   }
 
   /**
-   * フェーズ3: 高度な検索機能の設定
+   * リモート（静的）検索インデックスの読み込み
+   *
+   * 試行パス順:
+   *   1. /search-index.json
+   *   2. /search.json
+   *   3. /assets/search-index.json
+   *
+   * 成功時:
+   *   - this.searchIndex を設定して true を返す
+   * 失敗時:
+   *   - false を返す（フォールバックで buildSearchIndex を使用）
    */
-  setupAdvancedSearch() {
+  async loadRemoteSearchIndex() {
+    const candidates = ['/search-index.json', '/search.json', '/assets/search-index.json'];
+    for (const p of candidates) {
+      try {
+        const resp = await fetch(p, { cache: 'no-store' });
+        if (!resp.ok) continue;
+        const data = await resp.json();
+        if (!Array.isArray(data)) continue;
+
+        // 簡易バリデーション: 各要素に id, title, content, type があることを期待する（url は任意）
+        const isValid = data.every(item =>
+          item && typeof item.id === 'string' && typeof item.title === 'string' && typeof item.content === 'string' && typeof item.type === 'string'
+        );
+
+        if (!isValid) continue;
+
+        this.searchIndex = data;
+        return true;
+      } catch (err) {
+        // 無視して次の候補を試す
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * フェーズ3: 高度な検索機能の設定
+   *
+   * 動作:
+   *   - loadRemoteSearchIndex を試行し成功した場合は buildSearchIndex をスキップする
+   *   - 失敗した場合は従来通り buildSearchIndex を実行する（フォールバック）
+   */
+  async setupAdvancedSearch() {
     const searchInput = document.getElementById('search-input');
     if (!searchInput) return;
 
-    // 検索インデックスの構築
-    this.buildSearchIndex();
+    // まずリモート静的インデックスを試す（失敗したらフォールバックで buildSearchIndex を使用）
+    let remoteLoaded = false;
+    try {
+      remoteLoaded = await this.loadRemoteSearchIndex();
+    } catch (e) {
+      remoteLoaded = false;
+    }
+
+    if (!remoteLoaded) {
+      // ページ内からインデックスを構築する従来の処理（フォールバック）
+      this.buildSearchIndex();
+    }
 
     let searchTimeout;
 
@@ -500,11 +553,42 @@ class SkyziBackupSite {
 
   /**
    * 検索結果要素の作成
+   *
+   * - result.url が存在する場合は <a> 要素を作成し href を設定する（ブラウザ既定の遷移を許可）
+   * - 検索結果内のリンクはページ遷移ハンドラの対象外にするため data-no-page-transition 属性を付与する
    */
   createSearchResultElement(result, query, index) {
-    const element = document.createElement('div');
+    const tagName = result.url ? 'a' : 'div';
+    const element = document.createElement(tagName);
     element.className = 'search-result-item';
     element.setAttribute('data-index', index);
+
+    if (result.url) {
+      element.setAttribute('href', result.url);
+      element.setAttribute('role', 'link');
+      // setupPageTransitions で preventDefault されないようにマーカーを付与
+      element.setAttribute('data-no-page-transition', 'true');
+      // Enter キーでのアクセシビリティ用フォールバック（anchor は通常不要だが安全策）
+      element.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          // Let the browser handle it (no preventDefault) so default navigation / new-tab works.
+          element.click();
+        }
+      });
+    } else {
+      // ページ内要素はフォーカス可能にしてキーボード対応
+      element.setAttribute('tabindex', '0');
+      element.setAttribute('role', 'button');
+      element.addEventListener('click', () => {
+        this.handleSearchResultClick(result);
+      });
+      element.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          this.handleSearchResultClick(result);
+        }
+      });
+    }
     
     // ハイライト処理
     const highlightedTitle = this.highlightText(result.title, query);
@@ -518,11 +602,6 @@ class SkyziBackupSite {
       <div class="search-result-content">${highlightedContent}</div>
       <div class="search-result-type">${this.getTypeLabel(result.type)}</div>
     `;
-
-    // クリックイベント
-    element.addEventListener('click', () => {
-      this.handleSearchResultClick(result);
-    });
 
     return element;
   }
@@ -880,6 +959,11 @@ class SkyziBackupSite {
     document.addEventListener('click', (e) => {
       const link = e.target.closest('a[href^="/"], a[href^="./"]');
       if (!link || link.target === '_blank') return;
+
+      // 検索結果コンテナ内のリンクや明示的に遷移ハンドラを無効化したリンクは
+      // ブラウザ既定の挙動（通常遷移 / 新しいタブ）を許可する
+      if (link.closest && link.closest('.search-results-container')) return;
+      if (link.dataset && link.dataset.noPageTransition === 'true') return;
 
       e.preventDefault();
       

@@ -1,0 +1,34 @@
+---
+layout: null
+permalink: /search-index.json
+---
+[
+{% assign acc = '' %}
+{% assign pages_all = site.pages | concat: site.posts %}
+{% for page in pages_all %}
+  {% if page.output != false and page.exclude_from_search != true %}
+    {% comment %} 安全のため title と content を個別に capture してから jsonify を使う {% endcomment %}
+    {% capture title %}
+      {% if page.title %}{{ page.title | strip }}{% else %}{{ page.content | strip_html | strip | truncate:100 }}{% endif %}
+    {% endcapture %}
+    {% capture content %}
+      {{ page.content | strip_html | replace: '\n', ' ' | replace: '\r', '' | replace: '\t', ' ' | strip | truncate:2500 }}
+    {% endcapture %}
+    {% capture item %}
+{
+  "id": "{{ page.url | uri_escape }}",
+  "title": {{ title | jsonify }},
+  "content": {{ content | jsonify }},
+  "url": "{{ page.url | relative_url }}",
+  "type": "{{ page.collection | default: 'page' }}"
+}
+    {% endcapture %}
+    {% if acc == '' %}
+      {% assign acc = item %}
+    {% else %}
+      {% assign acc = acc | append: ',' | append: item %}
+    {% endif %}
+  {% endif %}
+{% endfor %}
+{{ acc }}
+]
