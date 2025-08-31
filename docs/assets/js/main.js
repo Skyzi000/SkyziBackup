@@ -111,9 +111,12 @@ class SkyziBackupSite {
     const systemPrefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
     
     if (savedTheme) {
+      // ユーザー保存設定を優先
       document.documentElement.setAttribute('data-theme', savedTheme);
     } else if (systemPrefersDark) {
-      // システム設定を尊重するため、data-theme属性は設定しない
+      // システムのダーク設定を尊重しつつ、data-theme を明示的にセットして
+      // [data-theme='dark'] スコープの CSS が初回ロードでも適用されるようにする
+      document.documentElement.setAttribute('data-theme', 'dark');
     } else {
       // ライトモードをデフォルトとして明示的に設定
       document.documentElement.setAttribute('data-theme', 'light');

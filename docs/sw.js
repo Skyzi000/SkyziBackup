@@ -7,25 +7,29 @@ const CACHE_NAME = 'skyzibackup-v1.0.0';
 const STATIC_CACHE = 'skyzibackup-static-v1.0.0';
 const DYNAMIC_CACHE = 'skyzibackup-dynamic-v1.0.0';
 
-// キャッシュするリソース
-const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/manual',
-  '/manual.html',
-  '/faq',
-  '/faq.html',
-  '/encryption',
-  '/encryption.html',
-  '/privacy',
-  '/privacy.html',
-  '/screenshots',
-  '/screenshots.html',
-  '/assets/css/style.css',
-  '/assets/js/main.js',
-  '/favicon.ico',
-  '/manifest.json'
-];
+  // キャッシュするリソース
+  // note: include rouge css so GitHub Pages deployments fetch the token palette,
+  // and keep non-query path so ignoreSearch matching will serve versioned URLs.
+  const STATIC_ASSETS = [
+    '/',
+    '/index.html',
+    '/manual',
+    '/manual.html',
+    '/faq',
+    '/faq.html',
+    '/encryption',
+    '/encryption.html',
+    '/privacy',
+    '/privacy.html',
+    '/screenshots',
+    '/screenshots.html',
+    '/assets/css/style.css',
+    '/assets/css/rouge-monokai-scoped.css',
+    '/assets/css/rouge-monokai.css',
+    '/assets/js/main.js',
+    '/favicon.ico',
+    '/manifest.json'
+  ];
 
 // ネットワーク優先のリソース
 const NETWORK_FIRST_URLS = [
@@ -128,7 +132,7 @@ async function networkFirst(request) {
     return networkResponse;
   } catch (error) {
     console.log('Service Worker: Network failed, trying cache', error);
-    const cachedResponse = await caches.match(request);
+    const cachedResponse = await caches.match(request, { ignoreSearch: true });
     
     if (cachedResponse) {
       return cachedResponse;
@@ -148,7 +152,7 @@ async function networkFirst(request) {
 
 // キャッシュ優先戦略
 async function cacheFirst(request) {
-  const cachedResponse = await caches.match(request);
+  const cachedResponse = await caches.match(request, { ignoreSearch: true });
   
   if (cachedResponse) {
     return cachedResponse;
@@ -171,7 +175,7 @@ async function cacheFirst(request) {
 
 // Stale While Revalidate戦略
 async function staleWhileRevalidate(request) {
-  const cachedResponse = await caches.match(request);
+  const cachedResponse = await caches.match(request, { ignoreSearch: true });
   
   const networkResponsePromise = fetch(request).then((networkResponse) => {
     if (networkResponse && networkResponse.status === 200) {
