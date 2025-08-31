@@ -216,32 +216,95 @@
    レスポンシブグリッドシステム
    ================================= */
 
-/* コンテナシステム */
+/* コンテナシステム
+   デフォルトでややワイドにして、より大きなスクリーンで最大幅を広げる */
 .container {
   width: 100%;
+  max-width: var(--container-lg); /* default */
   margin: 0 auto;
   padding-left: var(--space-4);
   padding-right: var(--space-4);
 }
 
-.container-sm {
-  max-width: var(--container-sm);
+/* 明示的なユーティリティ幅（必要に応じて使える） */
+.container-sm { max-width: var(--container-sm); }
+.container-md { max-width: var(--container-md); }
+.container-lg { max-width: var(--container-lg); }
+.container-xl { max-width: var(--container-xl); }
+.container-2xl { max-width: var(--container-2xl); }
+
+/* Large screens: expand container and increase horizontal padding for readability */
+@media (min-width: 1024px) {
+  .container {
+    max-width: var(--container-xl);
+    padding-left: var(--space-8);
+    padding-right: var(--space-8);
+  }
+}
+@media (min-width: 1280px) {
+  .container {
+    max-width: var(--container-2xl);
+  }
 }
 
-.container-md {
-  max-width: var(--container-md);
+/* Card grid used across index/feature areas - stretch to use horizontal space */
+.card-grid,
+.card-grid-2 {
+  display: grid;
+  gap: var(--space-6);
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  align-items: stretch;
 }
 
-.container-lg {
-  max-width: var(--container-lg);
+/* Feature card: use roomy layout on wide screens */
+.feature-card,
+.content-card {
+  background: var(--color-white);
+  border-radius: var(--border-radius-lg);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-sm);
+  border: var(--border-width-1) solid var(--color-gray-100);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
 }
 
-.container-xl {
-  max-width: var(--container-xl);
+/* Icon and content layout */
+.feature-icon {
+  font-size: 1.75rem;
+  line-height: 1;
+  margin-bottom: var(--space-2);
+}
+.feature-title {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+}
+.feature-description {
+  flex: 1; /* allow description to take vertical space so CTA sits at bottom */
+  margin: 0;
+  color: var(--text-secondary);
+}
+.feature-link {
+  align-self: flex-start;
+  margin-top: var(--space-3);
+  color: var(--color-primary-start);
+  text-decoration: none;
+  font-weight: var(--font-weight-medium);
 }
 
-.container-2xl {
-  max-width: var(--container-2xl);
+/* Dark-theme adjustments for feature/content cards */
+[data-theme='dark'] .feature-card,
+[data-theme='dark'] .content-card {
+  background: var(--color-gray-800);
+  border-color: rgba(255,255,255,0.04);
+  color: #E6EEF3;
+}
+[data-theme='dark'] .feature-description {
+  color: #CFE8F1;
+}
+[data-theme='dark'] .feature-link {
+  color: #A6F0FF;
 }
 
 /* レスポンシブコンテナ調整 */
@@ -2470,4 +2533,66 @@ body {
 :root[data-theme='light'] .header-actions .btn.btn-test:hover,
 :root:not([data-theme]) .header-actions .btn.btn-test:hover {
   background-color: rgba(0, 0, 0, 0.08);
+}
+/* Override: widen main content for large screens (placed at end to override imported theme) */
+.main-content {
+  max-width: var(--container-2xl);
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: var(--space-8);
+  padding-right: var(--space-8);
+}
+
+/* Responsive fallbacks */
+@media (max-width: 1280px) {
+  .main-content {
+    max-width: var(--container-xl);
+    padding-left: var(--space-6);
+    padding-right: var(--space-6);
+  }
+}
+@media (max-width: 1024px) {
+  .main-content {
+    max-width: var(--container-lg);
+    padding-left: var(--space-6);
+    padding-right: var(--space-6);
+  }
+}
+
+/* Ensure content-wrapper uses full container width on wide screens */
+.content-wrapper {
+  max-width: none;
+  padding-left: var(--space-8);
+  padding-right: var(--space-8);
+}
+/* High-specificity override: widen main content to use full container on large screens */
+#main-content.main-content {
+  max-width: var(--container-2xl) !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  padding-left: var(--space-8) !important;
+  padding-right: var(--space-8) !important;
+}
+
+/* Ensure content-wrapper stretches inside container */
+.container > .content-wrapper {
+  max-width: none !important;
+  padding-left: var(--space-8) !important;
+  padding-right: var(--space-8) !important;
+}
+
+/* Responsive fallbacks */
+@media (max-width: 1280px) {
+  #main-content.main-content {
+    max-width: var(--container-xl) !important;
+    padding-left: var(--space-6) !important;
+    padding-right: var(--space-6) !important;
+  }
+}
+@media (max-width: 1024px) {
+  #main-content.main-content {
+    max-width: var(--container-lg) !important;
+    padding-left: var(--space-6) !important;
+    padding-right: var(--space-6) !important;
+  }
 }
