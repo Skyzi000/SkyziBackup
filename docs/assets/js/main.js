@@ -95,8 +95,12 @@ class SkyziBackupSite {
     // システムテーマ変更の監視
     if (window.matchMedia) {
       const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-      mediaQuery.addEventListener('change', () => {
+      // When system theme changes and user has not explicitly selected a theme,
+      // update data-theme so scoped [data-theme='dark'] rules apply immediately.
+      mediaQuery.addEventListener('change', (e) => {
         if (!localStorage.getItem('theme')) {
+          const prefersDark = e.matches;
+          document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
           this.updateThemeUI();
         }
       });
