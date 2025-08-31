@@ -48,7 +48,7 @@ SkyziBackupの基本的な使い方から高度な設定まで、詳しく説明
   
   <div class="content-card" style="margin-top: var(--space-6); text-align: center;">
     <h4>✅ 5. バックアップ完了</h4>
-    <p>進行状況バーが100%になったら完了です。ログで詳細を確認できます。</p>
+    <p>バックアップ完了のメッセージが表示されたら完了です。ログで詳細を確認できます。</p>
     <a href="../screenshots#main" class="btn btn-primary btn-sm">画面を見る</a>
   </div>
 </div>
