@@ -119,7 +119,7 @@ SkyziBackupの各機能と画面を画像でご紹介します。直感的で使
   <img src="https://user-images.githubusercontent.com/38061609/140841051-778e0fbb-dbfd-4a83-a132-9c60403ad425.png" alt="上級者向け設定" style="width: 100%; border-radius: 12px; box-shadow: var(--shadow-lg);">
   <p>システムリンクやジャンクションの取り扱い方を細かく設定できる上級者向け機能です。Windows特有のファイルシステム機能に対応しています。</p>
   <div class="btn-group">
-    <a href="./manual#advanced" class="btn btn-secondary btn-sm">詳細マニュアル</a>
+    <a href="./manual#advanced" class="btn btn-ghost btn-sm">詳細マニュアル</a>
     <a href="./faq" class="btn btn-text btn-sm">よくある質問</a>
   </div>
 </div>

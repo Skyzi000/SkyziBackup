@@ -103,7 +103,7 @@ SkyziBackupの基本的な使い方から高度な設定まで、詳しく説明
   </div>
   
   <div class="btn-group" style="margin-top: var(--space-6);">
-    <a href="../screenshots#backup-settings" class="btn btn-secondary btn-sm">設定画面を見る</a>
+    <a href="../screenshots#backup-settings" class="btn btn-ghost btn-sm">設定画面を見る</a>
     <a href="#advanced" class="btn btn-ghost btn-sm">高度な設定</a>
   </div>
 </div>

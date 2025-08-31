@@ -190,6 +190,27 @@
   --code-text: var(--color-gray-800);
   --code-border: var(--color-gray-300);
 }
+/* Light-theme: ensure header and inline CTAs are visible on light backgrounds.
+   Legacy ".btn-secondary" has been removed; rules now use .btn-ghost and .btn-test. */
+.btn-ghost {
+  color: var(--text-primary);
+  background: transparent;
+  border-color: var(--border-primary);
+  box-shadow: none;
+}
+.btn-ghost:hover {
+  background-color: rgba(0, 0, 0, 0.06);
+  color: var(--text-primary);
+}
+.btn-test {
+  color: var(--text-primary);
+  background-color: rgba(0, 0, 0, 0.06);
+  border-color: var(--border-primary);
+  box-shadow: none;
+}
+.btn-test:hover {
+  background-color: rgba(0, 0, 0, 0.08);
+}
  
 /* ===================================
    レスポンシブグリッドシステム
@@ -477,6 +498,41 @@ th {
   font-weight: var(--font-weight-semibold);
   color: var(--color-gray-700);
 }
+/* Dark-theme: only override cards that use legacy inline light background (minimize scope)
+   Use a toned dark that matches other card-style contrast (not pure black). */
+[data-theme='dark'] .content-card[style*="var(--color-gray-50)"],
+[data-theme='dark'] .content-card[style*="background: var(--color-gray-50)"] {
+  /* Use the existing gray scale token for consistency */
+  background-color: var(--color-gray-800) !important;
+  color: #E6EEF3 !important;
+  border: 1px solid rgba(255,255,255,0.04) !important;
+  box-shadow: none !important;
+}
+
+/* Title / headings inside targeted cards */
+[data-theme='dark'] .content-card[style*="var(--color-gray-50)"] .content-card-header .content-card-title,
+[data-theme='dark'] .content-card[style*="background: var(--color-gray-50)"] .content-card-header .content-card-title {
+  color: #FFFFFF !important;
+}
+
+/* Text inside targeted cards */
+[data-theme='dark'] .content-card[style*="var(--color-gray-50)"] ul li,
+[data-theme='dark'] .content-card[style*="background: var(--color-gray-50)"] ul li,
+[data-theme='dark'] .content-card[style*="var(--color-gray-50)"] p,
+[data-theme='dark'] .content-card[style*="background: var(--color-gray-50)"] p {
+  color: #E6EEF3 !important;
+}
+[data-theme='dark'] .content-card[style*="var(--color-gray-50)"] ul li strong,
+[data-theme='dark'] .content-card[style*="background: var(--color-gray-50)"] ul li strong {
+  color: #FFF !important;
+  font-weight: 600;
+}
+
+/* Ensure inline strong/labels in main content remain readable in dark for those cards */
+[data-theme='dark'] .main-content strong,
+[data-theme='dark'] .main-content .content-card[style*="var(--color-gray-50)"] strong {
+  color: #FFFFFF !important;
+}
 
 /* ===================================
    既存スタイルの更新（CSS変数適用）
@@ -593,20 +649,30 @@ th {
   color: var(--color-white);
 }
 
-/* セカンダリボタン */
-.btn-secondary {
-  color: var(--color-white);
-  background: var(--glass-white);
-  backdrop-filter: blur(10px);
-  border-color: var(--glass-border);
-  box-shadow: var(--glass-shadow-light);
+/* ゴースト（従来の secondary を置換） */
+.btn-ghost {
+  color: var(--text-primary);
+  background: transparent;
+  border: 1px solid var(--glass-border);
+  box-shadow: none;
+  backdrop-filter: none;
 }
 
-.btn-secondary:hover {
-  background: var(--glass-white-strong);
-  transform: translateY(-2px);
-  box-shadow: var(--glass-shadow);
-  color: var(--color-white);
+.btn-ghost:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+  color: var(--text-primary);
+}
+
+/* test 用の明示的セカンダリ（必要な場合に使用） */
+.btn-test {
+  color: var(--text-primary);
+  background-color: rgba(0, 0, 0, 0.06);
+  border-color: var(--border-primary);
+  box-shadow: none;
+}
+
+.btn-test:hover {
+  background-color: rgba(0, 0, 0, 0.08);
 }
 
 .btn:focus {
@@ -2373,3 +2439,35 @@ body {
 }
 /* ===== Import generated Rouge dark theme (scoped for [data-theme='dark']) ===== */
 @import "rouge-monokai-scoped.css";
+/* Ensure header CTAs are visible on light backgrounds.
+   Map header-specific rules to .btn-ghost / .btn-test and keep specificity. */
+.header-actions .btn-ghost,
+.header-actions .btn-test {
+  color: var(--text-primary);
+  background-color: rgba(0, 0, 0, 0.06);
+  border-color: var(--border-primary);
+  box-shadow: none;
+}
+.header-actions .btn-ghost:hover,
+.header-actions .btn-test:hover {
+  background-color: rgba(0, 0, 0, 0.08);
+  color: var(--text-primary);
+}
+/* ===== final override: ensure header secondary CTA visible in light mode =====
+   Targets explicit light theme and the browser's automatic (no data-theme + prefers-color-scheme).
+   Placed at the end of the stylesheet so it wins the cascade. */
+:root[data-theme='light'] .header-actions .btn.btn-ghost,
+:root:not([data-theme]) .header-actions .btn.btn-ghost,
+:root[data-theme='light'] .header-actions .btn.btn-test,
+:root:not([data-theme]) .header-actions .btn.btn-test {
+  color: var(--text-primary);
+  background-color: rgba(0, 0, 0, 0.06);
+  border-color: var(--border-primary);
+  box-shadow: none;
+}
+:root[data-theme='light'] .header-actions .btn.btn-ghost:hover,
+:root:not([data-theme]) .header-actions .btn.btn-ghost:hover,
+:root[data-theme='light'] .header-actions .btn.btn-test:hover,
+:root:not([data-theme]) .header-actions .btn.btn-test:hover {
+  background-color: rgba(0, 0, 0, 0.08);
+}

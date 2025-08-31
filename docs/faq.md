@@ -175,7 +175,7 @@ SkyziBackupについてよく寄せられる質問にお答えします。お探
       </svg>
       GitHub Issues
     </a>
-    <a href="https://github.com/Skyzi000/SkyziBackup/discussions" class="btn btn-secondary">
+    <a href="https://github.com/Skyzi000/SkyziBackup/discussions" class="btn btn-ghost">
       💬 GitHub Discussions
     </a>
     <a href="https://forms.gle/WevPFNfJR5FRphi37" class="btn btn-ghost">
