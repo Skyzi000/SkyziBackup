@@ -28,7 +28,13 @@ public sealed class SqliteBackupStateStore : IDisposable
         _dbPath = dbPath;
         OriginBaseDirPath = originBaseDirPath;
         DestBaseDirPath = destBaseDirPath;
-        _connection = new SqliteConnection($"Data Source={_dbPath};Cache=Shared");
+        var connectionString = new SqliteConnectionStringBuilder
+        {
+            DataSource = _dbPath,
+            Cache = SqliteCacheMode.Shared,
+            Pooling = false,
+        }.ToString();
+        _connection = new SqliteConnection(connectionString);
         _connection.Open();
         InitPragmas();
         InitSchema();
@@ -42,34 +48,10 @@ public sealed class SqliteBackupStateStore : IDisposable
         var sqlitePath = GetDatabasePath(originBaseDirPath, destBaseDirPath);
         var dir = Path.GetDirectoryName(sqlitePath)!;
         Directory.CreateDirectory(dir);
-        var needMigration = File.Exists(jsonPath) && !File.Exists(sqlitePath);
-        var store = new SqliteBackupStateStore(sqlitePath, originBaseDirPath, destBaseDirPath);
-        if (needMigration)
-        {
-            try
-            {
-                store.MigrateFromJson();
-            }
-            catch
-            {
-                // 失敗時はSQLiteファイル削除して再throw。呼び出し側でJSONフォールバック可。
-                try
-                {
-                    store.Dispose();
-                }
-                catch { }
+        if (File.Exists(jsonPath) && !File.Exists(sqlitePath))
+            MigrateJsonToNewSqlite(sqlitePath, originBaseDirPath, destBaseDirPath);
 
-                try
-                {
-                    File.Delete(sqlitePath);
-                }
-                catch { }
-
-                throw;
-            }
-        }
-
-        return store;
+        return new SqliteBackupStateStore(sqlitePath, originBaseDirPath, destBaseDirPath);
     }
 
     public static string GetDatabasePath(string originBaseDirPath, string destBaseDirPath)
@@ -83,16 +65,65 @@ public sealed class SqliteBackupStateStore : IDisposable
 
     public static IEnumerable<string> GetDatabaseFilePaths(string originBaseDirPath, string destBaseDirPath)
     {
-        var sqlitePath = GetDatabasePath(originBaseDirPath, destBaseDirPath);
-        yield return sqlitePath;
-        yield return sqlitePath + "-wal";
-        yield return sqlitePath + "-shm";
+        foreach (var path in GetSqliteRelatedFilePaths(GetDatabasePath(originBaseDirPath, destBaseDirPath)))
+            yield return path;
     }
 
     public static void DeleteDatabase(string originBaseDirPath, string destBaseDirPath)
     {
         foreach (var path in GetDatabaseFilePaths(originBaseDirPath, destBaseDirPath))
             File.Delete(path);
+    }
+
+    private static IEnumerable<string> GetSqliteRelatedFilePaths(string sqlitePath)
+    {
+        yield return sqlitePath;
+        yield return sqlitePath + "-wal";
+        yield return sqlitePath + "-shm";
+    }
+
+    private static void DeleteSqliteRelatedFiles(string sqlitePath)
+    {
+        foreach (var path in GetSqliteRelatedFilePaths(sqlitePath))
+            File.Delete(path);
+    }
+
+    private static void MigrateJsonToNewSqlite(string sqlitePath, string originBaseDirPath, string destBaseDirPath)
+    {
+        var tempSqlitePath = sqlitePath + ".migrating";
+        DeleteSqliteRelatedFiles(tempSqlitePath);
+
+        SqliteBackupStateStore? store = null;
+        try
+        {
+            store = new SqliteBackupStateStore(tempSqlitePath, originBaseDirPath, destBaseDirPath);
+            store.MigrateFromJson();
+            store.Checkpoint();
+            store.Dispose();
+            store = null;
+            File.Move(tempSqlitePath, sqlitePath, false);
+            try
+            {
+                DeleteSqliteRelatedFiles(tempSqlitePath);
+            }
+            catch { }
+        }
+        catch
+        {
+            try
+            {
+                store?.Dispose();
+            }
+            catch { }
+
+            try
+            {
+                DeleteSqliteRelatedFiles(tempSqlitePath);
+            }
+            catch { }
+
+            throw;
+        }
     }
 
     internal BackupDatabase ToBackupDatabase() => new(OriginBaseDirPath, DestBaseDirPath)
@@ -153,6 +184,13 @@ CREATE TABLE IF NOT EXISTS Files (
 
     private static DateTime? ReadLocalTime(SqliteDataReader reader, int ordinal) =>
         reader.IsDBNull(ordinal) ? null : new DateTime(reader.GetInt64(ordinal), DateTimeKind.Utc).ToLocalTime();
+
+    private void Checkpoint()
+    {
+        using var cmd = _connection.CreateCommand();
+        cmd.CommandText = "PRAGMA wal_checkpoint(TRUNCATE)";
+        cmd.ExecuteNonQuery();
+    }
 
     private void MigrateFromJson()
     {
