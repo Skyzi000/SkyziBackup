@@ -21,7 +21,7 @@ internal sealed class SqliteDirectoryDictionary : IDictionary<string, BackedUpDi
     public bool IsReadOnly => false;
     public void Add(string key, BackedUpDirectoryData value) => _store.UpsertDirectory(key, value);
     public void Add(KeyValuePair<string, BackedUpDirectoryData> item) => Add(item.Key, item.Value);
-    public void Clear() => throw new NotSupportedException(); // 既存コード未使用
+    public void Clear() => _store.ClearDirectories();
     public bool Contains(KeyValuePair<string, BackedUpDirectoryData> item) => ContainsKey(item.Key);
     public bool ContainsKey(string key) => _store.GetDirectory(key) != null;
     public void CopyTo(KeyValuePair<string, BackedUpDirectoryData>[] array, int arrayIndex)
@@ -52,7 +52,7 @@ internal sealed class SqliteFileDictionary : IDictionary<string, BackedUpFileDat
     public bool IsReadOnly => false;
     public void Add(string key, BackedUpFileData value) => _store.UpsertFile(key, value);
     public void Add(KeyValuePair<string, BackedUpFileData> item) => Add(item.Key, item.Value);
-    public void Clear() => throw new NotSupportedException(); // 既存コード未使用
+    public void Clear() => _store.ClearFiles();
     public bool Contains(KeyValuePair<string, BackedUpFileData> item) => ContainsKey(item.Key);
     public bool ContainsKey(string key) => _store.GetFile(key) != null;
     public void CopyTo(KeyValuePair<string, BackedUpFileData>[] array, int arrayIndex)

@@ -14,6 +14,8 @@ namespace SkyziBackup.Data;
 /// </summary>
 public sealed class SqliteBackupStateStore : IDisposable
 {
+    public const string FileName = "database.sqlite";
+
     private readonly string _dbPath;
     private readonly SqliteConnection _connection;
     private bool _disposed;
@@ -37,9 +39,9 @@ public sealed class SqliteBackupStateStore : IDisposable
     {
         // JSONの絶対パス
         var jsonPath = BackupDatabase.GetDatabasePath(originBaseDirPath, destBaseDirPath);
-        var dir = Path.GetDirectoryName(jsonPath)!;
+        var sqlitePath = GetDatabasePath(originBaseDirPath, destBaseDirPath);
+        var dir = Path.GetDirectoryName(sqlitePath)!;
         Directory.CreateDirectory(dir);
-        var sqlitePath = Path.Combine(dir, "database.sqlite");
         var needMigration = File.Exists(jsonPath) && !File.Exists(sqlitePath);
         var store = new SqliteBackupStateStore(sqlitePath, originBaseDirPath, destBaseDirPath);
         if (needMigration)
@@ -69,6 +71,35 @@ public sealed class SqliteBackupStateStore : IDisposable
 
         return store;
     }
+
+    public static string GetDatabasePath(string originBaseDirPath, string destBaseDirPath)
+    {
+        var jsonPath = BackupDatabase.GetDatabasePath(originBaseDirPath, destBaseDirPath);
+        return Path.Combine(Path.GetDirectoryName(jsonPath) ?? throw new InvalidOperationException($"Path.GetDirectoryName(jsonPath) is null. (path: {jsonPath})"),
+            FileName);
+    }
+
+    public static bool Exists(string originBaseDirPath, string destBaseDirPath) => File.Exists(GetDatabasePath(originBaseDirPath, destBaseDirPath));
+
+    public static IEnumerable<string> GetDatabaseFilePaths(string originBaseDirPath, string destBaseDirPath)
+    {
+        var sqlitePath = GetDatabasePath(originBaseDirPath, destBaseDirPath);
+        yield return sqlitePath;
+        yield return sqlitePath + "-wal";
+        yield return sqlitePath + "-shm";
+    }
+
+    public static void DeleteDatabase(string originBaseDirPath, string destBaseDirPath)
+    {
+        foreach (var path in GetDatabaseFilePaths(originBaseDirPath, destBaseDirPath))
+            File.Delete(path);
+    }
+
+    internal BackupDatabase ToBackupDatabase() => new(OriginBaseDirPath, DestBaseDirPath)
+    {
+        BackedUpDirectoriesDict = new SqliteDirectoryDictionary(this),
+        BackedUpFilesDict = new SqliteFileDictionary(this),
+    };
 
     private void InitPragmas()
     {
@@ -190,6 +221,13 @@ CREATE TABLE IF NOT EXISTS Files (
         return (long)(cmd.ExecuteScalar() ?? 0L);
     }
 
+    public void ClearDirectories()
+    {
+        using var cmd = _connection.CreateCommand();
+        cmd.CommandText = "DELETE FROM Directories";
+        cmd.ExecuteNonQuery();
+    }
+
     public BackedUpFileData? GetFile(string path)
     {
         using var cmd = _connection.CreateCommand();
@@ -229,6 +267,13 @@ CREATE TABLE IF NOT EXISTS Files (
         using var cmd = _connection.CreateCommand();
         cmd.CommandText = "SELECT COUNT(*) FROM Files";
         return (long)(cmd.ExecuteScalar() ?? 0L);
+    }
+
+    public void ClearFiles()
+    {
+        using var cmd = _connection.CreateCommand();
+        cmd.CommandText = "DELETE FROM Files";
+        cmd.ExecuteNonQuery();
     }
 
     public void UpsertDirectory(string path, BackedUpDirectoryData data)

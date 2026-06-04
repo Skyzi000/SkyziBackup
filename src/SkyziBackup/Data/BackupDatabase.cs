@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json.Serialization;
 using Skyzi000.Data;
 
@@ -100,7 +101,23 @@ namespace SkyziBackup.Data
         public static string GetDatabasePath(string originBaseDirPath, string destBaseDirPath) =>
             DataFileWriter.GetPath(GetDatabaseFileName(originBaseDirPath, destBaseDirPath));
 
-        public static void DeleteDatabase(string originBaseDirPath, string destBaseDirPath) =>
+        public static IEnumerable<string> GetDatabaseFilePaths(string originBaseDirPath, string destBaseDirPath)
+        {
+            yield return GetDatabasePath(originBaseDirPath, destBaseDirPath);
+            foreach (var sqlitePath in SqliteBackupStateStore.GetDatabaseFilePaths(originBaseDirPath, destBaseDirPath))
+                yield return sqlitePath;
+        }
+
+        public static IEnumerable<string> GetExistingDatabaseFilePaths(string originBaseDirPath, string destBaseDirPath) =>
+            GetDatabaseFilePaths(originBaseDirPath, destBaseDirPath).Where(File.Exists);
+
+        public static bool Exists(string originBaseDirPath, string destBaseDirPath) =>
+            GetDatabaseFilePaths(originBaseDirPath, destBaseDirPath).Any(File.Exists);
+
+        public static void DeleteDatabase(string originBaseDirPath, string destBaseDirPath)
+        {
             DataFileWriter.Delete<BackupDatabase>(GetDatabaseFileName(originBaseDirPath, destBaseDirPath));
+            SqliteBackupStateStore.DeleteDatabase(originBaseDirPath, destBaseDirPath);
+        }
     }
 }

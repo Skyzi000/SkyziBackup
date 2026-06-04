@@ -25,6 +25,7 @@ namespace SkyziBackup
         private readonly bool _isRestoreAttributesFromDatabase;
         private readonly bool _isCopyOnlyFileAttributes;
         private readonly bool _isEnableWriteDatabase;
+        private SqliteBackupStateStore? _sqliteStore;
 
         public RestoreController(string sourceDirPath,
             string destDirPath,
@@ -39,28 +40,52 @@ namespace SkyziBackup
             Settings = settings ?? BackupSettings.LoadLocalSettings(_destBaseDirPath, _sourceBaseDirPath) ?? BackupSettings.Default;
             //if (Settings.isUseDatabase && Settings.comparisonMethod.HasFlag(ComparisonMethod.FileContentsSHA1))
             // TODO: データベースに記録されたSHA1と比較できるようにする
-            if (isCopyAttributesOnDatabase && File.Exists(BackupDatabase.GetDatabasePath(_destBaseDirPath, _sourceBaseDirPath)))
-            {
-                try
-                {
-                    Database = DataFileWriter.Read<BackupDatabase>(BackupDatabase.GetDatabaseFileName(_destBaseDirPath, _sourceBaseDirPath));
-                }
-                catch (Exception) { }
-            }
-
-            _isRestoreAttributesFromDatabase = isCopyAttributesOnDatabase;
             _isEnableWriteDatabase = isEnableWriteDatabase;
-            if (_isEnableWriteDatabase && Database == null)
-            {
-                Database = File.Exists(BackupDatabase.GetDatabasePath(_destBaseDirPath, _sourceBaseDirPath))
-                    ? DataFileWriter.Read<BackupDatabase>(BackupDatabase.GetDatabaseFileName(_destBaseDirPath, _sourceBaseDirPath))
-                    : new BackupDatabase(_destBaseDirPath, _sourceBaseDirPath);
-            }
+            if (isCopyAttributesOnDatabase || _isEnableWriteDatabase)
+                Database = LoadOrCreateDatabase(_isEnableWriteDatabase);
+            if (isCopyAttributesOnDatabase && Database == null)
+                Logger.Warn("データベースから属性をリストアできません: データベースが見つからないか読み込めません。");
+            _isRestoreAttributesFromDatabase = isCopyAttributesOnDatabase && Database != null;
 
             if (!string.IsNullOrEmpty(password))
                 AesCryptor = new CompressiveAesCryptor(password, compressionLevel: Settings.CompressionLevel, compressAlgorithm: Settings.CompressAlgorithm);
             Results.Finished += Results_Finished;
             _isCopyOnlyFileAttributes = isCopyOnlyFileAttributes;
+        }
+
+        private BackupDatabase? LoadOrCreateDatabase(bool createIfMissing)
+        {
+            var jsonPath = BackupDatabase.GetDatabasePath(_destBaseDirPath, _sourceBaseDirPath);
+            var hasJsonDatabase = File.Exists(jsonPath);
+            var hasSqliteDatabase = SqliteBackupStateStore.Exists(_destBaseDirPath, _sourceBaseDirPath);
+            if (hasSqliteDatabase || hasJsonDatabase || createIfMissing)
+            {
+                try
+                {
+                    _sqliteStore = SqliteBackupStateStore.OpenOrMigrate(_destBaseDirPath, _sourceBaseDirPath);
+                    Logger.Info("SQLiteストアを利用: '{0}'", SqliteBackupStateStore.GetDatabasePath(_destBaseDirPath, _sourceBaseDirPath));
+                    return _sqliteStore.ToBackupDatabase();
+                }
+                catch (Exception e)
+                {
+                    Logger.Error(e, "SQLite初期化/移行失敗。JSON方式へフォールバック");
+                    _sqliteStore = null;
+                }
+            }
+
+            if (hasJsonDatabase)
+            {
+                try
+                {
+                    return DataFileWriter.Read<BackupDatabase>(BackupDatabase.GetDatabaseFileName(_destBaseDirPath, _sourceBaseDirPath));
+                }
+                catch (Exception e)
+                {
+                    Logger.Error(e, "JSONデータベースの読み込み失敗");
+                }
+            }
+
+            return createIfMissing ? new BackupDatabase(_destBaseDirPath, _sourceBaseDirPath) : null;
         }
 
         public BackupResults StartRestore()
@@ -319,8 +344,20 @@ namespace SkyziBackup
 
                 if (_isEnableWriteDatabase && newDirDict != null && newFileDict != null && Database != null)
                 {
-                    Database.BackedUpDirectoriesDict = newDirDict;
-                    Database.BackedUpFilesDict = newFileDict;
+                    if (_sqliteStore != null)
+                    {
+                        Database.BackedUpDirectoriesDict.Clear();
+                        foreach (var kv in newDirDict)
+                            Database.BackedUpDirectoriesDict[kv.Key] = kv.Value;
+                        Database.BackedUpFilesDict.Clear();
+                        foreach (var kv in newFileDict)
+                            Database.BackedUpFilesDict[kv.Key] = kv.Value;
+                    }
+                    else
+                    {
+                        Database.BackedUpDirectoriesDict = newDirDict;
+                        Database.BackedUpFilesDict = newFileDict;
+                    }
                 }
             }
             else
@@ -544,14 +581,16 @@ namespace SkyziBackup
 
         private void Results_Finished(object? sender, EventArgs args)
         {
-            if (_isEnableWriteDatabase && Database != null)
+            if (_isEnableWriteDatabase && Database != null && _sqliteStore == null)
             {
-                Logger.Info("データベースを保存: '{0}'", DataFileWriter.GetPath(Database));
+                Logger.Info("データベースを保存(JSON): '{0}'", DataFileWriter.GetPath(Database));
                 _ = DataFileWriter.WriteAsync(Database);
             }
 
             Results.Message = (Results.IsSuccess ? "リストア完了: " : Results.Message + "\nリストア失敗: ") + DateTime.Now;
             Logger.Info("{0}\n=============================\n\n", Results.IsSuccess ? "リストア完了" : "リストア失敗");
+            _sqliteStore?.Dispose();
+            _sqliteStore = null;
         }
     }
 }

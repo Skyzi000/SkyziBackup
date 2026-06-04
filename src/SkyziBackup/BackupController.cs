@@ -107,14 +107,8 @@ namespace SkyziBackup
             try
             {
                 _sqliteStore = SqliteBackupStateStore.OpenOrMigrate(OriginBaseDirPath, DestBaseDirPath);
-                Logger.Info(Results.Message = $"SQLiteストアを利用: '{legacyJsonPath}' -> 'database.sqlite'");
-                // JSONと互換のため空の BackupDatabase インスタンスを作成し、内部辞書をSQLiteラッパで差し替える
-                var db = new BackupDatabase(OriginBaseDirPath, DestBaseDirPath)
-                {
-                    BackedUpDirectoriesDict = new SqliteDirectoryDictionary(_sqliteStore),
-                    BackedUpFilesDict = new SqliteFileDictionary(_sqliteStore),
-                };
-                return db;
+                Logger.Info(Results.Message = $"SQLiteストアを利用: '{SqliteBackupStateStore.GetDatabasePath(OriginBaseDirPath, DestBaseDirPath)}'");
+                return _sqliteStore.ToBackupDatabase();
             }
             catch (Exception e)
             {
@@ -1109,6 +1103,7 @@ namespace SkyziBackup
                 Cts?.Dispose();
                 AesCryptor?.Dispose();
                 Database?.Dispose();
+                _sqliteStore?.Dispose();
                 _loadBackupDatabaseTask?.Dispose();
                 // Settingsは借り物なので勝手にDisposeしない
             }
