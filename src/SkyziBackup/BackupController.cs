@@ -72,8 +72,11 @@ namespace SkyziBackup
                         }
                     }
 
-                    Database.StartAutoSave(60000);
-                    Database.SaveTimer.Elapsed += (s, e) => { Logger.Info("現時点のデータベースを保存(JSON): '{0}'", DataFileWriter.GetPath(Database)); };
+                    if (_sqliteStore == null)
+                    {
+                        Database.StartAutoSave(60000);
+                        Database.SaveTimer.Elapsed += (s, e) => { Logger.Info("現時点のデータベースを保存(JSON): '{0}'", DataFileWriter.GetPath(Database)); };
+                    }
                 }
             }
             else
@@ -103,6 +106,7 @@ namespace SkyziBackup
         private async Task<BackupDatabase> LoadOrCreateDatabaseAsync()
         {
             var legacyJsonPath = BackupDatabase.GetDatabasePath(OriginBaseDirPath, DestBaseDirPath);
+            var hasSqliteDatabase = SqliteBackupStateStore.Exists(OriginBaseDirPath, DestBaseDirPath);
             // まずSQLiteを試行（自動移行含む）
             try
             {
@@ -112,6 +116,13 @@ namespace SkyziBackup
             }
             catch (Exception e)
             {
+                if (hasSqliteDatabase || SqliteBackupStateStore.Exists(OriginBaseDirPath, DestBaseDirPath))
+                {
+                    Logger.Error(e, "SQLite初期化失敗。既存SQLiteストアがあるためJSON方式へフォールバックしません");
+                    _sqliteStore = null;
+                    throw;
+                }
+
                 Logger.Error(e, "SQLite初期化/移行失敗。JSON方式へフォールバック");
                 _sqliteStore = null;
             }

@@ -48,7 +48,7 @@ public sealed class SqliteBackupStateStore : IDisposable
         {
             try
             {
-                store.MigrateFromJson(jsonPath);
+                store.MigrateFromJson();
             }
             catch
             {
@@ -149,37 +149,38 @@ CREATE TABLE IF NOT EXISTS Files (
         cmd.ExecuteNonQuery();
     }
 
-    private void MigrateFromJson(string jsonPath)
+    private static object ToUtcTicksValue(DateTime? value) => value.HasValue ? value.Value.ToUniversalTime().Ticks : DBNull.Value;
+
+    private static DateTime? ReadLocalTime(SqliteDataReader reader, int ordinal) =>
+        reader.IsDBNull(ordinal) ? null : new DateTime(reader.GetInt64(ordinal), DateTimeKind.Utc).ToLocalTime();
+
+    private void MigrateFromJson()
     {
         var legacy = DataFileWriter.Read<BackupDatabase>(BackupDatabase.GetDatabaseFileName(OriginBaseDirPath, DestBaseDirPath));
         if (legacy == null)
             return; // 読めなかった場合は空DB扱い
+        ReplaceState(legacy.BackedUpDirectoriesDict, legacy.BackedUpFilesDict);
+    }
+
+    internal void ReplaceState(IEnumerable<KeyValuePair<string, BackedUpDirectoryData>> directories,
+        IEnumerable<KeyValuePair<string, BackedUpFileData>> files)
+    {
         using var tx = _connection.BeginTransaction();
-        foreach (var kv in legacy.BackedUpDirectoriesDict)
+
+        using (var cmd = _connection.CreateCommand())
         {
-            using var cmd = _connection.CreateCommand();
             cmd.Transaction = tx;
-            cmd.CommandText = "INSERT OR REPLACE INTO Directories(Path,CreationTimeUtc,LastWriteTimeUtc,FileAttributes) VALUES(@p,@c,@w,@a)";
-            cmd.Parameters.AddWithValue("@p", kv.Key);
-            cmd.Parameters.AddWithValue("@c", (object?)kv.Value.CreationTime?.Ticks ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("@w", (object?)kv.Value.LastWriteTime?.Ticks ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("@a", (object?)kv.Value.FileAttributes ?? DBNull.Value);
+            cmd.CommandText = "DELETE FROM Directories";
+            cmd.ExecuteNonQuery();
+
+            cmd.CommandText = "DELETE FROM Files";
             cmd.ExecuteNonQuery();
         }
 
-        foreach (var kv in legacy.BackedUpFilesDict)
-        {
-            using var cmd = _connection.CreateCommand();
-            cmd.Transaction = tx;
-            cmd.CommandText = "INSERT OR REPLACE INTO Files(Path,CreationTimeUtc,LastWriteTimeUtc,OriginSize,FileAttributes,Sha1) VALUES(@p,@c,@w,@s,@a,@h)";
-            cmd.Parameters.AddWithValue("@p", kv.Key);
-            cmd.Parameters.AddWithValue("@c", (object?)kv.Value.CreationTime?.Ticks ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("@w", (object?)kv.Value.LastWriteTime?.Ticks ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("@s", kv.Value.OriginSize);
-            cmd.Parameters.AddWithValue("@a", (object?)kv.Value.FileAttributes ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("@h", (object?)kv.Value.Sha1 ?? DBNull.Value);
-            cmd.ExecuteNonQuery();
-        }
+        foreach (var kv in directories)
+            UpsertDirectory(kv.Key, kv.Value, tx);
+        foreach (var kv in files)
+            UpsertFile(kv.Key, kv.Value, tx);
 
         tx.Commit();
     }
@@ -193,8 +194,8 @@ CREATE TABLE IF NOT EXISTS Files (
         if (!r.Read())
             return null;
         return new BackedUpDirectoryData(
-            r.IsDBNull(0) ? null : new DateTime(r.GetInt64(0), DateTimeKind.Local),
-            r.IsDBNull(1) ? null : new DateTime(r.GetInt64(1), DateTimeKind.Local),
+            ReadLocalTime(r, 0),
+            ReadLocalTime(r, 1),
             r.IsDBNull(2) ? null : (FileAttributes)r.GetInt32(2));
     }
 
@@ -207,8 +208,8 @@ CREATE TABLE IF NOT EXISTS Files (
         {
             var path = r.GetString(0);
             yield return new KeyValuePair<string, BackedUpDirectoryData>(path, new BackedUpDirectoryData(
-                r.IsDBNull(1) ? null : new DateTime(r.GetInt64(1), DateTimeKind.Local),
-                r.IsDBNull(2) ? null : new DateTime(r.GetInt64(2), DateTimeKind.Local),
+                ReadLocalTime(r, 1),
+                ReadLocalTime(r, 2),
                 r.IsDBNull(3) ? null : (FileAttributes)r.GetInt32(3))
             );
         }
@@ -237,8 +238,8 @@ CREATE TABLE IF NOT EXISTS Files (
         if (!r.Read())
             return null;
         return new BackedUpFileData(
-            r.IsDBNull(0) ? null : new DateTime(r.GetInt64(0), DateTimeKind.Local),
-            r.IsDBNull(1) ? null : new DateTime(r.GetInt64(1), DateTimeKind.Local),
+            ReadLocalTime(r, 0),
+            ReadLocalTime(r, 1),
             r.GetInt64(2),
             r.IsDBNull(3) ? null : (FileAttributes)r.GetInt32(3),
             r.IsDBNull(4) ? null : r.GetString(4));
@@ -253,8 +254,8 @@ CREATE TABLE IF NOT EXISTS Files (
         {
             var path = r.GetString(0);
             yield return new KeyValuePair<string, BackedUpFileData>(path, new BackedUpFileData(
-                r.IsDBNull(1) ? null : new DateTime(r.GetInt64(1), DateTimeKind.Local),
-                r.IsDBNull(2) ? null : new DateTime(r.GetInt64(2), DateTimeKind.Local),
+                ReadLocalTime(r, 1),
+                ReadLocalTime(r, 2),
                 r.GetInt64(3),
                 r.IsDBNull(4) ? null : (FileAttributes)r.GetInt32(4),
                 r.IsDBNull(5) ? null : r.GetString(5))
@@ -278,44 +279,58 @@ CREATE TABLE IF NOT EXISTS Files (
 
     public void UpsertDirectory(string path, BackedUpDirectoryData data)
     {
+        UpsertDirectory(path, data, null);
+    }
+
+    private void UpsertDirectory(string path, BackedUpDirectoryData data, SqliteTransaction? tx)
+    {
         using var cmd = _connection.CreateCommand();
+        if (tx != null)
+            cmd.Transaction = tx;
         cmd.CommandText = "INSERT INTO Directories(Path,CreationTimeUtc,LastWriteTimeUtc,FileAttributes) VALUES(@p,@c,@w,@a) " +
                           "ON CONFLICT(Path) DO UPDATE SET CreationTimeUtc=excluded.CreationTimeUtc,LastWriteTimeUtc=excluded.LastWriteTimeUtc,FileAttributes=excluded.FileAttributes";
         cmd.Parameters.AddWithValue("@p", path);
-        cmd.Parameters.AddWithValue("@c", (object?)data.CreationTime?.Ticks ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("@w", (object?)data.LastWriteTime?.Ticks ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@c", ToUtcTicksValue(data.CreationTime));
+        cmd.Parameters.AddWithValue("@w", ToUtcTicksValue(data.LastWriteTime));
         cmd.Parameters.AddWithValue("@a", (object?)data.FileAttributes ?? DBNull.Value);
         cmd.ExecuteNonQuery();
     }
 
     public void UpsertFile(string path, BackedUpFileData data)
     {
+        UpsertFile(path, data, null);
+    }
+
+    private void UpsertFile(string path, BackedUpFileData data, SqliteTransaction? tx)
+    {
         using var cmd = _connection.CreateCommand();
+        if (tx != null)
+            cmd.Transaction = tx;
         cmd.CommandText = "INSERT INTO Files(Path,CreationTimeUtc,LastWriteTimeUtc,OriginSize,FileAttributes,Sha1) VALUES(@p,@c,@w,@s,@a,@h) " +
                           "ON CONFLICT(Path) DO UPDATE SET CreationTimeUtc=excluded.CreationTimeUtc,LastWriteTimeUtc=excluded.LastWriteTimeUtc,OriginSize=excluded.OriginSize,FileAttributes=excluded.FileAttributes,Sha1=excluded.Sha1";
         cmd.Parameters.AddWithValue("@p", path);
-        cmd.Parameters.AddWithValue("@c", (object?)data.CreationTime?.Ticks ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("@w", (object?)data.LastWriteTime?.Ticks ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@c", ToUtcTicksValue(data.CreationTime));
+        cmd.Parameters.AddWithValue("@w", ToUtcTicksValue(data.LastWriteTime));
         cmd.Parameters.AddWithValue("@s", data.OriginSize);
         cmd.Parameters.AddWithValue("@a", (object?)data.FileAttributes ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@h", (object?)data.Sha1 ?? DBNull.Value);
         cmd.ExecuteNonQuery();
     }
 
-    public void RemoveDirectory(string path)
+    public bool RemoveDirectory(string path)
     {
         using var cmd = _connection.CreateCommand();
         cmd.CommandText = "DELETE FROM Directories WHERE Path=@p";
         cmd.Parameters.AddWithValue("@p", path);
-        cmd.ExecuteNonQuery();
+        return cmd.ExecuteNonQuery() > 0;
     }
 
-    public void RemoveFile(string path)
+    public bool RemoveFile(string path)
     {
         using var cmd = _connection.CreateCommand();
         cmd.CommandText = "DELETE FROM Files WHERE Path=@p";
         cmd.Parameters.AddWithValue("@p", path);
-        cmd.ExecuteNonQuery();
+        return cmd.ExecuteNonQuery() > 0;
     }
 
     public void Dispose()

@@ -30,7 +30,7 @@ internal sealed class SqliteDirectoryDictionary : IDictionary<string, BackedUpDi
             array[arrayIndex++] = kv;
     }
     public IEnumerator<KeyValuePair<string, BackedUpDirectoryData>> GetEnumerator() => _store.EnumerateDirectories().GetEnumerator();
-    public bool Remove(string key) { _store.RemoveDirectory(key); return true; }
+    public bool Remove(string key) => _store.RemoveDirectory(key);
     public bool Remove(KeyValuePair<string, BackedUpDirectoryData> item) => Remove(item.Key);
     public bool TryGetValue(string key, out BackedUpDirectoryData value)
     { value = _store.GetDirectory(key) ?? null!; return value != null; }
@@ -61,7 +61,7 @@ internal sealed class SqliteFileDictionary : IDictionary<string, BackedUpFileDat
             array[arrayIndex++] = kv;
     }
     public IEnumerator<KeyValuePair<string, BackedUpFileData>> GetEnumerator() => _store.EnumerateFiles().GetEnumerator();
-    public bool Remove(string key) { _store.RemoveFile(key); return true; }
+    public bool Remove(string key) => _store.RemoveFile(key);
     public bool Remove(KeyValuePair<string, BackedUpFileData> item) => Remove(item.Key);
     public bool TryGetValue(string key, out BackedUpFileData value)
     { value = _store.GetFile(key) ?? null!; return value != null; }

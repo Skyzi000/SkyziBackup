@@ -68,6 +68,13 @@ namespace SkyziBackup
                 }
                 catch (Exception e)
                 {
+                    if (hasSqliteDatabase || SqliteBackupStateStore.Exists(_destBaseDirPath, _sourceBaseDirPath))
+                    {
+                        Logger.Error(e, "SQLite初期化失敗。既存SQLiteストアがあるためJSON方式へフォールバックしません");
+                        _sqliteStore = null;
+                        throw;
+                    }
+
                     Logger.Error(e, "SQLite初期化/移行失敗。JSON方式へフォールバック");
                     _sqliteStore = null;
                 }
@@ -346,12 +353,7 @@ namespace SkyziBackup
                 {
                     if (_sqliteStore != null)
                     {
-                        Database.BackedUpDirectoriesDict.Clear();
-                        foreach (var kv in newDirDict)
-                            Database.BackedUpDirectoriesDict[kv.Key] = kv.Value;
-                        Database.BackedUpFilesDict.Clear();
-                        foreach (var kv in newFileDict)
-                            Database.BackedUpFilesDict[kv.Key] = kv.Value;
+                        _sqliteStore.ReplaceState(newDirDict, newFileDict);
                     }
                     else
                     {
