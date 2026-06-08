@@ -4,8 +4,6 @@ using System.IO;
 using Microsoft.Data.Sqlite;
 using Skyzi000.Data;
 
-// DataFileWriter
-
 namespace SkyziBackup.Data;
 
 /// <summary>
@@ -63,11 +61,30 @@ public sealed class SqliteBackupStateStore : IDisposable
         var jsonPath = BackupDatabase.GetDatabasePath(originBaseDirPath, destBaseDirPath);
         var sqlitePath = GetDatabasePath(originBaseDirPath, destBaseDirPath);
         var dir = Path.GetDirectoryName(sqlitePath)!;
+        var hasExistingSqlite = HasDatabaseFile(sqlitePath);
         Directory.CreateDirectory(dir);
-        if (File.Exists(jsonPath) && !File.Exists(sqlitePath))
-            MigrateJsonToNewSqlite(sqlitePath, originBaseDirPath, destBaseDirPath);
+        if (!hasExistingSqlite)
+            DeleteSqliteRelatedFiles(sqlitePath);
+        try
+        {
+            if (File.Exists(jsonPath) && !hasExistingSqlite)
+                MigrateJsonToNewSqlite(sqlitePath, originBaseDirPath, destBaseDirPath);
 
-        return new SqliteBackupStateStore(sqlitePath, originBaseDirPath, destBaseDirPath);
+            return new SqliteBackupStateStore(sqlitePath, originBaseDirPath, destBaseDirPath);
+        }
+        catch
+        {
+            if (!hasExistingSqlite)
+            {
+                try
+                {
+                    DeleteSqliteRelatedFiles(sqlitePath);
+                }
+                catch { }
+            }
+
+            throw;
+        }
     }
 
     public static string GetDatabasePath(string originBaseDirPath, string destBaseDirPath)
@@ -77,7 +94,9 @@ public sealed class SqliteBackupStateStore : IDisposable
             FileName);
     }
 
-    public static bool Exists(string originBaseDirPath, string destBaseDirPath) => File.Exists(GetDatabasePath(originBaseDirPath, destBaseDirPath));
+    public static bool Exists(string originBaseDirPath, string destBaseDirPath) => HasDatabaseFile(GetDatabasePath(originBaseDirPath, destBaseDirPath));
+
+    private static bool HasDatabaseFile(string sqlitePath) => File.Exists(sqlitePath) && new FileInfo(sqlitePath).Length > 0;
 
     public static IEnumerable<string> GetDatabaseFilePaths(string originBaseDirPath, string destBaseDirPath)
     {
@@ -323,6 +342,15 @@ DROP TABLE Files_Old;";
         }
 
         return new BulkWriteScope(this);
+    }
+
+    internal void Flush()
+    {
+        lock (_syncRoot)
+        {
+            ThrowIfDisposed();
+            CommitWriteTransaction();
+        }
     }
 
     internal void ReplaceState(IEnumerable<KeyValuePair<string, BackedUpDirectoryData>> directories,

@@ -7,7 +7,6 @@ using System.Linq;
 using NLog;
 using Skyzi000;
 using Skyzi000.Cryptography;
-using Skyzi000.Data;
 using SkyziBackup.Data;
 using static Skyzi000.IO.FileSystem;
 
@@ -56,43 +55,22 @@ namespace SkyziBackup
         private BackupDatabase? LoadOrCreateDatabase(bool createIfMissing)
         {
             var jsonPath = BackupDatabase.GetDatabasePath(_destBaseDirPath, _sourceBaseDirPath);
-            var hasJsonDatabase = File.Exists(jsonPath);
-            var hasSqliteDatabase = SqliteBackupStateStore.Exists(_destBaseDirPath, _sourceBaseDirPath);
-            if (hasSqliteDatabase || hasJsonDatabase || createIfMissing)
+            var hasDatabase = SqliteBackupStateStore.Exists(_destBaseDirPath, _sourceBaseDirPath) || File.Exists(jsonPath);
+            if (!hasDatabase && !createIfMissing)
+                return null;
+
+            try
             {
-                try
-                {
-                    _sqliteStore = SqliteBackupStateStore.OpenOrMigrate(_destBaseDirPath, _sourceBaseDirPath);
-                    Logger.Info("SQLiteストアを利用: '{0}'", SqliteBackupStateStore.GetDatabasePath(_destBaseDirPath, _sourceBaseDirPath));
-                    return _sqliteStore.ToBackupDatabase();
-                }
-                catch (Exception e)
-                {
-                    if (hasSqliteDatabase || SqliteBackupStateStore.Exists(_destBaseDirPath, _sourceBaseDirPath))
-                    {
-                        Logger.Error(e, "SQLite初期化失敗。既存SQLiteストアがあるためJSON方式へフォールバックしません");
-                        _sqliteStore = null;
-                        throw;
-                    }
-
-                    Logger.Error(e, "SQLite初期化/移行失敗。JSON方式へフォールバック");
-                    _sqliteStore = null;
-                }
+                _sqliteStore = SqliteBackupStateStore.OpenOrMigrate(_destBaseDirPath, _sourceBaseDirPath);
+                Logger.Info("SQLiteストアを利用: '{0}'", SqliteBackupStateStore.GetDatabasePath(_destBaseDirPath, _sourceBaseDirPath));
+                return _sqliteStore.ToBackupDatabase();
             }
-
-            if (hasJsonDatabase)
+            catch (Exception e)
             {
-                try
-                {
-                    return DataFileWriter.Read<BackupDatabase>(BackupDatabase.GetDatabaseFileName(_destBaseDirPath, _sourceBaseDirPath));
-                }
-                catch (Exception e)
-                {
-                    Logger.Error(e, "JSONデータベースの読み込み失敗");
-                }
+                Logger.Error(e, "SQLiteストアの初期化またはJSONからの移行に失敗");
+                _sqliteStore = null;
+                throw;
             }
-
-            return createIfMissing ? new BackupDatabase(_destBaseDirPath, _sourceBaseDirPath) : null;
         }
 
         public BackupResults StartRestore()
@@ -352,15 +330,9 @@ namespace SkyziBackup
 
                 if (_isEnableWriteDatabase && newDirDict != null && newFileDict != null && Database != null)
                 {
-                    if (_sqliteStore != null)
-                    {
-                        _sqliteStore.ReplaceState(newDirDict, newFileDict);
-                    }
-                    else
-                    {
-                        Database.BackedUpDirectoriesDict = newDirDict;
-                        Database.BackedUpFilesDict = newFileDict;
-                    }
+                    if (_sqliteStore == null)
+                        throw new InvalidOperationException("SQLiteストアが初期化されていません。");
+                    _sqliteStore.ReplaceState(newDirDict, newFileDict);
                 }
             }
             else
@@ -584,11 +556,8 @@ namespace SkyziBackup
 
         private void Results_Finished(object? sender, EventArgs args)
         {
-            if (_isEnableWriteDatabase && Database != null && _sqliteStore == null)
-            {
-                Logger.Info("データベースを保存(JSON): '{0}'", DataFileWriter.GetPath(Database));
-                _ = DataFileWriter.WriteAsync(Database);
-            }
+            if (_isEnableWriteDatabase)
+                _sqliteStore?.Flush();
 
             Results.Message = (Results.IsSuccess ? "リストア完了: " : Results.Message + "\nリストア失敗: ") + DateTime.Now;
             Logger.Info("{0}\n=============================\n\n", Results.IsSuccess ? "リストア完了" : "リストア失敗");

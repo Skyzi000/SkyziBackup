@@ -12,7 +12,6 @@ using Microsoft.VisualBasic.FileIO;
 using NLog;
 using Skyzi000;
 using Skyzi000.Cryptography;
-using Skyzi000.Data;
 using SkyziBackup.Data;
 using static Skyzi000.IO.FileSystem;
 
@@ -59,25 +58,6 @@ namespace SkyziBackup
             if (Settings.IsUseDatabase)
             {
                 Database = await (_loadBackupDatabaseTask ?? LoadOrCreateDatabaseAsync());
-                if (_sqliteStore == null)
-                {
-                    // 旧JSON運用時のみオートセーブ
-                    if (Database.DestBaseDirPath != DestBaseDirPath)
-                    {
-                        Database = await LoadOrCreateDatabaseAsync();
-                        if (Database.DestBaseDirPath != DestBaseDirPath)
-                        {
-                            Logger.Error(Results.Message = $"データベースの読み込み失敗: 既存のデータベース'{DataFileWriter.GetPath(Database)}'を利用できません。");
-                            Database = new BackupDatabase(OriginBaseDirPath, DestBaseDirPath);
-                        }
-                    }
-
-                    if (_sqliteStore == null)
-                    {
-                        Database.StartAutoSave(60000);
-                        Database.SaveTimer.Elapsed += (s, e) => { Logger.Info("現時点のデータベースを保存(JSON): '{0}'", DataFileWriter.GetPath(Database)); };
-                    }
-                }
             }
             else
                 Database = null;
@@ -103,36 +83,20 @@ namespace SkyziBackup
             return Path.GetFullPath(s.EndsWith(Path.DirectorySeparatorChar) ? s : s + Path.DirectorySeparatorChar);
         }
 
-        private async Task<BackupDatabase> LoadOrCreateDatabaseAsync()
+        private Task<BackupDatabase> LoadOrCreateDatabaseAsync()
         {
-            var legacyJsonPath = BackupDatabase.GetDatabasePath(OriginBaseDirPath, DestBaseDirPath);
-            var hasSqliteDatabase = SqliteBackupStateStore.Exists(OriginBaseDirPath, DestBaseDirPath);
-            // まずSQLiteを試行（自動移行含む）
             try
             {
                 _sqliteStore = SqliteBackupStateStore.OpenOrMigrate(OriginBaseDirPath, DestBaseDirPath);
                 Logger.Info(Results.Message = $"SQLiteストアを利用: '{SqliteBackupStateStore.GetDatabasePath(OriginBaseDirPath, DestBaseDirPath)}'");
-                return _sqliteStore.ToBackupDatabase();
+                return Task.FromResult(_sqliteStore.ToBackupDatabase());
             }
             catch (Exception e)
             {
-                if (hasSqliteDatabase || SqliteBackupStateStore.Exists(OriginBaseDirPath, DestBaseDirPath))
-                {
-                    Logger.Error(e, "SQLite初期化失敗。既存SQLiteストアがあるためJSON方式へフォールバックしません");
-                    _sqliteStore = null;
-                    throw;
-                }
-
-                Logger.Error(e, "SQLite初期化/移行失敗。JSON方式へフォールバック");
+                Logger.Error(e, "SQLiteストアの初期化またはJSONからの移行に失敗");
                 _sqliteStore = null;
+                return Task.FromException<BackupDatabase>(e);
             }
-
-            var isExists = File.Exists(legacyJsonPath);
-            Logger.Info(Results.Message = isExists ? $"既存のデータベースをロード(JSON): '{legacyJsonPath}'" : "新規データベースを初期化(JSON)");
-            return isExists
-                ? await DataFileWriter.ReadAsync<BackupDatabase>(BackupDatabase.GetDatabaseFileName(OriginBaseDirPath, DestBaseDirPath))
-                  ?? new BackupDatabase(OriginBaseDirPath, DestBaseDirPath)
-                : new BackupDatabase(OriginBaseDirPath, DestBaseDirPath);
         }
 
         private void CleanUpDatabase()
@@ -143,15 +107,15 @@ namespace SkyziBackup
             Database = null;
         }
 
-        public async Task SaveDatabaseAsync()
+        public Task SaveDatabaseAsync()
         {
-            if (Settings.IsUseDatabase && Database != null && _sqliteStore == null)
+            if (Settings.IsUseDatabase && _sqliteStore != null)
             {
-                Database.SaveTimer.Stop();
-                Logger.Info("データベースを保存(JSON): '{0}'", DataFileWriter.GetPath(Database));
-                await Database.SaveAsync().ConfigureAwait(false);
-                Logger.Debug("データベース保存完了(JSON): '{0}'", DataFileWriter.GetPath(Database));
+                _sqliteStore.Flush();
+                Logger.Debug("SQLiteストア保存完了: '{0}'", SqliteBackupStateStore.GetDatabasePath(OriginBaseDirPath, DestBaseDirPath));
             }
+
+            return Task.CompletedTask;
         }
 
         /// <summary>
