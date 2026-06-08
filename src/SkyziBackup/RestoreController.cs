@@ -111,6 +111,7 @@ namespace SkyziBackup
             Results.SuccessfulDirectories = new HashSet<string>();
             Results.FailedFiles = new HashSet<string>();
             Results.FailedDirectories = new HashSet<string>();
+            using var sqliteBulkWrite = _isEnableWriteDatabase ? _sqliteStore?.BeginBulkWrite() : null;
 
             if (_isCopyOnlyFileAttributes)
                 return CopyOnlyFileAttributes();

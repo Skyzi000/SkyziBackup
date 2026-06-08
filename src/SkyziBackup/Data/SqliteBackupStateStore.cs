@@ -15,9 +15,25 @@ namespace SkyziBackup.Data;
 public sealed class SqliteBackupStateStore : IDisposable
 {
     public const string FileName = "database.sqlite";
+    private const int SchemaVersion = 2;
+    private const int WriteBatchSize = 8192;
 
     private readonly string _dbPath;
     private readonly SqliteConnection _connection;
+    private readonly object _syncRoot = new();
+    private SqliteTransaction? _writeTransaction;
+    private int _bulkWriteDepth;
+    private int _writeOperationsSinceCommit;
+    private SqliteCommand? _getDirectoryCommand;
+    private SqliteCommand? _getFileCommand;
+    private SqliteCommand? _directoryExistsCommand;
+    private SqliteCommand? _fileExistsCommand;
+    private SqliteCommand? _upsertDirectoryCommand;
+    private SqliteCommand? _upsertFileCommand;
+    private SqliteCommand? _removeDirectoryCommand;
+    private SqliteCommand? _removeFileCommand;
+    private SqliteCommand? _clearDirectoriesCommand;
+    private SqliteCommand? _clearFilesCommand;
     private bool _disposed;
 
     public string OriginBaseDirPath { get; }
@@ -31,7 +47,7 @@ public sealed class SqliteBackupStateStore : IDisposable
         var connectionString = new SqliteConnectionStringBuilder
         {
             DataSource = _dbPath,
-            Cache = SqliteCacheMode.Shared,
+            Cache = SqliteCacheMode.Private,
             Pooling = false,
         }.ToString();
         _connection = new SqliteConnection(connectionString);
@@ -135,7 +151,15 @@ public sealed class SqliteBackupStateStore : IDisposable
     private void InitPragmas()
     {
         using var cmd = _connection.CreateCommand();
-        cmd.CommandText = "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;";
+        cmd.CommandText = @"
+PRAGMA journal_mode=WAL;
+PRAGMA synchronous=NORMAL;
+PRAGMA busy_timeout=5000;
+PRAGMA temp_store=MEMORY;
+PRAGMA cache_size=-65536;
+PRAGMA mmap_size=268435456;
+PRAGMA wal_autocheckpoint=4096;
+PRAGMA journal_size_limit=67108864;";
         cmd.ExecuteNonQuery();
     }
 
@@ -143,13 +167,16 @@ public sealed class SqliteBackupStateStore : IDisposable
     {
         using var cmd = _connection.CreateCommand();
         cmd.CommandText = @"
-CREATE TABLE IF NOT EXISTS Meta (Key TEXT PRIMARY KEY, Value TEXT);
+CREATE TABLE IF NOT EXISTS Meta (
+  Key TEXT PRIMARY KEY,
+  Value TEXT
+) WITHOUT ROWID;
 CREATE TABLE IF NOT EXISTS Directories (
   Path TEXT PRIMARY KEY,
   CreationTimeUtc INTEGER NULL,
   LastWriteTimeUtc INTEGER NULL,
   FileAttributes INTEGER NULL
-);
+) WITHOUT ROWID;
 CREATE TABLE IF NOT EXISTS Files (
   Path TEXT PRIMARY KEY,
   CreationTimeUtc INTEGER NULL,
@@ -157,8 +184,9 @@ CREATE TABLE IF NOT EXISTS Files (
   OriginSize INTEGER NOT NULL,
   FileAttributes INTEGER NULL,
   Sha1 TEXT NULL
-);";
+) WITHOUT ROWID;";
         cmd.ExecuteNonQuery();
+        RebuildRowIdTablesIfNeeded();
     }
 
     private void EnsureMeta()
@@ -166,7 +194,7 @@ CREATE TABLE IF NOT EXISTS Files (
         using var tx = _connection.BeginTransaction();
         UpsertMetaInternal("OriginBaseDirPath", OriginBaseDirPath, tx);
         UpsertMetaInternal("DestBaseDirPath", DestBaseDirPath, tx);
-        UpsertMetaInternal("SchemaVersion", "1", tx);
+        UpsertMetaInternal("SchemaVersion", SchemaVersion.ToString(), tx);
         tx.Commit();
     }
 
@@ -182,6 +210,8 @@ CREATE TABLE IF NOT EXISTS Files (
 
     private static object ToUtcTicksValue(DateTime? value) => value.HasValue ? value.Value.ToUniversalTime().Ticks : DBNull.Value;
 
+    private static object ToFileAttributesValue(FileAttributes? value) => value.HasValue ? (int)value.Value : DBNull.Value;
+
     private static DateTime? ReadLocalTime(SqliteDataReader reader, int ordinal) =>
         reader.IsDBNull(ordinal) ? null : new DateTime(reader.GetInt64(ordinal), DateTimeKind.Utc).ToLocalTime();
 
@@ -189,6 +219,90 @@ CREATE TABLE IF NOT EXISTS Files (
     {
         using var cmd = _connection.CreateCommand();
         cmd.CommandText = "PRAGMA wal_checkpoint(TRUNCATE)";
+        cmd.ExecuteNonQuery();
+    }
+
+    private void RebuildRowIdTablesIfNeeded()
+    {
+        var rebuildMeta = NeedsWithoutRowIdRebuild("Meta");
+        var rebuildDirectories = NeedsWithoutRowIdRebuild("Directories");
+        var rebuildFiles = NeedsWithoutRowIdRebuild("Files");
+        if (!rebuildMeta && !rebuildDirectories && !rebuildFiles)
+            return;
+
+        using var tx = _connection.BeginTransaction();
+        if (rebuildMeta)
+            RebuildMetaTable(tx);
+        if (rebuildDirectories)
+            RebuildDirectoriesTable(tx);
+        if (rebuildFiles)
+            RebuildFilesTable(tx);
+        tx.Commit();
+    }
+
+    private bool NeedsWithoutRowIdRebuild(string tableName)
+    {
+        using var cmd = _connection.CreateCommand();
+        cmd.CommandText = "SELECT sql FROM sqlite_master WHERE type='table' AND name=@name";
+        cmd.Parameters.AddWithValue("@name", tableName);
+        return cmd.ExecuteScalar() is string sql &&
+               !sql.Contains("WITHOUT ROWID", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void RebuildMetaTable(SqliteTransaction tx)
+    {
+        using var cmd = _connection.CreateCommand();
+        cmd.Transaction = tx;
+        cmd.CommandText = @"
+ALTER TABLE Meta RENAME TO Meta_Old;
+CREATE TABLE Meta (
+  Key TEXT PRIMARY KEY,
+  Value TEXT
+) WITHOUT ROWID;
+INSERT INTO Meta(Key, Value)
+SELECT Key, Value FROM Meta_Old
+WHERE Key IS NOT NULL;
+DROP TABLE Meta_Old;";
+        cmd.ExecuteNonQuery();
+    }
+
+    private void RebuildDirectoriesTable(SqliteTransaction tx)
+    {
+        using var cmd = _connection.CreateCommand();
+        cmd.Transaction = tx;
+        cmd.CommandText = @"
+ALTER TABLE Directories RENAME TO Directories_Old;
+CREATE TABLE Directories (
+  Path TEXT PRIMARY KEY,
+  CreationTimeUtc INTEGER NULL,
+  LastWriteTimeUtc INTEGER NULL,
+  FileAttributes INTEGER NULL
+) WITHOUT ROWID;
+INSERT INTO Directories(Path, CreationTimeUtc, LastWriteTimeUtc, FileAttributes)
+SELECT Path, CreationTimeUtc, LastWriteTimeUtc, FileAttributes FROM Directories_Old
+WHERE Path IS NOT NULL;
+DROP TABLE Directories_Old;";
+        cmd.ExecuteNonQuery();
+    }
+
+    private void RebuildFilesTable(SqliteTransaction tx)
+    {
+        using var cmd = _connection.CreateCommand();
+        cmd.Transaction = tx;
+        cmd.CommandText = @"
+ALTER TABLE Files RENAME TO Files_Old;
+CREATE TABLE Files (
+  Path TEXT PRIMARY KEY,
+  CreationTimeUtc INTEGER NULL,
+  LastWriteTimeUtc INTEGER NULL,
+  OriginSize INTEGER NOT NULL,
+  FileAttributes INTEGER NULL,
+  Sha1 TEXT NULL
+) WITHOUT ROWID;
+INSERT INTO Files(Path, CreationTimeUtc, LastWriteTimeUtc, OriginSize, FileAttributes, Sha1)
+SELECT Path, CreationTimeUtc, LastWriteTimeUtc, OriginSize, FileAttributes, Sha1 FROM Files_Old
+WHERE Path IS NOT NULL;
+DROP TABLE Files_Old;";
         cmd.ExecuteNonQuery();
     }
 
@@ -200,182 +314,523 @@ CREATE TABLE IF NOT EXISTS Files (
         ReplaceState(legacy.BackedUpDirectoriesDict, legacy.BackedUpFilesDict);
     }
 
+    internal IDisposable BeginBulkWrite()
+    {
+        lock (_syncRoot)
+        {
+            ThrowIfDisposed();
+            _bulkWriteDepth++;
+        }
+
+        return new BulkWriteScope(this);
+    }
+
     internal void ReplaceState(IEnumerable<KeyValuePair<string, BackedUpDirectoryData>> directories,
         IEnumerable<KeyValuePair<string, BackedUpFileData>> files)
     {
-        using var tx = _connection.BeginTransaction();
-
-        using (var cmd = _connection.CreateCommand())
+        lock (_syncRoot)
         {
-            cmd.Transaction = tx;
-            cmd.CommandText = "DELETE FROM Directories";
-            cmd.ExecuteNonQuery();
+            ThrowIfDisposed();
+            CommitWriteTransaction();
+            using var tx = _connection.BeginTransaction();
 
-            cmd.CommandText = "DELETE FROM Files";
-            cmd.ExecuteNonQuery();
+            using (var cmd = _connection.CreateCommand())
+            {
+                cmd.Transaction = tx;
+                cmd.CommandText = "DELETE FROM Directories";
+                cmd.ExecuteNonQuery();
+
+                cmd.CommandText = "DELETE FROM Files";
+                cmd.ExecuteNonQuery();
+            }
+
+            using var upsertDirectoryCommand = CreateUpsertDirectoryCommand(tx);
+            using var upsertFileCommand = CreateUpsertFileCommand(tx);
+            foreach (var kv in directories)
+            {
+                BindDirectory(upsertDirectoryCommand, kv.Key, kv.Value);
+                upsertDirectoryCommand.ExecuteNonQuery();
+            }
+
+            foreach (var kv in files)
+            {
+                BindFile(upsertFileCommand, kv.Key, kv.Value);
+                upsertFileCommand.ExecuteNonQuery();
+            }
+
+            tx.Commit();
         }
-
-        foreach (var kv in directories)
-            UpsertDirectory(kv.Key, kv.Value, tx);
-        foreach (var kv in files)
-            UpsertFile(kv.Key, kv.Value, tx);
-
-        tx.Commit();
     }
 
     public BackedUpDirectoryData? GetDirectory(string path)
     {
-        using var cmd = _connection.CreateCommand();
-        cmd.CommandText = "SELECT CreationTimeUtc,LastWriteTimeUtc,FileAttributes FROM Directories WHERE Path=@p";
-        cmd.Parameters.AddWithValue("@p", path);
-        using var r = cmd.ExecuteReader();
-        if (!r.Read())
-            return null;
-        return new BackedUpDirectoryData(
-            ReadLocalTime(r, 0),
-            ReadLocalTime(r, 1),
-            r.IsDBNull(2) ? null : (FileAttributes)r.GetInt32(2));
+        lock (_syncRoot)
+        {
+            ThrowIfDisposed();
+            var cmd = GetDirectoryCommand();
+            cmd.Parameters["@p"].Value = path;
+            using var r = cmd.ExecuteReader();
+            if (!r.Read())
+                return null;
+            return new BackedUpDirectoryData(
+                ReadLocalTime(r, 0),
+                ReadLocalTime(r, 1),
+                r.IsDBNull(2) ? null : (FileAttributes)r.GetInt32(2));
+        }
     }
 
     public IEnumerable<KeyValuePair<string, BackedUpDirectoryData>> EnumerateDirectories()
     {
-        using var cmd = _connection.CreateCommand();
-        cmd.CommandText = "SELECT Path,CreationTimeUtc,LastWriteTimeUtc,FileAttributes FROM Directories";
-        using var r = cmd.ExecuteReader();
-        while (r.Read())
+        lock (_syncRoot)
         {
-            var path = r.GetString(0);
-            yield return new KeyValuePair<string, BackedUpDirectoryData>(path, new BackedUpDirectoryData(
-                ReadLocalTime(r, 1),
-                ReadLocalTime(r, 2),
-                r.IsDBNull(3) ? null : (FileAttributes)r.GetInt32(3))
-            );
+            ThrowIfDisposed();
+            var directories = new List<KeyValuePair<string, BackedUpDirectoryData>>();
+            using var cmd = _connection.CreateCommand();
+            cmd.Transaction = _writeTransaction;
+            cmd.CommandText = "SELECT Path,CreationTimeUtc,LastWriteTimeUtc,FileAttributes FROM Directories";
+            using var r = cmd.ExecuteReader();
+            while (r.Read())
+            {
+                var path = r.GetString(0);
+                directories.Add(new KeyValuePair<string, BackedUpDirectoryData>(path, new BackedUpDirectoryData(
+                    ReadLocalTime(r, 1),
+                    ReadLocalTime(r, 2),
+                    r.IsDBNull(3) ? null : (FileAttributes)r.GetInt32(3))
+                ));
+            }
+
+            return directories;
+        }
+    }
+
+    public IEnumerable<string> EnumerateDirectoryKeys()
+    {
+        lock (_syncRoot)
+        {
+            ThrowIfDisposed();
+            return EnumerateKeys("SELECT Path FROM Directories");
         }
     }
 
     public long GetDirectoryCount()
     {
-        using var cmd = _connection.CreateCommand();
-        cmd.CommandText = "SELECT COUNT(*) FROM Directories";
-        return (long)(cmd.ExecuteScalar() ?? 0L);
+        lock (_syncRoot)
+        {
+            ThrowIfDisposed();
+            using var cmd = _connection.CreateCommand();
+            cmd.Transaction = _writeTransaction;
+            cmd.CommandText = "SELECT COUNT(*) FROM Directories";
+            return (long)(cmd.ExecuteScalar() ?? 0L);
+        }
     }
 
     public void ClearDirectories()
     {
-        using var cmd = _connection.CreateCommand();
-        cmd.CommandText = "DELETE FROM Directories";
-        cmd.ExecuteNonQuery();
+        lock (_syncRoot)
+        {
+            ThrowIfDisposed();
+            BeginWriteIfNeeded();
+            var cmd = GetClearDirectoriesCommand();
+            cmd.ExecuteNonQuery();
+            RecordWrite();
+        }
     }
 
     public BackedUpFileData? GetFile(string path)
     {
-        using var cmd = _connection.CreateCommand();
-        cmd.CommandText = "SELECT CreationTimeUtc,LastWriteTimeUtc,OriginSize,FileAttributes,Sha1 FROM Files WHERE Path=@p";
-        cmd.Parameters.AddWithValue("@p", path);
-        using var r = cmd.ExecuteReader();
-        if (!r.Read())
-            return null;
-        return new BackedUpFileData(
-            ReadLocalTime(r, 0),
-            ReadLocalTime(r, 1),
-            r.GetInt64(2),
-            r.IsDBNull(3) ? null : (FileAttributes)r.GetInt32(3),
-            r.IsDBNull(4) ? null : r.GetString(4));
+        lock (_syncRoot)
+        {
+            ThrowIfDisposed();
+            var cmd = GetFileCommand();
+            cmd.Parameters["@p"].Value = path;
+            using var r = cmd.ExecuteReader();
+            if (!r.Read())
+                return null;
+            return new BackedUpFileData(
+                ReadLocalTime(r, 0),
+                ReadLocalTime(r, 1),
+                r.GetInt64(2),
+                r.IsDBNull(3) ? null : (FileAttributes)r.GetInt32(3),
+                r.IsDBNull(4) ? null : r.GetString(4));
+        }
     }
 
     public IEnumerable<KeyValuePair<string, BackedUpFileData>> EnumerateFiles()
     {
-        using var cmd = _connection.CreateCommand();
-        cmd.CommandText = "SELECT Path,CreationTimeUtc,LastWriteTimeUtc,OriginSize,FileAttributes,Sha1 FROM Files";
-        using var r = cmd.ExecuteReader();
-        while (r.Read())
+        lock (_syncRoot)
         {
-            var path = r.GetString(0);
-            yield return new KeyValuePair<string, BackedUpFileData>(path, new BackedUpFileData(
-                ReadLocalTime(r, 1),
-                ReadLocalTime(r, 2),
-                r.GetInt64(3),
-                r.IsDBNull(4) ? null : (FileAttributes)r.GetInt32(4),
-                r.IsDBNull(5) ? null : r.GetString(5))
-            );
+            ThrowIfDisposed();
+            var files = new List<KeyValuePair<string, BackedUpFileData>>();
+            using var cmd = _connection.CreateCommand();
+            cmd.Transaction = _writeTransaction;
+            cmd.CommandText = "SELECT Path,CreationTimeUtc,LastWriteTimeUtc,OriginSize,FileAttributes,Sha1 FROM Files";
+            using var r = cmd.ExecuteReader();
+            while (r.Read())
+            {
+                var path = r.GetString(0);
+                files.Add(new KeyValuePair<string, BackedUpFileData>(path, new BackedUpFileData(
+                    ReadLocalTime(r, 1),
+                    ReadLocalTime(r, 2),
+                    r.GetInt64(3),
+                    r.IsDBNull(4) ? null : (FileAttributes)r.GetInt32(4),
+                    r.IsDBNull(5) ? null : r.GetString(5))
+                ));
+            }
+
+            return files;
+        }
+    }
+
+    public IEnumerable<string> EnumerateFileKeys()
+    {
+        lock (_syncRoot)
+        {
+            ThrowIfDisposed();
+            return EnumerateKeys("SELECT Path FROM Files");
         }
     }
 
     public long GetFileCount()
     {
-        using var cmd = _connection.CreateCommand();
-        cmd.CommandText = "SELECT COUNT(*) FROM Files";
-        return (long)(cmd.ExecuteScalar() ?? 0L);
+        lock (_syncRoot)
+        {
+            ThrowIfDisposed();
+            using var cmd = _connection.CreateCommand();
+            cmd.Transaction = _writeTransaction;
+            cmd.CommandText = "SELECT COUNT(*) FROM Files";
+            return (long)(cmd.ExecuteScalar() ?? 0L);
+        }
     }
 
     public void ClearFiles()
     {
-        using var cmd = _connection.CreateCommand();
-        cmd.CommandText = "DELETE FROM Files";
-        cmd.ExecuteNonQuery();
+        lock (_syncRoot)
+        {
+            ThrowIfDisposed();
+            BeginWriteIfNeeded();
+            var cmd = GetClearFilesCommand();
+            cmd.ExecuteNonQuery();
+            RecordWrite();
+        }
     }
 
     public void UpsertDirectory(string path, BackedUpDirectoryData data)
     {
-        UpsertDirectory(path, data, null);
-    }
-
-    private void UpsertDirectory(string path, BackedUpDirectoryData data, SqliteTransaction? tx)
-    {
-        using var cmd = _connection.CreateCommand();
-        if (tx != null)
-            cmd.Transaction = tx;
-        cmd.CommandText = "INSERT INTO Directories(Path,CreationTimeUtc,LastWriteTimeUtc,FileAttributes) VALUES(@p,@c,@w,@a) " +
-                          "ON CONFLICT(Path) DO UPDATE SET CreationTimeUtc=excluded.CreationTimeUtc,LastWriteTimeUtc=excluded.LastWriteTimeUtc,FileAttributes=excluded.FileAttributes";
-        cmd.Parameters.AddWithValue("@p", path);
-        cmd.Parameters.AddWithValue("@c", ToUtcTicksValue(data.CreationTime));
-        cmd.Parameters.AddWithValue("@w", ToUtcTicksValue(data.LastWriteTime));
-        cmd.Parameters.AddWithValue("@a", (object?)data.FileAttributes ?? DBNull.Value);
-        cmd.ExecuteNonQuery();
+        lock (_syncRoot)
+        {
+            ThrowIfDisposed();
+            BeginWriteIfNeeded();
+            var cmd = GetUpsertDirectoryCommand();
+            BindDirectory(cmd, path, data);
+            cmd.ExecuteNonQuery();
+            RecordWrite();
+        }
     }
 
     public void UpsertFile(string path, BackedUpFileData data)
     {
-        UpsertFile(path, data, null);
-    }
-
-    private void UpsertFile(string path, BackedUpFileData data, SqliteTransaction? tx)
-    {
-        using var cmd = _connection.CreateCommand();
-        if (tx != null)
-            cmd.Transaction = tx;
-        cmd.CommandText = "INSERT INTO Files(Path,CreationTimeUtc,LastWriteTimeUtc,OriginSize,FileAttributes,Sha1) VALUES(@p,@c,@w,@s,@a,@h) " +
-                          "ON CONFLICT(Path) DO UPDATE SET CreationTimeUtc=excluded.CreationTimeUtc,LastWriteTimeUtc=excluded.LastWriteTimeUtc,OriginSize=excluded.OriginSize,FileAttributes=excluded.FileAttributes,Sha1=excluded.Sha1";
-        cmd.Parameters.AddWithValue("@p", path);
-        cmd.Parameters.AddWithValue("@c", ToUtcTicksValue(data.CreationTime));
-        cmd.Parameters.AddWithValue("@w", ToUtcTicksValue(data.LastWriteTime));
-        cmd.Parameters.AddWithValue("@s", data.OriginSize);
-        cmd.Parameters.AddWithValue("@a", (object?)data.FileAttributes ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("@h", (object?)data.Sha1 ?? DBNull.Value);
-        cmd.ExecuteNonQuery();
+        lock (_syncRoot)
+        {
+            ThrowIfDisposed();
+            BeginWriteIfNeeded();
+            var cmd = GetUpsertFileCommand();
+            BindFile(cmd, path, data);
+            cmd.ExecuteNonQuery();
+            RecordWrite();
+        }
     }
 
     public bool RemoveDirectory(string path)
     {
-        using var cmd = _connection.CreateCommand();
-        cmd.CommandText = "DELETE FROM Directories WHERE Path=@p";
-        cmd.Parameters.AddWithValue("@p", path);
-        return cmd.ExecuteNonQuery() > 0;
+        lock (_syncRoot)
+        {
+            ThrowIfDisposed();
+            BeginWriteIfNeeded();
+            var cmd = GetRemoveDirectoryCommand();
+            cmd.Parameters["@p"].Value = path;
+            var removed = cmd.ExecuteNonQuery() > 0;
+            RecordWrite();
+            return removed;
+        }
     }
 
     public bool RemoveFile(string path)
     {
-        using var cmd = _connection.CreateCommand();
-        cmd.CommandText = "DELETE FROM Files WHERE Path=@p";
-        cmd.Parameters.AddWithValue("@p", path);
-        return cmd.ExecuteNonQuery() > 0;
+        lock (_syncRoot)
+        {
+            ThrowIfDisposed();
+            BeginWriteIfNeeded();
+            var cmd = GetRemoveFileCommand();
+            cmd.Parameters["@p"].Value = path;
+            var removed = cmd.ExecuteNonQuery() > 0;
+            RecordWrite();
+            return removed;
+        }
+    }
+
+    public bool ContainsDirectory(string path)
+    {
+        lock (_syncRoot)
+        {
+            ThrowIfDisposed();
+            var cmd = GetDirectoryExistsCommand();
+            cmd.Parameters["@p"].Value = path;
+            return cmd.ExecuteScalar() != null;
+        }
+    }
+
+    public bool ContainsFile(string path)
+    {
+        lock (_syncRoot)
+        {
+            ThrowIfDisposed();
+            var cmd = GetFileExistsCommand();
+            cmd.Parameters["@p"].Value = path;
+            return cmd.ExecuteScalar() != null;
+        }
     }
 
     public void Dispose()
     {
-        if (_disposed)
+        lock (_syncRoot)
+        {
+            if (_disposed)
+                return;
+            _disposed = true;
+            CommitWriteTransaction();
+            _bulkWriteDepth = 0;
+            DisposeCommands();
+            _connection.Dispose();
+        }
+    }
+
+    private IEnumerable<string> EnumerateKeys(string commandText)
+    {
+        var keys = new List<string>();
+        using var cmd = _connection.CreateCommand();
+        cmd.Transaction = _writeTransaction;
+        cmd.CommandText = commandText;
+        using var r = cmd.ExecuteReader();
+        while (r.Read())
+            keys.Add(r.GetString(0));
+        return keys;
+    }
+
+    private SqliteCommand GetDirectoryCommand()
+    {
+        _getDirectoryCommand ??= CreateCommandWithPathParameter(
+            "SELECT CreationTimeUtc,LastWriteTimeUtc,FileAttributes FROM Directories WHERE Path=@p");
+        _getDirectoryCommand.Transaction = _writeTransaction;
+        return _getDirectoryCommand;
+    }
+
+    private SqliteCommand GetFileCommand()
+    {
+        _getFileCommand ??= CreateCommandWithPathParameter(
+            "SELECT CreationTimeUtc,LastWriteTimeUtc,OriginSize,FileAttributes,Sha1 FROM Files WHERE Path=@p");
+        _getFileCommand.Transaction = _writeTransaction;
+        return _getFileCommand;
+    }
+
+    private SqliteCommand GetDirectoryExistsCommand()
+    {
+        _directoryExistsCommand ??= CreateCommandWithPathParameter("SELECT 1 FROM Directories WHERE Path=@p LIMIT 1");
+        _directoryExistsCommand.Transaction = _writeTransaction;
+        return _directoryExistsCommand;
+    }
+
+    private SqliteCommand GetFileExistsCommand()
+    {
+        _fileExistsCommand ??= CreateCommandWithPathParameter("SELECT 1 FROM Files WHERE Path=@p LIMIT 1");
+        _fileExistsCommand.Transaction = _writeTransaction;
+        return _fileExistsCommand;
+    }
+
+    private SqliteCommand GetUpsertDirectoryCommand()
+    {
+        _upsertDirectoryCommand ??= CreateUpsertDirectoryCommand(_writeTransaction);
+        _upsertDirectoryCommand.Transaction = _writeTransaction;
+        return _upsertDirectoryCommand;
+    }
+
+    private SqliteCommand GetUpsertFileCommand()
+    {
+        _upsertFileCommand ??= CreateUpsertFileCommand(_writeTransaction);
+        _upsertFileCommand.Transaction = _writeTransaction;
+        return _upsertFileCommand;
+    }
+
+    private SqliteCommand GetRemoveDirectoryCommand()
+    {
+        _removeDirectoryCommand ??= CreateCommandWithPathParameter("DELETE FROM Directories WHERE Path=@p");
+        _removeDirectoryCommand.Transaction = _writeTransaction;
+        return _removeDirectoryCommand;
+    }
+
+    private SqliteCommand GetRemoveFileCommand()
+    {
+        _removeFileCommand ??= CreateCommandWithPathParameter("DELETE FROM Files WHERE Path=@p");
+        _removeFileCommand.Transaction = _writeTransaction;
+        return _removeFileCommand;
+    }
+
+    private SqliteCommand GetClearDirectoriesCommand()
+    {
+        _clearDirectoriesCommand ??= CreatePreparedCommand("DELETE FROM Directories");
+        _clearDirectoriesCommand.Transaction = _writeTransaction;
+        return _clearDirectoriesCommand;
+    }
+
+    private SqliteCommand GetClearFilesCommand()
+    {
+        _clearFilesCommand ??= CreatePreparedCommand("DELETE FROM Files");
+        _clearFilesCommand.Transaction = _writeTransaction;
+        return _clearFilesCommand;
+    }
+
+    private SqliteCommand CreatePreparedCommand(string commandText)
+    {
+        var cmd = _connection.CreateCommand();
+        cmd.CommandText = commandText;
+        cmd.Prepare();
+        return cmd;
+    }
+
+    private SqliteCommand CreateCommandWithPathParameter(string commandText)
+    {
+        var cmd = _connection.CreateCommand();
+        cmd.CommandText = commandText;
+        cmd.Parameters.Add("@p", SqliteType.Text);
+        cmd.Prepare();
+        return cmd;
+    }
+
+    private SqliteCommand CreateUpsertDirectoryCommand(SqliteTransaction? tx)
+    {
+        var cmd = _connection.CreateCommand();
+        cmd.CommandText = "INSERT INTO Directories(Path,CreationTimeUtc,LastWriteTimeUtc,FileAttributes) VALUES(@p,@c,@w,@a) " +
+                          "ON CONFLICT(Path) DO UPDATE SET CreationTimeUtc=excluded.CreationTimeUtc,LastWriteTimeUtc=excluded.LastWriteTimeUtc,FileAttributes=excluded.FileAttributes";
+        cmd.Transaction = tx;
+        cmd.Parameters.Add("@p", SqliteType.Text);
+        cmd.Parameters.Add("@c", SqliteType.Integer);
+        cmd.Parameters.Add("@w", SqliteType.Integer);
+        cmd.Parameters.Add("@a", SqliteType.Integer);
+        cmd.Prepare();
+        return cmd;
+    }
+
+    private SqliteCommand CreateUpsertFileCommand(SqliteTransaction? tx)
+    {
+        var cmd = _connection.CreateCommand();
+        cmd.CommandText = "INSERT INTO Files(Path,CreationTimeUtc,LastWriteTimeUtc,OriginSize,FileAttributes,Sha1) VALUES(@p,@c,@w,@s,@a,@h) " +
+                          "ON CONFLICT(Path) DO UPDATE SET CreationTimeUtc=excluded.CreationTimeUtc,LastWriteTimeUtc=excluded.LastWriteTimeUtc,OriginSize=excluded.OriginSize,FileAttributes=excluded.FileAttributes,Sha1=excluded.Sha1";
+        cmd.Transaction = tx;
+        cmd.Parameters.Add("@p", SqliteType.Text);
+        cmd.Parameters.Add("@c", SqliteType.Integer);
+        cmd.Parameters.Add("@w", SqliteType.Integer);
+        cmd.Parameters.Add("@s", SqliteType.Integer);
+        cmd.Parameters.Add("@a", SqliteType.Integer);
+        cmd.Parameters.Add("@h", SqliteType.Text);
+        cmd.Prepare();
+        return cmd;
+    }
+
+    private static void BindDirectory(SqliteCommand cmd, string path, BackedUpDirectoryData data)
+    {
+        cmd.Parameters["@p"].Value = path;
+        cmd.Parameters["@c"].Value = ToUtcTicksValue(data.CreationTime);
+        cmd.Parameters["@w"].Value = ToUtcTicksValue(data.LastWriteTime);
+        cmd.Parameters["@a"].Value = ToFileAttributesValue(data.FileAttributes);
+    }
+
+    private static void BindFile(SqliteCommand cmd, string path, BackedUpFileData data)
+    {
+        cmd.Parameters["@p"].Value = path;
+        cmd.Parameters["@c"].Value = ToUtcTicksValue(data.CreationTime);
+        cmd.Parameters["@w"].Value = ToUtcTicksValue(data.LastWriteTime);
+        cmd.Parameters["@s"].Value = data.OriginSize;
+        cmd.Parameters["@a"].Value = ToFileAttributesValue(data.FileAttributes);
+        cmd.Parameters["@h"].Value = (object?)data.Sha1 ?? DBNull.Value;
+    }
+
+    private void BeginWriteIfNeeded()
+    {
+        if (_bulkWriteDepth == 0 || _writeTransaction != null)
             return;
-        _disposed = true;
-        _connection.Dispose();
+
+        _writeTransaction = _connection.BeginTransaction();
+        _writeOperationsSinceCommit = 0;
+    }
+
+    private void RecordWrite()
+    {
+        if (_writeTransaction == null)
+            return;
+
+        _writeOperationsSinceCommit++;
+        if (_writeOperationsSinceCommit >= WriteBatchSize)
+            CommitWriteTransaction();
+    }
+
+    private void CommitWriteTransaction()
+    {
+        if (_writeTransaction == null)
+            return;
+
+        var tx = _writeTransaction;
+        _writeTransaction = null;
+        _writeOperationsSinceCommit = 0;
+        tx.Commit();
+        tx.Dispose();
+    }
+
+    private void DisposeCommands()
+    {
+        _getDirectoryCommand?.Dispose();
+        _getFileCommand?.Dispose();
+        _directoryExistsCommand?.Dispose();
+        _fileExistsCommand?.Dispose();
+        _upsertDirectoryCommand?.Dispose();
+        _upsertFileCommand?.Dispose();
+        _removeDirectoryCommand?.Dispose();
+        _removeFileCommand?.Dispose();
+        _clearDirectoriesCommand?.Dispose();
+        _clearFilesCommand?.Dispose();
+    }
+
+    private void EndBulkWrite()
+    {
+        lock (_syncRoot)
+        {
+            if (_disposed || _bulkWriteDepth == 0)
+                return;
+
+            _bulkWriteDepth--;
+            if (_bulkWriteDepth == 0)
+                CommitWriteTransaction();
+        }
+    }
+
+    private void ThrowIfDisposed()
+    {
+        if (_disposed)
+            throw new ObjectDisposedException(GetType().FullName);
+    }
+
+    private sealed class BulkWriteScope : IDisposable
+    {
+        private SqliteBackupStateStore? _store;
+
+        public BulkWriteScope(SqliteBackupStateStore store) => _store = store;
+
+        public void Dispose()
+        {
+            var store = _store;
+            if (store == null)
+                return;
+
+            _store = null;
+            store.EndBulkWrite();
+        }
     }
 }

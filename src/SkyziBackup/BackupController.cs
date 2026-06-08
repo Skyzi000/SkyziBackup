@@ -186,6 +186,7 @@ namespace SkyziBackup
 
             StartTime = DateTime.Now;
             await InitializeAsync().ConfigureAwait(false);
+            using var sqliteBulkWrite = _sqliteStore?.BeginBulkWrite();
 
             if (!Directory.Exists(OriginBaseDirPath))
             {
@@ -605,9 +606,9 @@ namespace SkyziBackup
                     var destDirPath = originDirPath.Replace(sourceBaseDirPath, destBaseDirPath);
                     try
                     {
-                        if (originDirInfo!.CreationTime != backedUpDirectoriesDict[originDirPath].CreationTime)
+                        if (originDirInfo!.CreationTime != data.CreationTime)
                             (destDirInfo = Directory.CreateDirectory(destDirPath)).CreationTime = originDirInfo.CreationTime;
-                        if (originDirInfo.LastWriteTime != backedUpDirectoriesDict[originDirPath].LastWriteTime)
+                        if (originDirInfo.LastWriteTime != data.LastWriteTime)
                             (destDirInfo ??= Directory.CreateDirectory(destDirPath)).LastWriteTime = originDirInfo.LastWriteTime;
                     }
                     catch (UnauthorizedAccessException)
@@ -615,7 +616,7 @@ namespace SkyziBackup
                         Logger.Warn($"'{destDirPath}'のCreationTime/LastWriteTimeを変更できません");
                     }
 
-                    if (originDirInfo!.Attributes != backedUpDirectoriesDict[originDirPath].FileAttributes)
+                    if (originDirInfo!.Attributes != data.FileAttributes)
                         (destDirInfo ?? Directory.CreateDirectory(destDirPath)).Attributes = originDirInfo.Attributes;
                 }
 
@@ -661,12 +662,11 @@ namespace SkyziBackup
         {
             if (Database is null)
                 return IsUnchangedFileWithoutDatabase(originFilePath, destFilePath);
-            if (!Database.BackedUpFilesDict.ContainsKey(originFilePath))
+            if (!Database.BackedUpFilesDict.TryGetValue(originFilePath, out var destFileData))
                 return false;
             if (Settings.ComparisonMethod == ComparisonMethod.NoComparison)
                 return false;
             FileInfo? originFileInfo = null;
-            var destFileData = Database.BackedUpFilesDict[originFilePath];
 
             // Archive属性
             if (Settings.ComparisonMethod.HasFlag(ComparisonMethod.ArchiveAttribute))

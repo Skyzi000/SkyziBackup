@@ -15,7 +15,7 @@ internal sealed class SqliteDirectoryDictionary : IDictionary<string, BackedUpDi
         get => _store.GetDirectory(key) ?? throw new KeyNotFoundException(key);
         set => _store.UpsertDirectory(key, value);
     }
-    public ICollection<string> Keys => _store.EnumerateDirectories().Select(kv => kv.Key).ToList();
+    public ICollection<string> Keys => _store.EnumerateDirectoryKeys().ToList();
     public ICollection<BackedUpDirectoryData> Values => _store.EnumerateDirectories().Select(kv => kv.Value).ToList();
     public int Count => (int)Math.Min(int.MaxValue, _store.GetDirectoryCount());
     public bool IsReadOnly => false;
@@ -23,7 +23,7 @@ internal sealed class SqliteDirectoryDictionary : IDictionary<string, BackedUpDi
     public void Add(KeyValuePair<string, BackedUpDirectoryData> item) => Add(item.Key, item.Value);
     public void Clear() => _store.ClearDirectories();
     public bool Contains(KeyValuePair<string, BackedUpDirectoryData> item) => ContainsKey(item.Key);
-    public bool ContainsKey(string key) => _store.GetDirectory(key) != null;
+    public bool ContainsKey(string key) => _store.ContainsDirectory(key);
     public void CopyTo(KeyValuePair<string, BackedUpDirectoryData>[] array, int arrayIndex)
     {
         foreach (var kv in _store.EnumerateDirectories())
@@ -46,7 +46,7 @@ internal sealed class SqliteFileDictionary : IDictionary<string, BackedUpFileDat
         get => _store.GetFile(key) ?? throw new KeyNotFoundException(key);
         set => _store.UpsertFile(key, value);
     }
-    public ICollection<string> Keys => _store.EnumerateFiles().Select(kv => kv.Key).ToList();
+    public ICollection<string> Keys => _store.EnumerateFileKeys().ToList();
     public ICollection<BackedUpFileData> Values => _store.EnumerateFiles().Select(kv => kv.Value).ToList();
     public int Count => (int)Math.Min(int.MaxValue, _store.GetFileCount());
     public bool IsReadOnly => false;
@@ -54,7 +54,7 @@ internal sealed class SqliteFileDictionary : IDictionary<string, BackedUpFileDat
     public void Add(KeyValuePair<string, BackedUpFileData> item) => Add(item.Key, item.Value);
     public void Clear() => _store.ClearFiles();
     public bool Contains(KeyValuePair<string, BackedUpFileData> item) => ContainsKey(item.Key);
-    public bool ContainsKey(string key) => _store.GetFile(key) != null;
+    public bool ContainsKey(string key) => _store.ContainsFile(key);
     public void CopyTo(KeyValuePair<string, BackedUpFileData>[] array, int arrayIndex)
     {
         foreach (var kv in _store.EnumerateFiles())
