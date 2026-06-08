@@ -3,7 +3,6 @@ using System.IO;
 using System.Reflection;
 using System.Text.Encodings.Web;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -27,7 +26,10 @@ namespace Skyzi000.Data
         {
             Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
             WriteIndented = false,
-            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+            // 既存/インポートJSONの明示的なnullを読み込み時にも無視し、旧バージョンの既定値維持と互換にする。
+#pragma warning disable SYSLIB0020
+            IgnoreNullValues = true,
+#pragma warning restore SYSLIB0020
         };
 
         public static string GetPath(SaveableData obj) => GetPath(obj.SaveFileName ?? throw new ArgumentException(nameof(obj.SaveFileName)));
