@@ -18,6 +18,7 @@ public sealed class SqliteBackupStateStore : IDisposable
 
     private readonly string _dbPath;
     private readonly SqliteConnection _connection;
+    private readonly bool _isNewDatabase;
     private readonly object _syncRoot = new();
     private SqliteTransaction? _writeTransaction;
     private int _bulkWriteDepth;
@@ -37,11 +38,12 @@ public sealed class SqliteBackupStateStore : IDisposable
     public string OriginBaseDirPath { get; }
     public string DestBaseDirPath { get; }
 
-    private SqliteBackupStateStore(string dbPath, string originBaseDirPath, string destBaseDirPath)
+    private SqliteBackupStateStore(string dbPath, string originBaseDirPath, string destBaseDirPath, bool isNewDatabase)
     {
         _dbPath = dbPath;
         OriginBaseDirPath = originBaseDirPath;
         DestBaseDirPath = destBaseDirPath;
+        _isNewDatabase = isNewDatabase;
         var connectionString = new SqliteConnectionStringBuilder
         {
             DataSource = _dbPath,
@@ -52,6 +54,8 @@ public sealed class SqliteBackupStateStore : IDisposable
         try
         {
             _connection.Open();
+            if (!_isNewDatabase)
+                ValidateExistingMetaBeforeSchemaChanges();
             InitPragmas();
             InitSchema();
             EnsureMeta();
@@ -78,7 +82,7 @@ public sealed class SqliteBackupStateStore : IDisposable
             if (File.Exists(jsonPath) && !hasExistingSqlite)
                 MigrateJsonToNewSqlite(sqlitePath, originBaseDirPath, destBaseDirPath);
 
-            return new SqliteBackupStateStore(sqlitePath, originBaseDirPath, destBaseDirPath);
+            return new SqliteBackupStateStore(sqlitePath, originBaseDirPath, destBaseDirPath, !hasExistingSqlite);
         }
         catch
         {
@@ -108,7 +112,10 @@ public sealed class SqliteBackupStateStore : IDisposable
 
     public static IEnumerable<string> GetDatabaseFilePaths(string originBaseDirPath, string destBaseDirPath)
     {
-        foreach (var path in GetSqliteRelatedFilePaths(GetDatabasePath(originBaseDirPath, destBaseDirPath)))
+        var sqlitePath = GetDatabasePath(originBaseDirPath, destBaseDirPath);
+        foreach (var path in GetSqliteRelatedFilePaths(sqlitePath))
+            yield return path;
+        foreach (var path in GetSqliteRelatedFilePaths(sqlitePath + ".migrating"))
             yield return path;
     }
 
@@ -139,7 +146,7 @@ public sealed class SqliteBackupStateStore : IDisposable
         SqliteBackupStateStore? store = null;
         try
         {
-            store = new SqliteBackupStateStore(tempSqlitePath, originBaseDirPath, destBaseDirPath);
+            store = new SqliteBackupStateStore(tempSqlitePath, originBaseDirPath, destBaseDirPath, true);
             store.MigrateFromJson();
             store.Checkpoint();
             store.Dispose();
@@ -219,10 +226,78 @@ CREATE TABLE IF NOT EXISTS Files (
     private void EnsureMeta()
     {
         using var tx = _connection.BeginTransaction();
+        var meta = ReadMeta(tx);
+        ValidateIdentityMeta(meta, "OriginBaseDirPath", OriginBaseDirPath, !_isNewDatabase);
+        ValidateIdentityMeta(meta, "DestBaseDirPath", DestBaseDirPath, !_isNewDatabase);
+        ValidateSchemaVersion(meta, !_isNewDatabase);
         UpsertMetaInternal("OriginBaseDirPath", OriginBaseDirPath, tx);
         UpsertMetaInternal("DestBaseDirPath", DestBaseDirPath, tx);
         UpsertMetaInternal("SchemaVersion", SchemaVersion.ToString(), tx);
         tx.Commit();
+    }
+
+    private void ValidateExistingMetaBeforeSchemaChanges()
+    {
+        if (!TableExists("Meta"))
+            throw new InvalidOperationException("SQLiteストアのMetaテーブルが見つかりません。");
+
+        var meta = ReadMeta(null);
+        ValidateIdentityMeta(meta, "OriginBaseDirPath", OriginBaseDirPath, true);
+        ValidateIdentityMeta(meta, "DestBaseDirPath", DestBaseDirPath, true);
+        ValidateSchemaVersion(meta, true);
+    }
+
+    private bool TableExists(string tableName)
+    {
+        using var cmd = _connection.CreateCommand();
+        cmd.CommandText = "SELECT 1 FROM sqlite_master WHERE type='table' AND name=@name LIMIT 1";
+        cmd.Parameters.AddWithValue("@name", tableName);
+        return cmd.ExecuteScalar() != null;
+    }
+
+    private Dictionary<string, string?> ReadMeta(SqliteTransaction? tx)
+    {
+        using var cmd = _connection.CreateCommand();
+        cmd.Transaction = tx;
+        cmd.CommandText = "SELECT Key, Value FROM Meta";
+        using var reader = cmd.ExecuteReader();
+        var meta = new Dictionary<string, string?>();
+        while (reader.Read())
+            meta[reader.GetString(0)] = reader.IsDBNull(1) ? null : reader.GetString(1);
+        return meta;
+    }
+
+    private void ValidateIdentityMeta(IReadOnlyDictionary<string, string?> meta, string key, string expectedValue, bool requireExisting)
+    {
+        if (!meta.TryGetValue(key, out var actualValue))
+        {
+            if (requireExisting)
+                throw new InvalidOperationException($"SQLiteストアの{key}が記録されていません。");
+        }
+        else if (actualValue != expectedValue)
+        {
+            throw new InvalidOperationException(
+                $"SQLiteストアの{key}がバックアップペアと一致しません。 expected: '{expectedValue}', actual: '{actualValue}'");
+        }
+    }
+
+    private void ValidateSchemaVersion(IReadOnlyDictionary<string, string?> meta, bool requireExisting)
+    {
+        if (!meta.TryGetValue("SchemaVersion", out var schemaVersionText))
+        {
+            if (requireExisting)
+                throw new InvalidOperationException("SQLiteストアのSchemaVersionが記録されていません。");
+        }
+        else
+        {
+            if (!int.TryParse(schemaVersionText, out var currentSchemaVersion))
+                throw new InvalidOperationException($"SQLiteストアのSchemaVersionが不正です。 actual: '{schemaVersionText}'");
+            if (currentSchemaVersion < 1)
+                throw new InvalidOperationException($"SQLiteストアのSchemaVersionが不正です。 actual: {currentSchemaVersion}");
+            if (currentSchemaVersion > SchemaVersion)
+                throw new InvalidOperationException(
+                    $"SQLiteストアのSchemaVersionがこのアプリケーションより新しいため利用できません。 current: {SchemaVersion}, actual: {currentSchemaVersion}");
+        }
     }
 
     private void UpsertMetaInternal(string key, string value, SqliteTransaction tx)
@@ -439,7 +514,7 @@ DROP TABLE Files_Old;";
         }
     }
 
-    public IEnumerable<string> EnumerateDirectoryKeys()
+    public ICollection<string> EnumerateDirectoryKeys()
     {
         lock (_syncRoot)
         {
@@ -517,7 +592,7 @@ DROP TABLE Files_Old;";
         }
     }
 
-    public IEnumerable<string> EnumerateFileKeys()
+    public ICollection<string> EnumerateFileKeys()
     {
         lock (_syncRoot)
         {
@@ -640,7 +715,7 @@ DROP TABLE Files_Old;";
         }
     }
 
-    private IEnumerable<string> EnumerateKeys(string commandText)
+    private ICollection<string> EnumerateKeys(string commandText)
     {
         var keys = new List<string>();
         using var cmd = _connection.CreateCommand();
@@ -814,10 +889,26 @@ DROP TABLE Files_Old;";
             return;
 
         var tx = _writeTransaction;
-        _writeTransaction = null;
-        _writeOperationsSinceCommit = 0;
-        tx.Commit();
-        tx.Dispose();
+        try
+        {
+            tx.Commit();
+        }
+        catch
+        {
+            try
+            {
+                tx.Rollback();
+            }
+            catch { }
+
+            throw;
+        }
+        finally
+        {
+            _writeTransaction = null;
+            _writeOperationsSinceCommit = 0;
+            tx.Dispose();
+        }
     }
 
     private void DisposeCommands()
