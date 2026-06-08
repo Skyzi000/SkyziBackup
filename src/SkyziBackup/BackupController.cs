@@ -31,7 +31,6 @@ namespace SkyziBackup
 
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         private int _currentRetryCount;
-        private readonly Task<BackupDatabase>? _loadBackupDatabaseTask;
         private bool _disposedValue;
 
         public BackupController(string originDirectoryPath, string destDirectoryPath, string? password = null, BackupSettings? settings = null)
@@ -42,8 +41,6 @@ namespace SkyziBackup
             Results = new BackupResults(originDirectoryPath, destDirectoryPath);
             if (Settings.IsDefault)
                 Settings = new BackupSettings(Settings).ConvertToLocalSettings(OriginBaseDirPath, DestBaseDirPath);
-            if (Settings.IsUseDatabase)
-                _loadBackupDatabaseTask = LoadOrCreateDatabaseAsync();
             if (Settings.IsCancelable)
                 Cts = new CancellationTokenSource();
             if (!string.IsNullOrEmpty(password))
@@ -57,7 +54,7 @@ namespace SkyziBackup
             var saveTask = Settings.SaveAsync();
             if (Settings.IsUseDatabase)
             {
-                Database = await (_loadBackupDatabaseTask ?? LoadOrCreateDatabaseAsync());
+                Database = await LoadOrCreateDatabaseAsync();
             }
             else
                 Database = null;
@@ -85,18 +82,21 @@ namespace SkyziBackup
 
         private Task<BackupDatabase> LoadOrCreateDatabaseAsync()
         {
-            try
+            return Task.Run(() =>
             {
-                _sqliteStore = SqliteBackupStateStore.OpenOrMigrate(OriginBaseDirPath, DestBaseDirPath);
-                Logger.Info(Results.Message = $"SQLiteストアを利用: '{SqliteBackupStateStore.GetDatabasePath(OriginBaseDirPath, DestBaseDirPath)}'");
-                return Task.FromResult(_sqliteStore.ToBackupDatabase());
-            }
-            catch (Exception e)
-            {
-                Logger.Error(e, "SQLiteストアの初期化またはJSONからの移行に失敗");
-                _sqliteStore = null;
-                return Task.FromException<BackupDatabase>(e);
-            }
+                try
+                {
+                    _sqliteStore = SqliteBackupStateStore.OpenOrMigrate(OriginBaseDirPath, DestBaseDirPath);
+                    Logger.Info(Results.Message = $"SQLiteストアを利用: '{SqliteBackupStateStore.GetDatabasePath(OriginBaseDirPath, DestBaseDirPath)}'");
+                    return _sqliteStore.ToBackupDatabase();
+                }
+                catch (Exception e)
+                {
+                    Logger.Error(e, "SQLiteストアの初期化またはJSONからの移行に失敗");
+                    _sqliteStore = null;
+                    throw;
+                }
+            });
         }
 
         private void CleanUpDatabase()
@@ -650,7 +650,9 @@ namespace SkyziBackup
                         return false;
                     }
 
-                    Logger.Warn("データベースに更新日時が記録されていません。バックアップ先の更新日時を記録します。: '{0}'", destFileData.LastWriteTime = File.GetLastWriteTime(destFilePath));
+                    destFileData.LastWriteTime = File.GetLastWriteTime(destFilePath);
+                    Database.BackedUpFilesDict[originFilePath] = destFileData;
+                    Logger.Warn("データベースに更新日時が記録されていません。バックアップ先の更新日時を記録します。: '{0}'", destFileData.LastWriteTime);
                 }
 
                 if ((originFileInfo?.LastWriteTime ?? (originFileInfo = new FileInfo(originFilePath)).LastWriteTime) != destFileData.LastWriteTime)
@@ -1079,7 +1081,6 @@ namespace SkyziBackup
                 AesCryptor?.Dispose();
                 Database?.Dispose();
                 _sqliteStore?.Dispose();
-                _loadBackupDatabaseTask?.Dispose();
                 // Settingsは借り物なので勝手にDisposeしない
             }
 

@@ -67,9 +67,15 @@ namespace SkyziBackup
             }
             catch (Exception e)
             {
-                Logger.Error(e, "SQLiteストアの初期化またはJSONからの移行に失敗");
                 _sqliteStore = null;
-                throw;
+                if (createIfMissing)
+                {
+                    Logger.Error(e, "SQLiteストアの初期化またはJSONからの移行に失敗");
+                    throw;
+                }
+
+                Logger.Warn(e, "データベースから属性をリストアできません: SQLiteストアの初期化またはJSONからの移行に失敗");
+                return null;
             }
         }
 

@@ -49,10 +49,18 @@ public sealed class SqliteBackupStateStore : IDisposable
             Pooling = false,
         }.ToString();
         _connection = new SqliteConnection(connectionString);
-        _connection.Open();
-        InitPragmas();
-        InitSchema();
-        EnsureMeta();
+        try
+        {
+            _connection.Open();
+            InitPragmas();
+            InitSchema();
+            EnsureMeta();
+        }
+        catch
+        {
+            _connection.Dispose();
+            throw;
+        }
     }
 
     public static SqliteBackupStateStore OpenOrMigrate(string originBaseDirPath, string destBaseDirPath)
