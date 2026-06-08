@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using Microsoft.Data.Sqlite;
 using Skyzi000.Data;
 
@@ -13,8 +14,31 @@ namespace SkyziBackup.Data;
 public sealed class SqliteBackupStateStore : IDisposable
 {
     public const string FileName = "database.sqlite";
-    private const int SchemaVersion = 2;
+    private const int SchemaVersion = 1;
     private const int WriteBatchSize = 8192;
+    private static readonly ExpectedColumn[] MetaColumns =
+    {
+        new("Key", "TEXT", true, 1),
+        new("Value", "TEXT", false, 0),
+    };
+
+    private static readonly ExpectedColumn[] DirectoryColumns =
+    {
+        new("Path", "TEXT", true, 1),
+        new("CreationTimeUtc", "INTEGER", false, 0),
+        new("LastWriteTimeUtc", "INTEGER", false, 0),
+        new("FileAttributes", "INTEGER", false, 0),
+    };
+
+    private static readonly ExpectedColumn[] FileColumns =
+    {
+        new("Path", "TEXT", true, 1),
+        new("CreationTimeUtc", "INTEGER", false, 0),
+        new("LastWriteTimeUtc", "INTEGER", false, 0),
+        new("OriginSize", "INTEGER", true, 0),
+        new("FileAttributes", "INTEGER", false, 0),
+        new("Sha1", "TEXT", false, 0),
+    };
 
     private readonly string _dbPath;
     private readonly SqliteConnection _connection;
@@ -55,7 +79,7 @@ public sealed class SqliteBackupStateStore : IDisposable
         {
             _connection.Open();
             if (!_isNewDatabase)
-                ValidateExistingMetaBeforeSchemaChanges();
+                ValidateExistingDatabaseBeforeSchemaChanges();
             InitPragmas();
             InitSchema();
             EnsureMeta();
@@ -220,7 +244,6 @@ CREATE TABLE IF NOT EXISTS Files (
   Sha1 TEXT NULL
 ) WITHOUT ROWID;";
         cmd.ExecuteNonQuery();
-        RebuildRowIdTablesIfNeeded();
     }
 
     private void EnsureMeta()
@@ -236,10 +259,11 @@ CREATE TABLE IF NOT EXISTS Files (
         tx.Commit();
     }
 
-    private void ValidateExistingMetaBeforeSchemaChanges()
+    private void ValidateExistingDatabaseBeforeSchemaChanges()
     {
-        if (!TableExists("Meta"))
-            throw new InvalidOperationException("SQLiteストアのMetaテーブルが見つかりません。");
+        ValidateExistingTable("Meta", MetaColumns);
+        ValidateExistingTable("Directories", DirectoryColumns);
+        ValidateExistingTable("Files", FileColumns);
 
         var meta = ReadMeta(null);
         ValidateIdentityMeta(meta, "OriginBaseDirPath", OriginBaseDirPath, true);
@@ -247,12 +271,63 @@ CREATE TABLE IF NOT EXISTS Files (
         ValidateSchemaVersion(meta, true);
     }
 
-    private bool TableExists(string tableName)
+    private void ValidateExistingTable(string tableName, IReadOnlyList<ExpectedColumn> expectedColumns)
+    {
+        var sql = ReadTableSql(tableName);
+        if (sql == null)
+            throw new InvalidOperationException($"SQLiteストアの{tableName}テーブルが見つかりません。");
+        if (!sql.Contains("WITHOUT ROWID", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException($"SQLiteストアの{tableName}テーブルが現在のスキーマではありません。");
+
+        var actualColumns = ReadTableColumns(tableName);
+        if (actualColumns.Count != expectedColumns.Count)
+            throw new InvalidOperationException($"SQLiteストアの{tableName}テーブルが現在のスキーマではありません。");
+        for (var i = 0; i < expectedColumns.Count; i++)
+        {
+            if (!actualColumns[i].Equals(expectedColumns[i]))
+                throw new InvalidOperationException($"SQLiteストアの{tableName}テーブルが現在のスキーマではありません。");
+        }
+    }
+
+    private string? ReadTableSql(string tableName)
     {
         using var cmd = _connection.CreateCommand();
-        cmd.CommandText = "SELECT 1 FROM sqlite_master WHERE type='table' AND name=@name LIMIT 1";
+        cmd.CommandText = "SELECT sql FROM sqlite_master WHERE type='table' AND name=@name LIMIT 1";
         cmd.Parameters.AddWithValue("@name", tableName);
-        return cmd.ExecuteScalar() != null;
+        return cmd.ExecuteScalar() as string;
+    }
+
+    private List<ExpectedColumn> ReadTableColumns(string tableName)
+    {
+        using var cmd = _connection.CreateCommand();
+        cmd.CommandText = $"PRAGMA table_info({QuoteIdentifier(tableName)})";
+        using var reader = cmd.ExecuteReader();
+        var columns = new List<ExpectedColumn>();
+        while (reader.Read())
+        {
+            columns.Add(new ExpectedColumn(
+                reader.GetString(1),
+                reader.GetString(2),
+                reader.GetInt32(3) != 0,
+                reader.GetInt32(5)));
+        }
+
+        return columns;
+    }
+
+    private static string QuoteIdentifier(string identifier)
+    {
+        var builder = new StringBuilder(identifier.Length + 2);
+        builder.Append('"');
+        foreach (var ch in identifier)
+        {
+            if (ch == '"')
+                builder.Append('"');
+            builder.Append(ch);
+        }
+
+        builder.Append('"');
+        return builder.ToString();
     }
 
     private Dictionary<string, string?> ReadMeta(SqliteTransaction? tx)
@@ -321,90 +396,6 @@ CREATE TABLE IF NOT EXISTS Files (
     {
         using var cmd = _connection.CreateCommand();
         cmd.CommandText = "PRAGMA wal_checkpoint(TRUNCATE)";
-        cmd.ExecuteNonQuery();
-    }
-
-    private void RebuildRowIdTablesIfNeeded()
-    {
-        var rebuildMeta = NeedsWithoutRowIdRebuild("Meta");
-        var rebuildDirectories = NeedsWithoutRowIdRebuild("Directories");
-        var rebuildFiles = NeedsWithoutRowIdRebuild("Files");
-        if (!rebuildMeta && !rebuildDirectories && !rebuildFiles)
-            return;
-
-        using var tx = _connection.BeginTransaction();
-        if (rebuildMeta)
-            RebuildMetaTable(tx);
-        if (rebuildDirectories)
-            RebuildDirectoriesTable(tx);
-        if (rebuildFiles)
-            RebuildFilesTable(tx);
-        tx.Commit();
-    }
-
-    private bool NeedsWithoutRowIdRebuild(string tableName)
-    {
-        using var cmd = _connection.CreateCommand();
-        cmd.CommandText = "SELECT sql FROM sqlite_master WHERE type='table' AND name=@name";
-        cmd.Parameters.AddWithValue("@name", tableName);
-        return cmd.ExecuteScalar() is string sql &&
-               !sql.Contains("WITHOUT ROWID", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private void RebuildMetaTable(SqliteTransaction tx)
-    {
-        using var cmd = _connection.CreateCommand();
-        cmd.Transaction = tx;
-        cmd.CommandText = @"
-ALTER TABLE Meta RENAME TO Meta_Old;
-CREATE TABLE Meta (
-  Key TEXT PRIMARY KEY,
-  Value TEXT
-) WITHOUT ROWID;
-INSERT INTO Meta(Key, Value)
-SELECT Key, Value FROM Meta_Old
-WHERE Key IS NOT NULL;
-DROP TABLE Meta_Old;";
-        cmd.ExecuteNonQuery();
-    }
-
-    private void RebuildDirectoriesTable(SqliteTransaction tx)
-    {
-        using var cmd = _connection.CreateCommand();
-        cmd.Transaction = tx;
-        cmd.CommandText = @"
-ALTER TABLE Directories RENAME TO Directories_Old;
-CREATE TABLE Directories (
-  Path TEXT PRIMARY KEY,
-  CreationTimeUtc INTEGER NULL,
-  LastWriteTimeUtc INTEGER NULL,
-  FileAttributes INTEGER NULL
-) WITHOUT ROWID;
-INSERT INTO Directories(Path, CreationTimeUtc, LastWriteTimeUtc, FileAttributes)
-SELECT Path, CreationTimeUtc, LastWriteTimeUtc, FileAttributes FROM Directories_Old
-WHERE Path IS NOT NULL;
-DROP TABLE Directories_Old;";
-        cmd.ExecuteNonQuery();
-    }
-
-    private void RebuildFilesTable(SqliteTransaction tx)
-    {
-        using var cmd = _connection.CreateCommand();
-        cmd.Transaction = tx;
-        cmd.CommandText = @"
-ALTER TABLE Files RENAME TO Files_Old;
-CREATE TABLE Files (
-  Path TEXT PRIMARY KEY,
-  CreationTimeUtc INTEGER NULL,
-  LastWriteTimeUtc INTEGER NULL,
-  OriginSize INTEGER NOT NULL,
-  FileAttributes INTEGER NULL,
-  Sha1 TEXT NULL
-) WITHOUT ROWID;
-INSERT INTO Files(Path, CreationTimeUtc, LastWriteTimeUtc, OriginSize, FileAttributes, Sha1)
-SELECT Path, CreationTimeUtc, LastWriteTimeUtc, OriginSize, FileAttributes, Sha1 FROM Files_Old
-WHERE Path IS NOT NULL;
-DROP TABLE Files_Old;";
         cmd.ExecuteNonQuery();
     }
 
@@ -960,4 +951,6 @@ DROP TABLE Files_Old;";
             store.EndBulkWrite();
         }
     }
+
+    private readonly record struct ExpectedColumn(string Name, string Type, bool IsNotNull, int PrimaryKeyOrdinal);
 }
