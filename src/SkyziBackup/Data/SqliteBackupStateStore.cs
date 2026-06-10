@@ -404,6 +404,8 @@ CREATE TABLE IF NOT EXISTS Files (
         var legacy = DataFileWriter.Read<BackupDatabase>(BackupDatabase.GetDatabaseFileName(OriginBaseDirPath, DestBaseDirPath));
         if (legacy == null)
             return; // 読めなかった場合は空DB扱い
+        if (legacy.OriginBaseDirPath != OriginBaseDirPath || legacy.DestBaseDirPath != DestBaseDirPath)
+            return; // 現在のバックアップペアと一致しない旧JSONは空DB扱い
         ReplaceState(legacy.BackedUpDirectoriesDict, legacy.BackedUpFilesDict);
     }
 
