@@ -79,7 +79,7 @@ namespace SkyziBackup
 
             Message.Text = $"'{originPath.Text.Trim()}' => '{destPath.Text.Trim()}'";
             Message.Text += $"\nリストア開始: {DateTime.Now}\n";
-            var restore = new RestoreController(originPath.Text.Trim(),
+            using var restore = new RestoreController(originPath.Text.Trim(),
                 destPath.Text.Trim(),
                 password.Password,
                 settings,

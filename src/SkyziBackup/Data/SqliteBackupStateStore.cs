@@ -701,10 +701,16 @@ CREATE TABLE IF NOT EXISTS Files (
             if (_disposed)
                 return;
             _disposed = true;
-            CommitWriteTransaction();
-            _bulkWriteDepth = 0;
-            DisposeCommands();
-            _connection.Dispose();
+            try
+            {
+                CommitWriteTransaction();
+                _bulkWriteDepth = 0;
+            }
+            finally
+            {
+                DisposeCommands();
+                _connection.Dispose();
+            }
         }
     }
 

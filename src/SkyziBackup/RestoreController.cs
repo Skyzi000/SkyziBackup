@@ -12,7 +12,7 @@ using static Skyzi000.IO.FileSystem;
 
 namespace SkyziBackup
 {
-    public class RestoreController
+    public class RestoreController : IDisposable
     {
         public BackupResults Results { get; } = new(false);
         public CompressiveAesCryptor? AesCryptor { get; set; }
@@ -25,6 +25,7 @@ namespace SkyziBackup
         private readonly bool _isCopyOnlyFileAttributes;
         private readonly bool _isEnableWriteDatabase;
         private SqliteBackupStateStore? _sqliteStore;
+        private bool _disposedValue;
 
         public RestoreController(string sourceDirPath,
             string destDirPath,
@@ -83,6 +84,8 @@ namespace SkyziBackup
         {
             if (Results.IsFinished)
                 throw new NotImplementedException("現在、このクラスのインスタンスは再利用されることを想定していません。");
+            if (_disposedValue)
+                throw new ObjectDisposedException(GetType().FullName);
             Logger.Info("バックアップ設定:\n{0}", Settings);
             Logger.Info(@"リストア設定:
 データベースからファイル属性をリストアする: {0}
@@ -526,9 +529,9 @@ namespace SkyziBackup
                     var destDirPath = originDirPath.Replace(sourceBaseDirPath, destBaseDirPath);
                     try
                     {
-                        if (originDirInfo!.CreationTime != backedUpDirectoriesDict[originDirPath].CreationTime)
+                        if (originDirInfo!.CreationTime != data.CreationTime)
                             (destDirInfo = Directory.CreateDirectory(destDirPath)).CreationTime = originDirInfo.CreationTime;
-                        if (originDirInfo.LastWriteTime != backedUpDirectoriesDict[originDirPath].LastWriteTime)
+                        if (originDirInfo.LastWriteTime != data.LastWriteTime)
                             (destDirInfo ??= Directory.CreateDirectory(destDirPath)).LastWriteTime = originDirInfo.LastWriteTime;
                     }
                     catch (UnauthorizedAccessException)
@@ -536,7 +539,7 @@ namespace SkyziBackup
                         Logger.Warn($"'{destDirPath}'のCreationTime/LastWriteTimeを変更できません");
                     }
 
-                    if (originDirInfo!.Attributes != backedUpDirectoriesDict[originDirPath].FileAttributes)
+                    if (originDirInfo!.Attributes != data.FileAttributes)
                         (destDirInfo ?? Directory.CreateDirectory(destDirPath)).Attributes = originDirInfo.Attributes;
                 }
 
@@ -562,13 +565,62 @@ namespace SkyziBackup
 
         private void Results_Finished(object? sender, EventArgs args)
         {
-            if (_isEnableWriteDatabase)
-                _sqliteStore?.Flush();
+            DisposeSqliteStore(_isEnableWriteDatabase);
 
             Results.Message = (Results.IsSuccess ? "リストア完了: " : Results.Message + "\nリストア失敗: ") + DateTime.Now;
             Logger.Info("{0}\n=============================\n\n", Results.IsSuccess ? "リストア完了" : "リストア失敗");
-            _sqliteStore?.Dispose();
-            _sqliteStore = null;
+        }
+
+        private void DisposeSqliteStore(bool flush)
+        {
+            var sqliteStore = _sqliteStore;
+            if (sqliteStore == null)
+                return;
+
+            try
+            {
+                if (flush)
+                    sqliteStore.Flush();
+            }
+            finally
+            {
+                _sqliteStore = null;
+                sqliteStore.Dispose();
+            }
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (_disposedValue)
+                return;
+            try
+            {
+                if (disposing)
+                {
+                    Results.Finished -= Results_Finished;
+                    try
+                    {
+                        DisposeSqliteStore(_isEnableWriteDatabase);
+                    }
+                    finally
+                    {
+                        AesCryptor?.Dispose();
+                        Database?.Dispose();
+                        // Settingsは借り物なので勝手にDisposeしない
+                    }
+                }
+            }
+            finally
+            {
+                _disposedValue = true;
+            }
+        }
+
+        public void Dispose()
+        {
+            // このコードを変更しないでください。クリーンアップ コードを 'Dispose(bool disposing)' メソッドに記述します
+            Dispose(true);
+            GC.SuppressFinalize(this);
         }
     }
 }
