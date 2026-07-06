@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Text.Json;
 using Microsoft.Data.Sqlite;
 using NLog;
 using Skyzi000.Data;
@@ -16,9 +17,13 @@ public sealed class SqliteBackupStateStore : IDisposable
 {
     public const string FileName = "database.sqlite";
     private const string CorruptFileSuffix = ".corrupt";
+    private const string LegacyJsonMigratedSuffix = ".migrated";
+    private const string MigratingTempSuffix = ".migrating";
     private const string WalFileSuffix = "-wal";
     private const string ShmFileSuffix = "-shm";
     private const int SchemaVersion = 1;
+    private const string FullScanPendingMetaKey = "FullScanPending";
+    private const string BackupCompletedMetaKey = "BackupCompleted";
     private const int WriteBatchSize = 8192;
     private const int CommitIntervalMilliseconds = 30_000;
     private const int SqliteCorruptErrorCode = 11; // SQLITE_CORRUPT
@@ -111,7 +116,9 @@ public sealed class SqliteBackupStateStore : IDisposable
         {
             try
             {
-                return new SqliteBackupStateStore(sqlitePath, originBaseDirPath, destBaseDirPath, false);
+                var store = new SqliteBackupStateStore(sqlitePath, originBaseDirPath, destBaseDirPath, false);
+                TryDeleteLegacyJson(jsonPath); // 移行済みなので、化石として残っている旧JSONがあれば掃除する
+                return store;
             }
             catch (Exception e) when (IsPermanentlyUnusable(e))
             {
@@ -119,21 +126,130 @@ public sealed class SqliteBackupStateStore : IDisposable
                 // 一時的なエラー(ロック・アクセス権など)はそのまま伝播させ、呼び出し元のインメモリフォールバックに任せる。
                 Logger.Warn(e, "既存のSQLiteストアを開けないため作り直します: '{0}'", sqlitePath);
                 QuarantineBrokenDatabase(sqlitePath);
-                var recreated = CreateNew(jsonPath, sqlitePath, originBaseDirPath, destBaseDirPath);
-                recreated.WasRecreatedAfterQuarantine = true;
+                // 旧JSONは最初のSQLite移行時点の状態のまま更新されない化石なので、ここでは取り込まない。
+                // 古い行を移行すると、スキップ判定・属性解除・削除同期などがそれを信頼して実態とずれるため、
+                // 空のDBから始めて実ファイル基準(NeedsFullScanのフォールバック)で再構築させる。
+                var recreated = CreateNew(null, sqlitePath, originBaseDirPath, destBaseDirPath);
+                TryDeleteLegacyJson(jsonPath);
                 return recreated;
             }
         }
 
-        return CreateNew(jsonPath, sqlitePath, originBaseDirPath, destBaseDirPath);
+        var created = CreateNew(jsonPath, sqlitePath, originBaseDirPath, destBaseDirPath);
+        TryDeleteLegacyJson(jsonPath); // 新しいストアに移行し終えた時点で旧JSONは不要になる
+        return created;
     }
 
     /// <summary>
-    /// 既存のSQLiteストアを退避して作り直した直後かどうか。
-    /// trueの場合、以前のDB状態(空か、古いJSON由来の状態)が失われているため、
-    /// 削除同期のようにDBの記録を実態の情報源として使う処理は、この回に限りDBを信頼してはならない。
+    /// 移行完了後は不要になった旧JSONデータベース(と関連ファイル)を削除する。
+    /// 残しておくと、SQLite側だけが消えた場合に初回移行として古い状態が取り込まれ、実態とずれた内容が信頼されてしまう。
+    /// 削除失敗は警告に留めて次回成功時の掃除に任せる(本体が残っている間は<see cref="LegacyJsonMigratedSuffix" />が再移行を防ぐ)。
     /// </summary>
-    public bool WasRecreatedAfterQuarantine { get; private set; }
+    private static void TryDeleteLegacyJson(string jsonPath)
+    {
+        try
+        {
+            // 削除に失敗しても化石として再移行されないよう、先に移行済みマークを補填してから消す
+            // (初回移行のクラッシュ等で未マークのまま残った旧JSONにもここで印が付く)
+            if (File.Exists(jsonPath) && !File.Exists(jsonPath + LegacyJsonMigratedSuffix))
+                TryMarkLegacyJsonMigrated(jsonPath);
+            DeleteEvenIfReadonly(jsonPath);
+            DeleteEvenIfReadonly(jsonPath + DataFileWriter.BackupFileExtension);
+            DeleteEvenIfReadonly(jsonPath + DataFileWriter.TempFileExtension);
+            // 移行済みマークは本体側の削除がすべて成功した後にだけ消す(本体が残っているのに先に消すと再移行されてしまう)
+            DeleteEvenIfReadonly(jsonPath + LegacyJsonMigratedSuffix);
+        }
+        catch (Exception e)
+        {
+            Logger.Warn(e, "旧JSONデータベースの削除に失敗: '{0}'", jsonPath);
+        }
+    }
+
+    private static void DeleteEvenIfReadonly(string path)
+    {
+        if (!File.Exists(path))
+            return;
+        File.SetAttributes(path, FileAttributes.Normal);
+        File.Delete(path);
+    }
+
+    /// <summary>
+    /// 旧JSONを取り込んだ直後に「移行済み」マークを残す。旧JSONの削除に失敗したまま
+    /// SQLite側だけが消えた場合でも、次の新規作成でstaleなJSONを再移行して信頼しないための印。
+    /// 移行の確定(DB配置)前に必ず成功していること: マーク無しで配置を確定すると、旧JSONの削除失敗と
+    /// 組み合わさって未マークのstale JSONが残り、後で再移行されてしまう。
+    /// </summary>
+    private static void MarkLegacyJsonMigrated(string jsonPath) =>
+        File.WriteAllBytes(jsonPath + LegacyJsonMigratedSuffix, Array.Empty<byte>());
+
+    private static void TryMarkLegacyJsonMigrated(string jsonPath)
+    {
+        try
+        {
+            MarkLegacyJsonMigrated(jsonPath);
+        }
+        catch (Exception e)
+        {
+            Logger.Warn(e, "旧JSONデータベースの移行済みマークの作成に失敗: '{0}'", jsonPath);
+        }
+    }
+
+    /// <summary>
+    /// DBがバックアップ先の実態を網羅している保証がない状態かどうか
+    /// (空で作成されてから、実走査の削除同期を含むバックアップがまだ完走していない)。
+    /// trueの間、削除同期のようにDBの記録を「存在の情報源」として使う処理はDBを信頼せず実ファイルを参照すること。
+    /// Metaテーブルに永続化されるためプロセスを跨いで有効で、バックアップ成功時に
+    /// <see cref="MarkFullScanCompleted" />で解除される。
+    /// </summary>
+    public bool NeedsFullScan { get; private set; }
+
+    /// <summary>
+    /// このDBが作成(再作成)されてから、バックアップが少なくとも一度完走した記録を持つかどうか。
+    /// falseの間はスキップ判定の書き戻しが行き渡っておらず記録に欠落があり得るため、
+    /// 属性リストアのようにDBの行を「内容の情報源」として列挙する処理はDBを使わないこと。
+    /// <see cref="NeedsFullScan" />と違い削除同期の設定に依存せず、どのバックアップでも完走すれば立つ。
+    /// </summary>
+    public bool HasCompletedBackup { get; private set; }
+
+    /// <summary>
+    /// このDBを削除同期の情報源として信頼してよい状態に戻ったと記録する(実走査の削除同期を含むバックアップの完走時に呼ぶ)。
+    /// </summary>
+    internal void MarkFullScanCompleted() => SetFullScanPending(false);
+
+    /// <summary>
+    /// このDBが作成されてからバックアップが一度完走したと記録する(削除同期の設定に関わらず、バックアップ成功時に呼ぶ)。
+    /// </summary>
+    internal void MarkBackupCompleted()
+    {
+        lock (_syncRoot)
+        {
+            ThrowIfDisposed();
+            WriteMetaValue(BackupCompletedMetaKey, "1");
+            HasCompletedBackup = true;
+        }
+    }
+
+    private void SetFullScanPending(bool pending)
+    {
+        lock (_syncRoot)
+        {
+            ThrowIfDisposed();
+            WriteMetaValue(FullScanPendingMetaKey, pending ? "1" : "0");
+            NeedsFullScan = pending;
+        }
+    }
+
+    private void WriteMetaValue(string key, string value)
+    {
+        BeginWriteIfNeeded();
+        using var cmd = _connection.CreateCommand();
+        cmd.Transaction = _writeTransaction;
+        cmd.CommandText = "INSERT INTO Meta(Key,Value) VALUES(@k,@v) ON CONFLICT(Key) DO UPDATE SET Value=excluded.Value";
+        cmd.Parameters.AddWithValue("@k", key);
+        cmd.Parameters.AddWithValue("@v", value);
+        cmd.ExecuteNonQuery();
+        RecordWrite();
+    }
 
     /// <summary>
     /// 既存のSQLiteストアを破棄して作り直してよい、「このアプリにとって恒久的に利用できない」例外かどうかを判定する。
@@ -145,6 +261,18 @@ public sealed class SqliteBackupStateStore : IDisposable
     {
         SqliteException sqliteException => sqliteException.SqliteErrorCode is SqliteCorruptErrorCode or SqliteNotADbErrorCode,
         SqliteStoreValidationException => true,
+        _ => false,
+    };
+
+    /// <summary>
+    /// 旧JSONの読み込み失敗が「内容の破損(デシリアライズ失敗)」によるものかどうか。
+    /// ロックやアクセス権などの一時的なIOエラーは対象外(再試行すれば読める可能性があり、破棄してはいけない)。
+    /// <see cref="DataFileWriter.Read{T}" />は同期ラッパーのため<see cref="AggregateException" />に包まれて届くことがある。
+    /// </summary>
+    private static bool IsDeserializationFailure(Exception e) => e switch
+    {
+        JsonException => true,
+        AggregateException { InnerExceptions.Count: 1 } aggregate => IsDeserializationFailure(aggregate.InnerExceptions[0]),
         _ => false,
     };
 
@@ -167,12 +295,20 @@ public sealed class SqliteBackupStateStore : IDisposable
         }
     }
 
-    private static SqliteBackupStateStore CreateNew(string jsonPath, string sqlitePath, string originBaseDirPath, string destBaseDirPath)
+    /// <param name="jsonPath">移行元の旧JSONのパス。nullなら移行せず空のDBを作る(隔離再作成時)</param>
+    private static SqliteBackupStateStore CreateNew(string? jsonPath, string sqlitePath, string originBaseDirPath, string destBaseDirPath)
     {
         DeleteSqliteRelatedFiles(sqlitePath);
+        // 移行済みマークで移行をスキップする場合でも、過去の移行中断で残った一時DBは掃除する
+        DeleteSqliteRelatedFiles(sqlitePath + MigratingTempSuffix);
         try
         {
-            if (File.Exists(jsonPath))
+            // ファイルが存在しても読めない・ペア不一致で取り込めない場合があるため、実際に取り込むかは
+            // MigrateJsonToNewSqlite側の判定に任せる。移行済みマークが残っているJSONは、移行後に削除だけ
+            // 失敗した化石なので取り込まない。
+            // FullScanPendingマーカーは作成時にEnsureMetaが刻み、取り込み成功時だけReplaceStateが解除するため、
+            // ここでの分岐は不要(空のDBは常にマーカー付きで生まれる)
+            if (jsonPath != null && File.Exists(jsonPath) && !File.Exists(jsonPath + LegacyJsonMigratedSuffix))
                 MigrateJsonToNewSqlite(sqlitePath, originBaseDirPath, destBaseDirPath);
 
             return new SqliteBackupStateStore(sqlitePath, originBaseDirPath, destBaseDirPath, true);
@@ -229,25 +365,35 @@ public sealed class SqliteBackupStateStore : IDisposable
             File.Delete(path);
     }
 
-    private static void MigrateJsonToNewSqlite(string sqlitePath, string originBaseDirPath, string destBaseDirPath)
+    /// <returns>旧JSONから実際に状態を取り込めたら true</returns>
+    private static bool MigrateJsonToNewSqlite(string sqlitePath, string originBaseDirPath, string destBaseDirPath)
     {
-        var tempSqlitePath = sqlitePath + ".migrating";
+        var tempSqlitePath = sqlitePath + MigratingTempSuffix;
         DeleteSqliteRelatedFiles(tempSqlitePath);
 
         SqliteBackupStateStore? store = null;
         try
         {
             store = new SqliteBackupStateStore(tempSqlitePath, originBaseDirPath, destBaseDirPath, true);
-            store.MigrateFromJson();
+            var imported = store.MigrateFromJson();
             store.Checkpoint();
             store.Dispose();
             store = null;
+            // 取り込めた場合、DBを配置する前に移行済みマークを残す。配置後にマークすると、その間のクラッシュで
+            // 「未マークの旧JSON+SQLite」が残り、後でSQLiteだけが消えたときに古いJSONが再移行されてしまう
+            // (先にマークして配置前に落ちた場合は、次回は取り込まずに空DB+実走査の再構築になるだけで安全)。
+            // マークの作成に失敗した場合は例外で移行ごと中止する(警告で続行するとマーク無しの配置が確定し、
+            // 旧JSONの削除にも失敗した場合に未マークのstale JSONが残って再移行されてしまう)
+            if (imported)
+                MarkLegacyJsonMigrated(BackupDatabase.GetDatabasePath(originBaseDirPath, destBaseDirPath));
             File.Move(tempSqlitePath, sqlitePath, false);
             try
             {
                 DeleteSqliteRelatedFiles(tempSqlitePath);
             }
             catch { }
+
+            return imported;
         }
         catch
         {
@@ -323,7 +469,31 @@ CREATE TABLE IF NOT EXISTS Files (
         UpsertMetaInternal("OriginBaseDirPath", OriginBaseDirPath, tx);
         UpsertMetaInternal("DestBaseDirPath", DestBaseDirPath, tx);
         UpsertMetaInternal("SchemaVersion", SchemaVersion.ToString(), tx);
+        var fullScanPending = meta.TryGetValue(FullScanPendingMetaKey, out var fullScanPendingValue) && fullScanPendingValue == "1";
+        if (_isNewDatabase && !meta.ContainsKey(FullScanPendingMetaKey))
+        {
+            // 新しく作られる空のDBには、作成の印(ペア情報)と同じトランザクションでFullScanPendingを刻む。
+            // 作成後の別書き込みでマーカーを立てると、その間の電源断で「マーカーの無い空DB」が信頼できるDBとして
+            // 残り得るため、DBファイルが存在する時点でマーカーも必ず存在するようにする
+            // (旧JSONからの移行では、取り込み成功時にReplaceStateが同一トランザクションで解除する)
+            UpsertMetaInternal(FullScanPendingMetaKey, "1", tx);
+            fullScanPending = true;
+        }
+
+        // キーの無い既存DBはこの記録より前のビルドが作ったものなので、従来どおり完走済み扱いにする
+        var backupCompleted = meta.TryGetValue(BackupCompletedMetaKey, out var backupCompletedValue)
+            ? backupCompletedValue == "1"
+            : !_isNewDatabase;
+        if (_isNewDatabase && !meta.ContainsKey(BackupCompletedMetaKey))
+        {
+            // 空で作られたDBは「完走したバックアップの記録を持たない」状態から始める(移行の取り込みはReplaceStateで完走済みにする)
+            UpsertMetaInternal(BackupCompletedMetaKey, "0", tx);
+            backupCompleted = false;
+        }
+
         tx.Commit();
+        NeedsFullScan = fullScanPending;
+        HasCompletedBackup = backupCompleted;
     }
 
     private void ValidateExistingDatabaseBeforeSchemaChanges()
@@ -499,14 +669,54 @@ CREATE TABLE IF NOT EXISTS Files (
         cmd.ExecuteNonQuery();
     }
 
-    private void MigrateFromJson()
+    /// <returns>旧JSONから実際に状態を取り込めたら true</returns>
+    private bool MigrateFromJson()
     {
-        var legacy = DataFileWriter.Read<BackupDatabase>(BackupDatabase.GetDatabaseFileName(OriginBaseDirPath, DestBaseDirPath));
+        BackupDatabase? legacy;
+        try
+        {
+            legacy = ReadLegacyJson();
+        }
+        catch (Exception e) when (IsDeserializationFailure(e))
+        {
+            // 内容が破損していて.bacでも救えない場合。読めない旧JSONを理由にストア作成ごと失敗させると、
+            // 壊れたJSONが残る限りSQLite運用へ永久に進めなくなるため、空DB扱いにして実走査の再構築へ進める。
+            // ロックやアクセス権などの一時的なIOエラーはここに届かず伝播する
+            // (空DB扱いにすると直後の掃除でまだ有効な旧JSONを失うため、今回はDBなしで実行し、次回の移行に持ち越す)
+            Logger.Warn(e, "旧JSONデータベースを読み込めないため取り込まずに再構築します");
+            return false;
+        }
+
         if (legacy == null)
-            return; // 読めなかった場合は空DB扱い
+            return false; // 読めなかった場合は空DB扱い
         if (legacy.OriginBaseDirPath != OriginBaseDirPath || legacy.DestBaseDirPath != DestBaseDirPath)
-            return; // 現在のバックアップペアと一致しない旧JSONは空DB扱い
-        ReplaceState(legacy.BackedUpDirectoriesDict, legacy.BackedUpFilesDict);
+            return false; // 現在のバックアップペアと一致しない旧JSONは空DB扱い
+        // 取り込みに成功したDBは移行元JSON(=完走済みバックアップの記録)と同等に信頼できるため、
+        // 行の投入と同一トランザクションで作成時のFullScanPendingを解除し、BackupCompletedを付与する
+        ReplaceState(legacy.BackedUpDirectoriesDict, legacy.BackedUpFilesDict, asTrustedSnapshot: true);
+        return true;
+    }
+
+    /// <summary>
+    /// 移行用に旧JSONを読む。本体の内容が破損している場合のみバックアップ(.bac)へフォールバックする。
+    /// ロック等の一時的なIOエラーでは.bacに乗り換えない: 1世代古い.bacを取り込んで確定すると、
+    /// ロック解除後も有効な本体が二度と移行されず、マーカーも立たないまま実態とずれた記録を信頼してしまうため。
+    /// </summary>
+    private BackupDatabase? ReadLegacyJson()
+    {
+        var fileName = BackupDatabase.GetDatabaseFileName(OriginBaseDirPath, DestBaseDirPath);
+        try
+        {
+            return DataFileWriter.ReadWithoutBackupFallback<BackupDatabase>(fileName);
+        }
+        catch (Exception e) when (IsDeserializationFailure(e))
+        {
+            var bacFileName = fileName + DataFileWriter.BackupFileExtension;
+            if (!File.Exists(DataFileWriter.GetPath(bacFileName)))
+                throw;
+            Logger.Warn(e, "旧JSONデータベース本体が破損しているため、バックアップ(.bac)から移行を試みます");
+            return DataFileWriter.ReadWithoutBackupFallback<BackupDatabase>(bacFileName);
+        }
     }
 
     internal IDisposable BeginBulkWrite()
@@ -529,8 +739,13 @@ CREATE TABLE IF NOT EXISTS Files (
         }
     }
 
+    /// <param name="asTrustedSnapshot">
+    /// 取り込む状態を「完走済みバックアップの記録」として信頼し、FullScanPendingの解除と
+    /// BackupCompletedの付与を行の投入と同一トランザクションで行う(旧JSONからの移行用)
+    /// </param>
     internal void ReplaceState(IEnumerable<KeyValuePair<string, BackedUpDirectoryData>> directories,
-        IEnumerable<KeyValuePair<string, BackedUpFileData>> files)
+        IEnumerable<KeyValuePair<string, BackedUpFileData>> files,
+        bool asTrustedSnapshot = false)
     {
         lock (_syncRoot)
         {
@@ -562,7 +777,19 @@ CREATE TABLE IF NOT EXISTS Files (
                 upsertFileCommand.ExecuteNonQuery();
             }
 
+            // 取り込んだ状態と同一トランザクションで確定し、「状態はあるのにマーカーが残る/消える」順序の隙間を作らない
+            if (asTrustedSnapshot)
+            {
+                UpsertMetaInternal(FullScanPendingMetaKey, "0", tx);
+                UpsertMetaInternal(BackupCompletedMetaKey, "1", tx);
+            }
+
             tx.Commit();
+            if (asTrustedSnapshot)
+            {
+                NeedsFullScan = false;
+                HasCompletedBackup = true;
+            }
         }
     }
 

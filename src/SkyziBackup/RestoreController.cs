@@ -45,9 +45,11 @@ namespace SkyziBackup
                 Database = LoadOrCreateDatabase(_isEnableWriteDatabase);
             if (isCopyAttributesOnDatabase && Database == null)
                 Logger.Warn("データベースから属性をリストアできません: データベースが見つからないか読み込めません。");
-            else if (isCopyAttributesOnDatabase && _sqliteStore?.WasRecreatedAfterQuarantine == true)
-                Logger.Warn("以前のデータベース状態が失われているため、データベースからの属性リストアは不完全な可能性があります。");
-            _isRestoreAttributesFromDatabase = isCopyAttributesOnDatabase && Database != null;
+            else if (isCopyAttributesOnDatabase && _sqliteStore is { HasCompletedBackup: false })
+                Logger.Warn("データベースの作成後にバックアップがまだ完走していないため、データベースからの属性リストアは行わず、実ファイルの属性を参照します。");
+            // 作成(再作成)後にバックアップが一度も完走していないDBは記録の欠落があり得るため、DBを属性の情報源にしない。
+            // 一度完走していれば、削除同期の実走査(NeedsFullScan)が残っていてもスキップ判定の書き戻しで行は網羅されているため利用してよい
+            _isRestoreAttributesFromDatabase = isCopyAttributesOnDatabase && Database != null && _sqliteStore is not { HasCompletedBackup: false };
 
             if (!string.IsNullOrEmpty(password))
                 AesCryptor = new CompressiveAesCryptor(password, compressionLevel: Settings.CompressionLevel, compressAlgorithm: Settings.CompressAlgorithm);
@@ -132,11 +134,14 @@ namespace SkyziBackup
             }
             else
             {
+                // DBの行はデータベース属性リストアの情報源としてだけ渡す。属性リストアにDBを使わない場合に渡すと、
+                // 書き込み有効リストアが復元元パスをキーに書いた行と実属性が一致するディレクトリで
+                // CopyDirectoryがCreateDirectoryを省略し、空の復元先にディレクトリが作られないまま後続のファイル復元が失敗する
                 CopyDirectoryStructure(_sourceBaseDirPath,
                     _destBaseDirPath,
                     Results,
                     Settings.IsCopyAttributes,
-                    Database?.BackedUpDirectoriesDict,
+                    _isRestoreAttributesFromDatabase ? Database?.BackedUpDirectoriesDict : null,
                     isRestoreAttributesFromDatabase: _isRestoreAttributesFromDatabase);
             }
 

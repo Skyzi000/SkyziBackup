@@ -31,6 +31,7 @@ namespace SkyziBackup
 
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         private int _currentRetryCount;
+        private bool _hadDeletionError;
         private bool _disposedValue;
 
         public BackupController(string originDirectoryPath, string destDirectoryPath, string? password = null, BackupSettings? settings = null)
@@ -239,6 +240,14 @@ namespace SkyziBackup
 
             if (Database is not null)
             {
+                // 実走査での削除同期を含むバックアップが完走したら、DBがバックアップ先を網羅した状態に戻ったとみなす。
+                // 削除に失敗したエントリが残っている間は解除しない(DBキー方式に戻るとそれらを再走査しなくなるため)
+                if (Results.IsSuccess && Settings.IsEnableDeletion && !_hadDeletionError && _sqliteStore?.NeedsFullScan == true)
+                    _sqliteStore.MarkFullScanCompleted();
+                // 属性リストアがDBを情報源にできるかは「作成後に一度でも完走したか」で決まるため、
+                // 削除同期の設定(FullScanPendingの解除条件)に関わらず完走を記録する
+                if (Results.IsSuccess && _sqliteStore is { HasCompletedBackup: false })
+                    _sqliteStore.MarkBackupCompleted();
                 await SaveDatabaseAsync();
                 CleanUpDatabase();
             }
@@ -252,8 +261,9 @@ namespace SkyziBackup
 
         private void DeleteDirectories()
         {
-            // 自己修復でDBを作り直した回は以前の記録が失われているため、DBキーではなくバックアップ先の実走査で削除同期する
-            if (Settings.IsUseDatabase && Database != null && _sqliteStore?.WasRecreatedAfterQuarantine != true)
+            // DBがバックアップ先を網羅している保証がない回(空で作成後、実走査の削除同期がまだ完走していない)は、
+            // DBキーではなくバックアップ先の実走査で削除同期する
+            if (Settings.IsUseDatabase && Database != null && _sqliteStore?.NeedsFullScan != true)
             {
                 foreach (var originDirPath in Database.BackedUpDirectoriesDict.Keys)
                 {
@@ -274,16 +284,22 @@ namespace SkyziBackup
                     }
                     catch (Exception e)
                     {
+                        _hadDeletionError = true;
                         Logger.Error(e, Results.Message = $"'{destDirPath}'の削除に失敗");
                     }
                 }
             }
             else // データベースを使わない
             {
-                foreach (var destDirPath in Settings.SymbolicLink is SymbolicLinkHandling.IgnoreOnlyDirectories or SymbolicLinkHandling.IgnoreAll
-                             ? EnumerateAllDirectoriesIgnoringReparsePoints(DestBaseDirPath, Settings.Regexes)
-                             : EnumerateAllDirectories(DestBaseDirPath, Settings.Regexes))
+                // 列挙は親が先に来るため、そのまま親を再帰削除すると配下が列挙されず、配下のDB行の除去が漏れる。
+                // 削除対象を確定してから深い方(子)から順に処理し、削除したディレクトリごとにDB行も除去する
+                var destDirPaths = (Settings.SymbolicLink is SymbolicLinkHandling.IgnoreOnlyDirectories or SymbolicLinkHandling.IgnoreAll
+                    ? EnumerateAllDirectoriesIgnoringReparsePoints(DestBaseDirPath, Settings.Regexes,
+                        onEnumerationError: OnDeletionEnumerationError)
+                    : EnumerateAllDirectories(DestBaseDirPath, Settings.Regexes, onEnumerationError: OnDeletionEnumerationError)).ToList();
+                for (var i = destDirPaths.Count - 1; i >= 0; i--)
                 {
+                    var destDirPath = destDirPaths[i];
                     var originDirPath = destDirPath.Replace(DestBaseDirPath, OriginBaseDirPath);
                     if (Results.SuccessfulDirectories.Contains(originDirPath) || Results.FailedDirectories.Contains(originDirPath))
                         continue;
@@ -291,14 +307,23 @@ namespace SkyziBackup
                     {
                         DeleteDirectory(destDirPath);
                         Results.DeletedDirectories?.Add(originDirPath);
+                        Database?.BackedUpDirectoriesDict.Remove(originDirPath);
                     }
                     catch (Exception e)
                     {
+                        _hadDeletionError = true;
                         Logger.Error(e, Results.Message = $"'{destDirPath}'の削除に失敗");
                     }
                 }
             }
         }
+
+        /// <summary>
+        /// 削除同期の実走査でバックアップ先の一部を列挙できなかった場合に呼ばれる。
+        /// 列挙できなかった配下は削除同期を確認できていないため、実走査を完走扱いにしない
+        /// (FullScanPendingマーカーを解除させず、次回も実走査を継続させる)。
+        /// </summary>
+        private void OnDeletionEnumerationError(Exception e) => _hadDeletionError = true;
 
         private void DeleteDirectory(string directoryPath)
         {
@@ -350,8 +375,9 @@ namespace SkyziBackup
 
         private void DeleteFiles()
         {
-            // 自己修復でDBを作り直した回は以前の記録が失われているため、DBキーではなくバックアップ先の実走査で削除同期する
-            if (Settings.IsUseDatabase && Database != null && _sqliteStore?.WasRecreatedAfterQuarantine != true)
+            // DBがバックアップ先を網羅している保証がない回(空で作成後、実走査の削除同期がまだ完走していない)は、
+            // DBキーではなくバックアップ先の実走査で削除同期する
+            if (Settings.IsUseDatabase && Database != null && _sqliteStore?.NeedsFullScan != true)
             {
                 foreach (var originFilePath in Database.BackedUpFilesDict.Keys)
                 {
@@ -371,8 +397,9 @@ namespace SkyziBackup
             else // データベースを使わない
             {
                 foreach (var destFilePath in Settings.SymbolicLink is SymbolicLinkHandling.IgnoreOnlyDirectories or SymbolicLinkHandling.IgnoreAll
-                             ? EnumerateAllFilesIgnoringReparsePoints(DestBaseDirPath, Settings.Regexes)
-                             : EnumerateAllFiles(DestBaseDirPath, Settings.Regexes))
+                             ? EnumerateAllFilesIgnoringReparsePoints(DestBaseDirPath, Settings.Regexes,
+                                 onEnumerationError: OnDeletionEnumerationError)
+                             : EnumerateAllFiles(DestBaseDirPath, Settings.Regexes, onEnumerationError: OnDeletionEnumerationError))
                 {
                     var originFilePath = destFilePath.Replace(DestBaseDirPath, OriginBaseDirPath);
                     if (Results.SuccessfulFiles.Contains(originFilePath) || Results.FailedFiles.Contains(originFilePath) ||
@@ -396,6 +423,7 @@ namespace SkyziBackup
             }
             catch (Exception e)
             {
+                _hadDeletionError = true;
                 Logger.Error(e, Results.Message = $"'{destFilePath}'の削除に失敗");
             }
         }
@@ -648,6 +676,14 @@ namespace SkyziBackup
             if (!Database.BackedUpFilesDict.TryGetValue(originFilePath, out var destFileData))
             {
                 existsInDatabase = false;
+                // 再構築が完了していないDBでは「記録が無いだけ」の可能性があるため、実ファイル比較で確かめ、
+                // 未変更なら再コピーせずに現在のメタデータをDBへ書き戻して再構築を進める
+                if (_sqliteStore?.NeedsFullScan == true && IsUnchangedFileWithoutDatabase(originFilePath, destFilePath))
+                {
+                    UpdateFileDataOnDatabase(originFilePath);
+                    return true;
+                }
+
                 return false;
             }
 
@@ -886,10 +922,12 @@ namespace SkyziBackup
                     RemoveHiddenAttribute(originFilePath, destFilePath);
                 }
 
-                // データベースがファイルを把握していない場合(インメモリフォールバック時やDB作り直し直後など)でも、
-                // バックアップ先に実ファイルが存在する限り必ず退避し、バージョン管理の履歴を失わないようにする
-                if (Settings.Versioning != VersioningMode.PermanentDeletion &&
-                    ((existsInDatabase ?? Database?.BackedUpFilesDict.ContainsKey(originFilePath) ?? false) || File.Exists(destFilePath)))
+                // 再構築が完了していないDBは版管理の存在判定でも信用しない。
+                // 通常時はDB行か実ファイルのどちらかが存在する場合に退避し、再構築未完了の回は実ファイルがある場合だけ退避する。
+                var existsForVersioning = _sqliteStore is { NeedsFullScan: true }
+                    ? File.Exists(destFilePath)
+                    : (existsInDatabase ?? Database?.BackedUpFilesDict.ContainsKey(originFilePath) ?? false) || File.Exists(destFilePath);
+                if (Settings.Versioning != VersioningMode.PermanentDeletion && existsForVersioning)
                 {
                     try
                     {
@@ -1025,26 +1063,33 @@ namespace SkyziBackup
                     (originInfo ??= new FileInfo(originFilePath)).Attributes = RemoveAttribute(originInfo.Attributes, FileAttributes.Archive);
             }
 
-            if (Settings.IsUseDatabase && Database != null)
-            {
-                // 必要なデータだけを保存
-                Database.BackedUpFilesDict[originFilePath] = new BackedUpFileData(
-                    Settings.IsCopyAttributes ? (originInfo ??= new FileInfo(originFilePath)).CreationTime : null,
-                    Settings.IsCopyAttributes || Settings.ComparisonMethod.HasFlag(ComparisonMethod.WriteTime)
-                        ? (originInfo ??= new FileInfo(originFilePath)).LastWriteTime
-                        : null,
-                    Settings.ComparisonMethod.HasFlag(ComparisonMethod.Size)
-                        ? (originInfo ??= new FileInfo(originFilePath)).Length
-                        : BackedUpFileData.DefaultSize,
-                    Settings.IsCopyAttributes || Settings.ComparisonMethod != ComparisonMethod.NoComparison
-                        ? (originInfo ?? new FileInfo(originFilePath)).Attributes
-                        : null,
-                    Settings.ComparisonMethod.HasFlag(ComparisonMethod.FileContentsSHA1) ? BackupManager.ComputeFileSHA1(originFilePath) : null
-                );
-            }
+            UpdateFileDataOnDatabase(originFilePath, originInfo);
 
             Results.SuccessfulFiles.Add(originFilePath);
             Results.FailedFiles.Remove(originFilePath);
+        }
+
+        /// <summary>
+        /// 現在のバックアップ元ファイルのメタデータを設定に応じてデータベースへ記録する
+        /// </summary>
+        private void UpdateFileDataOnDatabase(string originFilePath, FileInfo? originInfo = null)
+        {
+            if (!Settings.IsUseDatabase || Database is null)
+                return;
+            // 必要なデータだけを保存
+            Database.BackedUpFilesDict[originFilePath] = new BackedUpFileData(
+                Settings.IsCopyAttributes ? (originInfo ??= new FileInfo(originFilePath)).CreationTime : null,
+                Settings.IsCopyAttributes || Settings.ComparisonMethod.HasFlag(ComparisonMethod.WriteTime)
+                    ? (originInfo ??= new FileInfo(originFilePath)).LastWriteTime
+                    : null,
+                Settings.ComparisonMethod.HasFlag(ComparisonMethod.Size)
+                    ? (originInfo ??= new FileInfo(originFilePath)).Length
+                    : BackedUpFileData.DefaultSize,
+                Settings.IsCopyAttributes || Settings.ComparisonMethod != ComparisonMethod.NoComparison
+                    ? (originInfo ?? new FileInfo(originFilePath)).Attributes
+                    : null,
+                Settings.ComparisonMethod.HasFlag(ComparisonMethod.FileContentsSHA1) ? BackupManager.ComputeFileSHA1(originFilePath) : null
+            );
         }
 
         private async Task RetryStartAsync(CancellationToken cancellationToken = default)

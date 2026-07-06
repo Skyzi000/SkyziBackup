@@ -86,6 +86,20 @@ namespace Skyzi000.Data
         }
 
         public static T? Read<T>(string fileName) where T : SaveableData => ReadAsync<T>(fileName).Result;
+
+        /// <summary>
+        /// 本体ファイルだけを読み、失敗してもバックアップ(<see cref="BackupFileExtension" />)へフォールバックしない。
+        /// 「本体の内容が破損している場合のみ.bacを読む」など、呼び出し元がフォールバック条件を制御する場合に使う。
+        /// </summary>
+        public static async Task<T?> ReadWithoutBackupFallbackAsync<T>(string fileName, CancellationToken cancellationToken = default)
+            where T : SaveableData
+        {
+            using var fs = new FileStream(GetPath(fileName), FileMode.Open, FileAccess.Read, FileShare.Read);
+            return await JsonSerializer.DeserializeAsync<T>(fs, SerializerOptions, cancellationToken).ConfigureAwait(false);
+        }
+
+        public static T? ReadWithoutBackupFallback<T>(string fileName) where T : SaveableData =>
+            ReadWithoutBackupFallbackAsync<T>(fileName).GetAwaiter().GetResult();
         public static void Delete(SaveableData obj) => File.Delete(GetPath(obj));
         public static void Delete<T>(string fileName) where T : SaveableData => File.Delete(GetPath(fileName));
     }
