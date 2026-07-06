@@ -80,7 +80,7 @@ namespace SkyziBackup
             return Path.GetFullPath(s.EndsWith(Path.DirectorySeparatorChar) ? s : s + Path.DirectorySeparatorChar);
         }
 
-        private Task<BackupDatabase> LoadOrCreateDatabaseAsync()
+        private Task<BackupDatabase?> LoadOrCreateDatabaseAsync()
         {
             return Task.Run(() =>
             {
@@ -92,9 +92,11 @@ namespace SkyziBackup
                 }
                 catch (Exception e)
                 {
-                    // SQLiteストアはキャッシュ扱いなので、利用できなくてもバックアップ自体は新規インメモリデータベースで続行する
+                    // SQLiteストアはキャッシュ扱いなので、利用できなくてもバックアップ自体はデータベースなしで続行する。
+                    // 空のインメモリデータベースにフォールバックすると、削除同期(DeleteFiles/DeleteDirectories)が
+                    // 空の辞書だけを見てバックアップ先の走査をしなくなるため、nullにして非データベースモードの経路に乗せる。
                     Logger.Error(e,
-                        Results.Message = "データベースの読み込み失敗: SQLiteストアを利用できないため、新規データベースで続行します。(今回の実行結果は保存されません)");
+                        Results.Message = "データベースの読み込み失敗: SQLiteストアを利用できないため、今回はデータベースなしで実行します。");
                     try
                     {
                         _sqliteStore?.Dispose();
@@ -102,7 +104,7 @@ namespace SkyziBackup
                     catch { }
 
                     _sqliteStore = null;
-                    return new BackupDatabase(OriginBaseDirPath, DestBaseDirPath);
+                    return (BackupDatabase?)null;
                 }
             });
         }
@@ -250,7 +252,8 @@ namespace SkyziBackup
 
         private void DeleteDirectories()
         {
-            if (Settings.IsUseDatabase && Database != null)
+            // 自己修復でDBを作り直した回は以前の記録が失われているため、DBキーではなくバックアップ先の実走査で削除同期する
+            if (Settings.IsUseDatabase && Database != null && _sqliteStore?.WasRecreatedAfterQuarantine != true)
             {
                 foreach (var originDirPath in Database.BackedUpDirectoriesDict.Keys)
                 {
@@ -347,7 +350,8 @@ namespace SkyziBackup
 
         private void DeleteFiles()
         {
-            if (Settings.IsUseDatabase && Database != null)
+            // 自己修復でDBを作り直した回は以前の記録が失われているため、DBキーではなくバックアップ先の実走査で削除同期する
+            if (Settings.IsUseDatabase && Database != null && _sqliteStore?.WasRecreatedAfterQuarantine != true)
             {
                 foreach (var originFilePath in Database.BackedUpFilesDict.Keys)
                 {
@@ -882,8 +886,10 @@ namespace SkyziBackup
                     RemoveHiddenAttribute(originFilePath, destFilePath);
                 }
 
+                // データベースがファイルを把握していない場合(インメモリフォールバック時やDB作り直し直後など)でも、
+                // バックアップ先に実ファイルが存在する限り必ず退避し、バージョン管理の履歴を失わないようにする
                 if (Settings.Versioning != VersioningMode.PermanentDeletion &&
-                    (existsInDatabase ?? Database?.BackedUpFilesDict.ContainsKey(originFilePath) ?? File.Exists(destFilePath)))
+                    ((existsInDatabase ?? Database?.BackedUpFilesDict.ContainsKey(originFilePath) ?? false) || File.Exists(destFilePath)))
                 {
                     try
                     {

@@ -45,6 +45,8 @@ namespace SkyziBackup
                 Database = LoadOrCreateDatabase(_isEnableWriteDatabase);
             if (isCopyAttributesOnDatabase && Database == null)
                 Logger.Warn("データベースから属性をリストアできません: データベースが見つからないか読み込めません。");
+            else if (isCopyAttributesOnDatabase && _sqliteStore?.WasRecreatedAfterQuarantine == true)
+                Logger.Warn("以前のデータベース状態が失われているため、データベースからの属性リストアは不完全な可能性があります。");
             _isRestoreAttributesFromDatabase = isCopyAttributesOnDatabase && Database != null;
 
             if (!string.IsNullOrEmpty(password))
@@ -75,14 +77,13 @@ namespace SkyziBackup
                 catch { }
 
                 _sqliteStore = null;
+                // SQLiteストアはキャッシュ扱いなので、利用できなくてもリストア自体はデータベースなしで続行する。
+                // 空のインメモリデータベースにフォールバックすると、属性復元(CopyOnlyFileAttributes)が
+                // 空の辞書を列挙して何もせず成功扱いになるため、nullにして非データベースモードの経路に乗せる。
                 if (createIfMissing)
-                {
-                    // SQLiteストアはキャッシュ扱いなので、利用できなくてもリストア自体は新規インメモリデータベースで続行する
-                    Logger.Error(e, "SQLiteストアの初期化またはJSONからの移行に失敗: 新規データベースで続行します。(今回の実行結果は保存されません)");
-                    return new BackupDatabase(_destBaseDirPath, _sourceBaseDirPath);
-                }
-
-                Logger.Warn(e, "データベースから属性をリストアできません: SQLiteストアの初期化またはJSONからの移行に失敗");
+                    Logger.Error(e, "SQLiteストアの初期化またはJSONからの移行に失敗: 今回はデータベースなしで実行します。(実行結果は保存されません)");
+                else
+                    Logger.Warn(e, "データベースから属性をリストアできません: SQLiteストアの初期化またはJSONからの移行に失敗");
                 return null;
             }
         }

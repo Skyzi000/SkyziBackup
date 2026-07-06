@@ -15,9 +15,14 @@ namespace SkyziBackup.Data;
 public sealed class SqliteBackupStateStore : IDisposable
 {
     public const string FileName = "database.sqlite";
+    private const string CorruptFileSuffix = ".corrupt";
+    private const string WalFileSuffix = "-wal";
+    private const string ShmFileSuffix = "-shm";
     private const int SchemaVersion = 1;
     private const int WriteBatchSize = 8192;
     private const int CommitIntervalMilliseconds = 30_000;
+    private const int SqliteCorruptErrorCode = 11; // SQLITE_CORRUPT
+    private const int SqliteNotADbErrorCode = 26; // SQLITE_NOTADB
     private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
     private static readonly ExpectedColumn[] MetaColumns =
     {
@@ -108,14 +113,58 @@ public sealed class SqliteBackupStateStore : IDisposable
             {
                 return new SqliteBackupStateStore(sqlitePath, originBaseDirPath, destBaseDirPath, false);
             }
-            catch (Exception e)
+            catch (Exception e) when (IsPermanentlyUnusable(e))
             {
-                // SQLiteストアはキャッシュ扱いなので、破損やスキーマ不一致で開けない場合は削除して作り直す
+                // SQLiteストアはキャッシュ扱いなので、恒久的に利用できない(破損・スキーマ不一致・ペア不一致)場合のみ退避して作り直す。
+                // 一時的なエラー(ロック・アクセス権など)はそのまま伝播させ、呼び出し元のインメモリフォールバックに任せる。
                 Logger.Warn(e, "既存のSQLiteストアを開けないため作り直します: '{0}'", sqlitePath);
+                QuarantineBrokenDatabase(sqlitePath);
+                var recreated = CreateNew(jsonPath, sqlitePath, originBaseDirPath, destBaseDirPath);
+                recreated.WasRecreatedAfterQuarantine = true;
+                return recreated;
             }
         }
 
         return CreateNew(jsonPath, sqlitePath, originBaseDirPath, destBaseDirPath);
+    }
+
+    /// <summary>
+    /// 既存のSQLiteストアを退避して作り直した直後かどうか。
+    /// trueの場合、以前のDB状態(空か、古いJSON由来の状態)が失われているため、
+    /// 削除同期のようにDBの記録を実態の情報源として使う処理は、この回に限りDBを信頼してはならない。
+    /// </summary>
+    public bool WasRecreatedAfterQuarantine { get; private set; }
+
+    /// <summary>
+    /// 既存のSQLiteストアを破棄して作り直してよい、「このアプリにとって恒久的に利用できない」例外かどうかを判定する。
+    /// 対象はファイル破損(SQLITE_CORRUPT/SQLITE_NOTADB)と、自前バリデーションが投げる
+    /// <see cref="SqliteStoreValidationException" />(テーブル欠落・スキーマ不一致・ペア不一致・SchemaVersion不正/欠落)のみ。
+    /// IOエラーやロック等の一時的なエラー、およびより新しいアプリが作った正当なDB(<see cref="NotSupportedException" />)は対象外。
+    /// </summary>
+    private static bool IsPermanentlyUnusable(Exception e) => e switch
+    {
+        SqliteException sqliteException => sqliteException.SqliteErrorCode is SqliteCorruptErrorCode or SqliteNotADbErrorCode,
+        SqliteStoreValidationException => true,
+        _ => false,
+    };
+
+    /// <summary>
+    /// 開けなくなった既存のSQLiteストア本体を削除せず<see cref="CorruptFileSuffix" />付きのパスへ退避する(1世代のみ保持)。
+    /// -wal/-shmは削除する。退避に失敗した場合は従来通り削除にフォールバックし、自己修復を止めない。
+    /// </summary>
+    private static void QuarantineBrokenDatabase(string sqlitePath)
+    {
+        try
+        {
+            File.Move(sqlitePath, sqlitePath + CorruptFileSuffix, true);
+            File.Delete(sqlitePath + WalFileSuffix);
+            File.Delete(sqlitePath + ShmFileSuffix);
+        }
+        catch (Exception e)
+        {
+            Logger.Warn(e, "破損したSQLiteストアの退避に失敗したため削除します: '{0}'", sqlitePath);
+            DeleteSqliteRelatedFiles(sqlitePath);
+        }
     }
 
     private static SqliteBackupStateStore CreateNew(string jsonPath, string sqlitePath, string originBaseDirPath, string destBaseDirPath)
@@ -158,6 +207,7 @@ public sealed class SqliteBackupStateStore : IDisposable
             yield return path;
         foreach (var path in GetSqliteRelatedFilePaths(sqlitePath + ".migrating"))
             yield return path;
+        yield return sqlitePath + CorruptFileSuffix;
     }
 
     public static void DeleteDatabase(string originBaseDirPath, string destBaseDirPath)
@@ -169,8 +219,8 @@ public sealed class SqliteBackupStateStore : IDisposable
     private static IEnumerable<string> GetSqliteRelatedFilePaths(string sqlitePath)
     {
         yield return sqlitePath;
-        yield return sqlitePath + "-wal";
-        yield return sqlitePath + "-shm";
+        yield return sqlitePath + WalFileSuffix;
+        yield return sqlitePath + ShmFileSuffix;
     }
 
     private static void DeleteSqliteRelatedFiles(string sqlitePath)
@@ -278,6 +328,10 @@ CREATE TABLE IF NOT EXISTS Files (
 
     private void ValidateExistingDatabaseBeforeSchemaChanges()
     {
+        // 将来バージョンのDBはSchemaVersionと共にテーブル形状も変わっている可能性が高く、先に形状を検証すると
+        // SqliteStoreValidationException(自己修復＝作り直しの対象)になって正当な新DBを退避してしまう。
+        // そのためSchemaVersionの新旧判定を必ず形状検証より先に行う。
+        ThrowIfNewerSchemaVersion();
         ValidateExistingTable("Meta", MetaColumns);
         ValidateExistingTable("Directories", DirectoryColumns);
         ValidateExistingTable("Files", FileColumns);
@@ -288,21 +342,49 @@ CREATE TABLE IF NOT EXISTS Files (
         ValidateSchemaVersion(meta, true);
     }
 
+    /// <summary>
+    /// Metaに記録されたSchemaVersionがこのアプリより新しい場合に<see cref="NotSupportedException" />を投げる。
+    /// 将来のスキーマ変更に対しても機能するよう、Metaテーブルの形状(Key/Value列)とSchemaVersionキーは
+    /// 今後のバージョンでも変更しないこと。Metaが読めない場合は判定せず、後続の通常検証に委ねる。
+    /// </summary>
+    private void ThrowIfNewerSchemaVersion()
+    {
+        string? schemaVersionText;
+        try
+        {
+            using var cmd = _connection.CreateCommand();
+            cmd.CommandText = "SELECT Value FROM Meta WHERE Key='SchemaVersion' LIMIT 1";
+            schemaVersionText = cmd.ExecuteScalar() as string;
+        }
+        catch (SqliteException)
+        {
+            // Metaテーブルが無い・読めない場合(移行途中の残骸や無関係なsqliteファイル)は後続の検証に委ねる
+            return;
+        }
+
+        if (int.TryParse(schemaVersionText, out var currentSchemaVersion) && currentSchemaVersion > SchemaVersion)
+        {
+            // 新しいバージョンのアプリが使う正当なDBなので、自己修復(作り直し)の対象にしないようNotSupportedExceptionを投げる
+            throw new NotSupportedException(
+                $"SQLiteストアのSchemaVersionがこのアプリケーションより新しいため利用できません。 current: {SchemaVersion}, actual: {currentSchemaVersion}");
+        }
+    }
+
     private void ValidateExistingTable(string tableName, IReadOnlyList<ExpectedColumn> expectedColumns)
     {
         var sql = ReadTableSql(tableName);
         if (sql == null)
-            throw new InvalidOperationException($"SQLiteストアの{tableName}テーブルが見つかりません。");
+            throw new SqliteStoreValidationException($"SQLiteストアの{tableName}テーブルが見つかりません。");
         if (!sql.Contains("WITHOUT ROWID", StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException($"SQLiteストアの{tableName}テーブルが現在のスキーマではありません。");
+            throw new SqliteStoreValidationException($"SQLiteストアの{tableName}テーブルが現在のスキーマではありません。");
 
         var actualColumns = ReadTableColumns(tableName);
         if (actualColumns.Count != expectedColumns.Count)
-            throw new InvalidOperationException($"SQLiteストアの{tableName}テーブルが現在のスキーマではありません。");
+            throw new SqliteStoreValidationException($"SQLiteストアの{tableName}テーブルが現在のスキーマではありません。");
         for (var i = 0; i < expectedColumns.Count; i++)
         {
             if (!actualColumns[i].Equals(expectedColumns[i]))
-                throw new InvalidOperationException($"SQLiteストアの{tableName}テーブルが現在のスキーマではありません。");
+                throw new SqliteStoreValidationException($"SQLiteストアの{tableName}テーブルが現在のスキーマではありません。");
         }
     }
 
@@ -364,11 +446,11 @@ CREATE TABLE IF NOT EXISTS Files (
         if (!meta.TryGetValue(key, out var actualValue))
         {
             if (requireExisting)
-                throw new InvalidOperationException($"SQLiteストアの{key}が記録されていません。");
+                throw new SqliteStoreValidationException($"SQLiteストアの{key}が記録されていません。");
         }
         else if (actualValue != expectedValue)
         {
-            throw new InvalidOperationException(
+            throw new SqliteStoreValidationException(
                 $"SQLiteストアの{key}がバックアップペアと一致しません。 expected: '{expectedValue}', actual: '{actualValue}'");
         }
     }
@@ -378,16 +460,17 @@ CREATE TABLE IF NOT EXISTS Files (
         if (!meta.TryGetValue("SchemaVersion", out var schemaVersionText))
         {
             if (requireExisting)
-                throw new InvalidOperationException("SQLiteストアのSchemaVersionが記録されていません。");
+                throw new SqliteStoreValidationException("SQLiteストアのSchemaVersionが記録されていません。");
         }
         else
         {
             if (!int.TryParse(schemaVersionText, out var currentSchemaVersion))
-                throw new InvalidOperationException($"SQLiteストアのSchemaVersionが不正です。 actual: '{schemaVersionText}'");
+                throw new SqliteStoreValidationException($"SQLiteストアのSchemaVersionが不正です。 actual: '{schemaVersionText}'");
             if (currentSchemaVersion < 1)
-                throw new InvalidOperationException($"SQLiteストアのSchemaVersionが不正です。 actual: {currentSchemaVersion}");
+                throw new SqliteStoreValidationException($"SQLiteストアのSchemaVersionが不正です。 actual: {currentSchemaVersion}");
+            // 新しいバージョンのアプリが使う正当なDBなので、自己修復(作り直し)の対象にしないようNotSupportedExceptionを投げる
             if (currentSchemaVersion > SchemaVersion)
-                throw new InvalidOperationException(
+                throw new NotSupportedException(
                     $"SQLiteストアのSchemaVersionがこのアプリケーションより新しいため利用できません。 current: {SchemaVersion}, actual: {currentSchemaVersion}");
         }
     }
@@ -983,4 +1066,14 @@ CREATE TABLE IF NOT EXISTS Files (
     }
 
     private readonly record struct ExpectedColumn(string Name, string Type, bool IsNotNull, int PrimaryKeyOrdinal);
+
+    /// <summary>
+    /// 自前バリデーション(テーブル・スキーマ・Meta検証)の失敗を表す例外。
+    /// <see cref="IsPermanentlyUnusable" />が自己修復(作り直し)の対象として意図的に識別するための型で、
+    /// BCL由来の<see cref="InvalidOperationException" />を誤って作り直し対象にしないために分けている。
+    /// </summary>
+    private sealed class SqliteStoreValidationException : InvalidOperationException
+    {
+        public SqliteStoreValidationException(string message) : base(message) { }
+    }
 }
