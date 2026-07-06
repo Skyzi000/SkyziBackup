@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json.Serialization;
@@ -35,8 +34,6 @@ namespace SkyziBackup.Data
 
         public static readonly string FileName = "Database" + DataFileWriter.DefaultExtension;
 
-        private readonly int _tempCount = 0;
-
         public BackupDatabase()
         {
             OriginBaseDirPath = DestBaseDirPath = string.Empty;
@@ -46,31 +43,6 @@ namespace SkyziBackup.Data
         {
             OriginBaseDirPath = originBaseDirPath;
             DestBaseDirPath = destBaseDirPath;
-        }
-
-        public override void AutoSave()
-        {
-            ThrowIfDisposed();
-            Semaphore.Wait();
-            try
-            {
-                using var temp = new BackupDatabase(OriginBaseDirPath, DestBaseDirPath)
-                {
-                    BackedUpDirectoriesDict = new Dictionary<string, BackedUpDirectoryData>(BackedUpDirectoriesDict),
-                    BackedUpFilesDict = new Dictionary<string, BackedUpFileData>(BackedUpFilesDict),
-                };
-                var path = DataFileWriter.GetPath(temp);
-                var tempDirPath =
-                    Path.Combine(Path.GetDirectoryName(path) ?? throw new InvalidOperationException($"Path.GetDirectoryName(path) is null. (path: {path})"),
-                        "Temp");
-                var tempPath = Path.Combine(tempDirPath, $"Database{_tempCount}{DataFileWriter.TempFileExtension}");
-                DataFileWriter.Write(temp, tempPath);
-                DataFileWriter.Replace(tempPath, path, true);
-            }
-            finally
-            {
-                Semaphore.Release();
-            }
         }
 
         /// <summary>
@@ -110,9 +82,6 @@ namespace SkyziBackup.Data
 
         public static IEnumerable<string> GetExistingDatabaseFilePaths(string originBaseDirPath, string destBaseDirPath) =>
             GetDatabaseFilePaths(originBaseDirPath, destBaseDirPath).Where(File.Exists);
-
-        public static bool Exists(string originBaseDirPath, string destBaseDirPath) =>
-            GetDatabaseFilePaths(originBaseDirPath, destBaseDirPath).Any(File.Exists);
 
         public static void DeleteDatabase(string originBaseDirPath, string destBaseDirPath)
         {

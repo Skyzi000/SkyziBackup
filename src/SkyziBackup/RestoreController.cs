@@ -205,13 +205,15 @@ namespace SkyziBackup
             }
         }
 
-        private BackedUpFileData? CopyFileAttributes(string originFilePath, string destFilePath)
+        /// <param name="knownFileData">呼び出し元が既に取得済みのデータベース上のデータ(あれば再クエリしない)</param>
+        private BackedUpFileData? CopyFileAttributes(string originFilePath, string destFilePath, BackedUpFileData? knownFileData = null)
         {
             FileInfo? originInfo = null;
             if (_isEnableWriteDatabase && Database != null)
             {
                 Logger.Info("属性をコピー'{0}' => '{1}'", originFilePath, destFilePath);
-                var data = Database.BackedUpFilesDict.TryGetValue(originFilePath, out var d) ? d : new BackedUpFileData();
+                // OriginSize/Sha1を保持するため既存データを引き継ぐ(取得済みのデータがあれば再クエリしない)
+                var data = knownFileData ?? (Database.BackedUpFilesDict.TryGetValue(originFilePath, out var d) ? d : new BackedUpFileData());
                 var _ = new FileInfo(destFilePath)
                 {
                     CreationTime = (data.CreationTime = (originInfo = new FileInfo(originFilePath)).CreationTime).Value,
@@ -220,7 +222,12 @@ namespace SkyziBackup
                 };
                 return data;
             }
-            else if (!_isRestoreAttributesFromDatabase || Database is null || !Database.BackedUpFilesDict.TryGetValue(originFilePath, out var data))
+
+            // 取得済みのデータがあれば再クエリしない
+            var fileData = knownFileData;
+            if (fileData is null && _isRestoreAttributesFromDatabase && Database is not null)
+                Database.BackedUpFilesDict.TryGetValue(originFilePath, out fileData);
+            if (!_isRestoreAttributesFromDatabase || fileData is null)
             {
                 Logger.Info("属性をコピー'{0}' => '{1}'", originFilePath, destFilePath);
                 var _ = new FileInfo(destFilePath)
@@ -236,9 +243,9 @@ namespace SkyziBackup
                 Logger.Info("データベースからファイル属性をリストア '{0}'", destFilePath);
                 var _ = new FileInfo(destFilePath)
                 {
-                    CreationTime = data.CreationTime ?? (originInfo = new FileInfo(originFilePath)).CreationTime,
-                    LastWriteTime = data.LastWriteTime ?? (originInfo ??= new FileInfo(originFilePath)).LastWriteTime,
-                    Attributes = data.FileAttributes ?? (originInfo ?? new FileInfo(originFilePath)).Attributes,
+                    CreationTime = fileData.CreationTime ?? (originInfo = new FileInfo(originFilePath)).CreationTime,
+                    LastWriteTime = fileData.LastWriteTime ?? (originInfo ??= new FileInfo(originFilePath)).LastWriteTime,
+                    Attributes = fileData.FileAttributes ?? (originInfo ?? new FileInfo(originFilePath)).Attributes,
                 };
             }
 
@@ -265,7 +272,8 @@ namespace SkyziBackup
             {
                 var newDirDict = _isEnableWriteDatabase ? new Dictionary<string, BackedUpDirectoryData>() : null;
                 var newFileDict = _isEnableWriteDatabase ? new Dictionary<string, BackedUpFileData>() : null;
-                foreach (var originDirPath in Database.BackedUpDirectoriesDict.Keys)
+                // 列挙一回分のスキャンで済ませる(キー列挙+キー毎の再取得はSQLiteバッキング時にN+1クエリになる)
+                foreach (var (originDirPath, dirData) in Database.BackedUpDirectoriesDict)
                 {
                     var destDirPath = originDirPath.Replace(_sourceBaseDirPath, _destBaseDirPath);
                     if (!Directory.Exists(destDirPath))
@@ -280,24 +288,24 @@ namespace SkyziBackup
                     {
                         if (_isEnableWriteDatabase) // newDirDict は null ではない
                         {
-                            var data = Database.BackedUpDirectoriesDict.TryGetValue(originDirPath, out var d) ? d : new BackedUpDirectoryData();
+                            // 全フィールドを実際のディレクトリの値で上書きするため、既存データを取得せず直接構築する
+                            originInfo = new DirectoryInfo(originDirPath);
                             var _ = new DirectoryInfo(destDirPath)
                             {
-                                CreationTime = (data.CreationTime = (originInfo = new DirectoryInfo(originDirPath)).CreationTime).Value,
-                                LastWriteTime = (data.LastWriteTime = originInfo.LastWriteTime).Value,
-                                Attributes = (data.FileAttributes = originInfo.Attributes).Value,
+                                CreationTime = originInfo.CreationTime,
+                                LastWriteTime = originInfo.LastWriteTime,
+                                Attributes = originInfo.Attributes,
                             };
-                            newDirDict![originDirPath] = data;
+                            newDirDict![originDirPath] = new BackedUpDirectoryData(originInfo.CreationTime, originInfo.LastWriteTime, originInfo.Attributes);
                         }
                         else
                         {
                             // データベースに記録されたディレクトリ属性をコピーする(もし記録されていないものがあれば実際のディレクトリを参照する)
-                            var data = Database.BackedUpDirectoriesDict[originDirPath];
                             var _ = new DirectoryInfo(destDirPath)
                             {
-                                CreationTime = data.CreationTime ?? (originInfo = new DirectoryInfo(originDirPath)).CreationTime,
-                                LastWriteTime = data.LastWriteTime ?? (originInfo ??= new DirectoryInfo(originDirPath)).LastWriteTime,
-                                Attributes = data.FileAttributes ?? (originInfo ?? new DirectoryInfo(originDirPath)).Attributes,
+                                CreationTime = dirData.CreationTime ?? (originInfo = new DirectoryInfo(originDirPath)).CreationTime,
+                                LastWriteTime = dirData.LastWriteTime ?? (originInfo ??= new DirectoryInfo(originDirPath)).LastWriteTime,
+                                Attributes = dirData.FileAttributes ?? (originInfo ?? new DirectoryInfo(originDirPath)).Attributes,
                             };
                         }
                     }
@@ -313,7 +321,8 @@ namespace SkyziBackup
                     }
                 }
 
-                foreach (var originFilePath in Database.BackedUpFilesDict.Keys)
+                // 列挙一回分のスキャンで済ませ、取得済みのデータを CopyFileAttributes に渡して再クエリを避ける
+                foreach (var (originFilePath, fileData) in Database.BackedUpFilesDict)
                 {
                     var destFilePath = originFilePath.Replace(_sourceBaseDirPath, _destBaseDirPath);
                     if (!File.Exists(destFilePath))
@@ -326,9 +335,9 @@ namespace SkyziBackup
                     try
                     {
                         if (_isEnableWriteDatabase && Database != null) // newFileDict は null ではない
-                            newFileDict![originFilePath] = CopyFileAttributes(originFilePath, destFilePath)!;
+                            newFileDict![originFilePath] = CopyFileAttributes(originFilePath, destFilePath, fileData)!;
                         else
-                            CopyFileAttributes(originFilePath, destFilePath);
+                            CopyFileAttributes(originFilePath, destFilePath, fileData);
                         Results.SuccessfulFiles.Add(originFilePath);
                         Results.FailedFiles.Remove(originFilePath);
                     }
@@ -376,14 +385,16 @@ namespace SkyziBackup
                         DirectoryInfo originInfo;
                         if (_isEnableWriteDatabase && Database != null)
                         {
-                            var data = Database.BackedUpDirectoriesDict.TryGetValue(originDirPath, out var d) ? d : new BackedUpDirectoryData();
+                            // 全フィールドを実際のディレクトリの値で上書きするため、既存データを取得せず直接構築する
+                            originInfo = new DirectoryInfo(originDirPath);
                             var _ = new DirectoryInfo(destDirPath)
                             {
-                                CreationTime = (data.CreationTime = (originInfo = new DirectoryInfo(originDirPath)).CreationTime).Value,
-                                LastWriteTime = (data.LastWriteTime = originInfo.LastWriteTime).Value,
-                                Attributes = (data.FileAttributes = originInfo.Attributes).Value,
+                                CreationTime = originInfo.CreationTime,
+                                LastWriteTime = originInfo.LastWriteTime,
+                                Attributes = originInfo.Attributes,
                             };
-                            Database.BackedUpDirectoriesDict[originDirPath] = data;
+                            Database.BackedUpDirectoriesDict[originDirPath] =
+                                new BackedUpDirectoryData(originInfo.CreationTime, originInfo.LastWriteTime, originInfo.Attributes);
                         }
                         else
                         {

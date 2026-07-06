@@ -195,11 +195,16 @@ namespace SkyziBackup
                                  : EnumerateAllFiles(OriginBaseDirPath, Settings.Regexes))
                     {
                         var destFilePath = originFilePath.Replace(OriginBaseDirPath, DestBaseDirPath);
+                        if (IsIgnoredFile(originFilePath))
+                            continue;
                         // 除外パターンと一致せず、バックアップ済みファイルと一致しないファイルをバックアップする
-                        if (!IsIgnoredFile(originFilePath) && !(Settings.IsUseDatabase
-                                ? IsUnchangedFileOnDatabase(originFilePath, destFilePath)
-                                : IsUnchangedFileWithoutDatabase(originFilePath, destFilePath)))
-                            await Task.Run(() => BackupFile(originFilePath, destFilePath), cToken).ConfigureAwait(false);
+                        // (データベース照会の結果を BackupFile に引き継いで同じキーの再クエリを避ける)
+                        bool? existsInDatabase = null;
+                        var isUnchanged = Settings.IsUseDatabase
+                            ? IsUnchangedFileOnDatabase(originFilePath, destFilePath, out existsInDatabase)
+                            : IsUnchangedFileWithoutDatabase(originFilePath, destFilePath);
+                        if (!isUnchanged)
+                            await Task.Run(() => BackupFile(originFilePath, destFilePath, existsInDatabase), cToken).ConfigureAwait(false);
                     }
                 }, cToken).ConfigureAwait(false);
 
@@ -629,13 +634,20 @@ namespace SkyziBackup
         /// <summary>
         /// データベースにデータが記録されている場合はバックアップ先ファイルにアクセスしない(比較に必要なデータが無い場合はアクセスしに行く)
         /// </summary>
-        /// <returns>前回のバックアップから変更されていることが確認できたら true</returns>
-        private bool IsUnchangedFileOnDatabase(string originFilePath, string destFilePath)
+        /// <param name="existsInDatabase">対象ファイルのデータがデータベースに記録されているかどうか(データベースを参照しなかった場合は null)</param>
+        /// <returns>前回のバックアップから変更されていないことが確認できたら true</returns>
+        private bool IsUnchangedFileOnDatabase(string originFilePath, string destFilePath, out bool? existsInDatabase)
         {
+            existsInDatabase = null;
             if (Database is null)
                 return IsUnchangedFileWithoutDatabase(originFilePath, destFilePath);
             if (!Database.BackedUpFilesDict.TryGetValue(originFilePath, out var destFileData))
+            {
+                existsInDatabase = false;
                 return false;
+            }
+
+            existsInDatabase = true;
             if (Settings.ComparisonMethod == ComparisonMethod.NoComparison)
                 return false;
             FileInfo? originFileInfo = null;
@@ -740,7 +752,7 @@ namespace SkyziBackup
         /// <summary>
         /// データベースを使わず、実際にファイルを比較する
         /// </summary>
-        /// <returns>前回のバックアップから変更されていることが確認できたら true</returns>
+        /// <returns>前回のバックアップから変更されていないことが確認できたら true</returns>
         private bool IsUnchangedFileWithoutDatabase(string originFilePath, string destFilePath)
         {
             if (!File.Exists(destFilePath))
@@ -857,7 +869,8 @@ namespace SkyziBackup
                    !data.FileAttributes.Value.HasFlag(fileAttributes);
         }
 
-        private void BackupFile(string originFilePath, string destFilePath)
+        /// <param name="existsInDatabase">対象ファイルのデータがデータベースに記録されているかどうか(呼び出し元が未照会の場合は null)</param>
+        private void BackupFile(string originFilePath, string destFilePath, bool? existsInDatabase = null)
         {
             Logger.Info(Results.Message = $"ファイルをバックアップ: '{originFilePath}' => '{destFilePath}'");
             try
@@ -870,7 +883,7 @@ namespace SkyziBackup
                 }
 
                 if (Settings.Versioning != VersioningMode.PermanentDeletion &&
-                    (Database?.BackedUpFilesDict.ContainsKey(originFilePath) ?? File.Exists(destFilePath)))
+                    (existsInDatabase ?? Database?.BackedUpFilesDict.ContainsKey(originFilePath) ?? File.Exists(destFilePath)))
                 {
                     try
                     {
