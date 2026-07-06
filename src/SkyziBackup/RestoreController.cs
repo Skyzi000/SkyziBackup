@@ -68,11 +68,18 @@ namespace SkyziBackup
             }
             catch (Exception e)
             {
+                try
+                {
+                    _sqliteStore?.Dispose();
+                }
+                catch { }
+
                 _sqliteStore = null;
                 if (createIfMissing)
                 {
-                    Logger.Error(e, "SQLiteストアの初期化またはJSONからの移行に失敗");
-                    throw;
+                    // SQLiteストアはキャッシュ扱いなので、利用できなくてもリストア自体は新規インメモリデータベースで続行する
+                    Logger.Error(e, "SQLiteストアの初期化またはJSONからの移行に失敗: 新規データベースで続行します。(今回の実行結果は保存されません)");
+                    return new BackupDatabase(_destBaseDirPath, _sourceBaseDirPath);
                 }
 
                 Logger.Warn(e, "データベースから属性をリストアできません: SQLiteストアの初期化またはJSONからの移行に失敗");
@@ -339,9 +346,17 @@ namespace SkyziBackup
 
                 if (_isEnableWriteDatabase && newDirDict != null && newFileDict != null && Database != null)
                 {
-                    if (_sqliteStore == null)
-                        throw new InvalidOperationException("SQLiteストアが初期化されていません。");
-                    _sqliteStore.ReplaceState(newDirDict, newFileDict);
+                    if (_sqliteStore != null)
+                    {
+                        _sqliteStore.ReplaceState(newDirDict, newFileDict);
+                    }
+                    else
+                    {
+                        // SQLiteストアを利用できない場合はインメモリの辞書だけ更新する(永続化はされない)
+                        Logger.Warn("SQLiteストアを利用できないため、データベースの変更は保存されません。");
+                        Database.BackedUpDirectoriesDict = newDirDict;
+                        Database.BackedUpFilesDict = newFileDict;
+                    }
                 }
             }
             else

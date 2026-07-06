@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using Microsoft.Data.Sqlite;
+using NLog;
 using Skyzi000.Data;
 
 namespace SkyziBackup.Data;
@@ -16,6 +17,8 @@ public sealed class SqliteBackupStateStore : IDisposable
     public const string FileName = "database.sqlite";
     private const int SchemaVersion = 1;
     private const int WriteBatchSize = 8192;
+    private const int CommitIntervalMilliseconds = 30_000;
+    private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
     private static readonly ExpectedColumn[] MetaColumns =
     {
         new("Key", "TEXT", true, 1),
@@ -47,6 +50,7 @@ public sealed class SqliteBackupStateStore : IDisposable
     private SqliteTransaction? _writeTransaction;
     private int _bulkWriteDepth;
     private int _writeOperationsSinceCommit;
+    private long _lastCommitTimestamp;
     private SqliteCommand? _getDirectoryCommand;
     private SqliteCommand? _getFileCommand;
     private SqliteCommand? _directoryExistsCommand;
@@ -97,27 +101,40 @@ public sealed class SqliteBackupStateStore : IDisposable
         var jsonPath = BackupDatabase.GetDatabasePath(originBaseDirPath, destBaseDirPath);
         var sqlitePath = GetDatabasePath(originBaseDirPath, destBaseDirPath);
         var dir = Path.GetDirectoryName(sqlitePath)!;
-        var hasExistingSqlite = HasDatabaseFile(sqlitePath);
         Directory.CreateDirectory(dir);
-        if (!hasExistingSqlite)
-            DeleteSqliteRelatedFiles(sqlitePath);
+        if (HasDatabaseFile(sqlitePath))
+        {
+            try
+            {
+                return new SqliteBackupStateStore(sqlitePath, originBaseDirPath, destBaseDirPath, false);
+            }
+            catch (Exception e)
+            {
+                // SQLiteストアはキャッシュ扱いなので、破損やスキーマ不一致で開けない場合は削除して作り直す
+                Logger.Warn(e, "既存のSQLiteストアを開けないため作り直します: '{0}'", sqlitePath);
+            }
+        }
+
+        return CreateNew(jsonPath, sqlitePath, originBaseDirPath, destBaseDirPath);
+    }
+
+    private static SqliteBackupStateStore CreateNew(string jsonPath, string sqlitePath, string originBaseDirPath, string destBaseDirPath)
+    {
+        DeleteSqliteRelatedFiles(sqlitePath);
         try
         {
-            if (File.Exists(jsonPath) && !hasExistingSqlite)
+            if (File.Exists(jsonPath))
                 MigrateJsonToNewSqlite(sqlitePath, originBaseDirPath, destBaseDirPath);
 
-            return new SqliteBackupStateStore(sqlitePath, originBaseDirPath, destBaseDirPath, !hasExistingSqlite);
+            return new SqliteBackupStateStore(sqlitePath, originBaseDirPath, destBaseDirPath, true);
         }
         catch
         {
-            if (!hasExistingSqlite)
+            try
             {
-                try
-                {
-                    DeleteSqliteRelatedFiles(sqlitePath);
-                }
-                catch { }
+                DeleteSqliteRelatedFiles(sqlitePath);
             }
+            catch { }
 
             throw;
         }
@@ -870,6 +887,7 @@ CREATE TABLE IF NOT EXISTS Files (
 
         _writeTransaction = _connection.BeginTransaction();
         _writeOperationsSinceCommit = 0;
+        _lastCommitTimestamp = Environment.TickCount64;
     }
 
     private void RecordWrite()
@@ -878,7 +896,10 @@ CREATE TABLE IF NOT EXISTS Files (
             return;
 
         _writeOperationsSinceCommit++;
-        if (_writeOperationsSinceCommit >= WriteBatchSize)
+        // 強制終了や電源断でも失われる進捗が一定時間分に収まるよう、件数か経過時間のどちらかでコミットする
+        // (経過時間の判定は次の書き込み時にしか行われないため、保証されるのは書き込みが継続している限り約30秒毎のコミット)
+        if (_writeOperationsSinceCommit >= WriteBatchSize ||
+            Environment.TickCount64 - _lastCommitTimestamp >= CommitIntervalMilliseconds)
             CommitWriteTransaction();
     }
 
@@ -906,6 +927,7 @@ CREATE TABLE IF NOT EXISTS Files (
         {
             _writeTransaction = null;
             _writeOperationsSinceCommit = 0;
+            _lastCommitTimestamp = Environment.TickCount64;
             tx.Dispose();
         }
     }

@@ -92,9 +92,17 @@ namespace SkyziBackup
                 }
                 catch (Exception e)
                 {
-                    Logger.Error(e, "SQLiteストアの初期化またはJSONからの移行に失敗");
+                    // SQLiteストアはキャッシュ扱いなので、利用できなくてもバックアップ自体は新規インメモリデータベースで続行する
+                    Logger.Error(e,
+                        Results.Message = "データベースの読み込み失敗: SQLiteストアを利用できないため、新規データベースで続行します。(今回の実行結果は保存されません)");
+                    try
+                    {
+                        _sqliteStore?.Dispose();
+                    }
+                    catch { }
+
                     _sqliteStore = null;
-                    throw;
+                    return new BackupDatabase(OriginBaseDirPath, DestBaseDirPath);
                 }
             });
         }

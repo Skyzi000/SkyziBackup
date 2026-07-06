@@ -107,24 +107,34 @@ namespace SkyziBackup
             {
                 var originPath = args.Args[0];
                 var destPath = args.Args[1];
-                if (Directory.Exists(originPath))
+                try
                 {
-                    var settings = BackupSettings.LoadLocalSettings(originPath, destPath) ??
-                                   BackupSettings.Default;
-                    using var results = await BackupManager.StartBackupAsync(originPath, destPath,
-                        settings.IsRecordPassword ? settings.GetRawPassword() : null, settings);
-                    if (results is { IsSuccess: false })
-                        await Task.Delay(10000);
+                    if (Directory.Exists(originPath))
+                    {
+                        var settings = BackupSettings.LoadLocalSettings(originPath, destPath) ??
+                                       BackupSettings.Default;
+                        using var results = await BackupManager.StartBackupAsync(originPath, destPath,
+                            settings.IsRecordPassword ? settings.GetRawPassword() : null, settings);
+                        if (results is { IsSuccess: false })
+                            await Task.Delay(10000);
+                    }
+                    else
+                    {
+                        Logger.Warn($"'{BackupController.GetQualifiedDirectoryPath(originPath)}'は存在しません。");
+                        MessageBox.Show(
+                            $"{BackupController.GetQualifiedDirectoryPath(originPath)}は存在しません。\n正しいディレクトリパスを入力してください。",
+                            $"{AssemblyName.Name} - 警告", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    }
                 }
-                else
+                catch (Exception e)
                 {
-                    Logger.Warn($"'{BackupController.GetQualifiedDirectoryPath(originPath)}'は存在しません。");
-                    MessageBox.Show(
-                        $"{BackupController.GetQualifiedDirectoryPath(originPath)}は存在しません。\n正しいディレクトリパスを入力してください。",
-                        $"{AssemblyName.Name} - 警告", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    // 無人実行(引数付き起動)ではダイアログで止まらせず、確実に終了させる
+                    Logger.Error(e, "バックアップ中に予期しない例外が発生しました");
                 }
-
-                Quit();
+                finally
+                {
+                    Quit();
+                }
             }
         }
 
