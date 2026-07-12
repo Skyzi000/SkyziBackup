@@ -153,24 +153,19 @@ public sealed class SqliteBackupStateStore : IDisposable
             // (初回移行のクラッシュ等で未マークのまま残った旧JSONにもここで印が付く)
             if (File.Exists(jsonPath) && !File.Exists(jsonPath + LegacyJsonMigratedSuffix))
                 TryMarkLegacyJsonMigrated(jsonPath);
-            DeleteEvenIfReadonly(jsonPath);
-            DeleteEvenIfReadonly(jsonPath + DataFileWriter.BackupFileExtension);
-            DeleteEvenIfReadonly(jsonPath + DataFileWriter.TempFileExtension);
+            // ReadOnly属性はユーザーや外部処理が設定した保護の可能性があるため、掃除の都合で解除してはならない。
+            // 特にFileAttributes.NormalはReadOnly以外の属性も消し、削除に失敗すると属性だけ変更されたファイルを残す。
+            // 削除失敗時は移行済みマークが再移行を防ぐため、通常のFile.Deleteで試し、警告と次回の再試行に任せる。
+            File.Delete(jsonPath);
+            File.Delete(jsonPath + DataFileWriter.BackupFileExtension);
+            File.Delete(jsonPath + DataFileWriter.TempFileExtension);
             // 移行済みマークは本体側の削除がすべて成功した後にだけ消す(本体が残っているのに先に消すと再移行されてしまう)
-            DeleteEvenIfReadonly(jsonPath + LegacyJsonMigratedSuffix);
+            File.Delete(jsonPath + LegacyJsonMigratedSuffix);
         }
         catch (Exception e)
         {
             Logger.Warn(e, "旧JSONデータベースの削除に失敗: '{0}'", jsonPath);
         }
-    }
-
-    private static void DeleteEvenIfReadonly(string path)
-    {
-        if (!File.Exists(path))
-            return;
-        File.SetAttributes(path, FileAttributes.Normal);
-        File.Delete(path);
     }
 
     /// <summary>

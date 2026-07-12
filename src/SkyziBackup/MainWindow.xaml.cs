@@ -125,9 +125,11 @@ namespace SkyziBackup
                         {
                             case MessageBoxResult.Yes:
                                 // TODO: パスワード確認入力ウィンドウを出す
-                                Logger.Info("パスワードを更新");
+                                // DB削除を拒否した場合、新パスワードだけが保存されて旧DBを再利用しないよう更新とバックアップを中止する
+                                if (!DeleteDatabase())
+                                    return;
                                 PasswordManager.SavePassword(settings, password.Password);
-                                DeleteDatabase();
+                                Logger.Info("パスワードを更新");
                                 break;
                             case MessageBoxResult.No:
                                 if (MessageBox.Show("前回のパスワードを使用します。", App.AssemblyName.Name, MessageBoxButton.OKCancel, MessageBoxImage.Information) ==
@@ -180,7 +182,7 @@ namespace SkyziBackup
         /// <summary>
         /// データベースを削除するかどうかの確認ウィンドウを出してから削除する。
         /// </summary>
-        /// <returns>削除したなら true</returns>
+        /// <returns>削除対象がないか削除したなら true、削除を拒否したなら false</returns>
         private bool DeleteDatabase()
         {
             var databasePaths = BackupDatabase.GetExistingDatabaseFilePaths(originPath.Text, destPath.Text).ToArray();
@@ -201,7 +203,7 @@ namespace SkyziBackup
                 }
             }
 
-            return false;
+            return true;
         }
 
         private void RestoreWindowMenu_Click(object sender, RoutedEventArgs args)
