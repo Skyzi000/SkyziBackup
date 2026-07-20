@@ -108,54 +108,57 @@ namespace SkyziBackup
             }
 
             ButtonsIsEnabled = false;
-            var settings = LoadCurrentSettings;
-            if (settings.IsRecordPassword)
-            {
-                if (settings.IsDifferentPassword(password.Password) && settings.ProtectedPassword != null)
-                {
-                    var changePassword =
-                        MessageBox.Show(
-                            "前回のパスワードと異なります。\nパスワードを変更しますか？\n\n※パスワードを変更する場合、既存のバックアップやデータベースを削除し、\n　再度初めからバックアップし直すことをおすすめします。\n　異なるパスワードでバックアップされたファイルが共存する場合、\n　復元が難しくなります。",
-                            $"{App.AssemblyName.Name} - パスワード変更の確認", MessageBoxButton.YesNoCancel);
-                    switch (changePassword)
-                    {
-                        case MessageBoxResult.Yes:
-                            // TODO: パスワード確認入力ウィンドウを出す
-                            Logger.Info("パスワードを更新");
-                            PasswordManager.SavePassword(settings, password.Password);
-                            DeleteDatabase();
-                            break;
-                        case MessageBoxResult.No:
-                            if (MessageBox.Show("前回のパスワードを使用します。", App.AssemblyName.Name, MessageBoxButton.OKCancel, MessageBoxImage.Information) ==
-                                MessageBoxResult.OK && PasswordManager.TryLoadPassword(settings, out var pass))
-                                password.Password = pass;
-                            else
-                                goto case MessageBoxResult.Cancel;
-                            break;
-                        case MessageBoxResult.Cancel:
-                            ButtonsIsEnabled = true;
-                            return;
-                    }
-                }
-                else if (!string.IsNullOrWhiteSpace(password.Password))
-                {
-                    // TODO: パスワード確認入力ウィンドウを出す
-                    PasswordManager.SavePassword(settings, password.Password);
-                }
-            }
-
-            message.Text = $"'{originPath.Text.Trim()}' => '{destPath.Text.Trim()}'";
-            message.Text += $"\nバックアップ開始: {DateTime.Now}\n";
-            progressBar.Visibility = Visibility.Visible;
-            var bc = new BackupController(originPath.Text.Trim(), destPath.Text.Trim(), password.Password, settings);
-            var m = message.Text;
-            bc.Results.MessageChanged += (_, _) =>
-            {
-                _ = Dispatcher.InvokeAsync(() => { message.Text = m + bc.Results.Message + "\n"; },
-                    DispatcherPriority.ApplicationIdle);
-            };
+            var m = string.Empty;
+            // async voidハンドラなので、ボタン無効化以降の例外は全てここで握りつぶし、finallyでUIを復帰させる
             try
             {
+                var settings = LoadCurrentSettings;
+                if (settings.IsRecordPassword)
+                {
+                    if (settings.IsDifferentPassword(password.Password) && settings.ProtectedPassword != null)
+                    {
+                        var changePassword =
+                            MessageBox.Show(
+                                "前回のパスワードと異なります。\nパスワードを変更しますか？\n\n※パスワードを変更する場合、既存のバックアップやデータベースを削除し、\n　再度初めからバックアップし直すことをおすすめします。\n　異なるパスワードでバックアップされたファイルが共存する場合、\n　復元が難しくなります。",
+                                $"{App.AssemblyName.Name} - パスワード変更の確認", MessageBoxButton.YesNoCancel);
+                        switch (changePassword)
+                        {
+                            case MessageBoxResult.Yes:
+                                // TODO: パスワード確認入力ウィンドウを出す
+                                // DB削除を拒否した場合、新パスワードだけが保存されて旧DBを再利用しないよう更新とバックアップを中止する
+                                if (!DeleteDatabase())
+                                    return;
+                                PasswordManager.SavePassword(settings, password.Password);
+                                Logger.Info("パスワードを更新");
+                                break;
+                            case MessageBoxResult.No:
+                                if (MessageBox.Show("前回のパスワードを使用します。", App.AssemblyName.Name, MessageBoxButton.OKCancel, MessageBoxImage.Information) ==
+                                    MessageBoxResult.OK && PasswordManager.TryLoadPassword(settings, out var pass))
+                                    password.Password = pass;
+                                else
+                                    goto case MessageBoxResult.Cancel;
+                                break;
+                            case MessageBoxResult.Cancel:
+                                return; // UIの復帰はfinallyに任せる
+                        }
+                    }
+                    else if (!string.IsNullOrWhiteSpace(password.Password))
+                    {
+                        // TODO: パスワード確認入力ウィンドウを出す
+                        PasswordManager.SavePassword(settings, password.Password);
+                    }
+                }
+
+                message.Text = $"'{originPath.Text.Trim()}' => '{destPath.Text.Trim()}'";
+                message.Text += $"\nバックアップ開始: {DateTime.Now}\n";
+                progressBar.Visibility = Visibility.Visible;
+                var bc = new BackupController(originPath.Text.Trim(), destPath.Text.Trim(), password.Password, settings);
+                m = message.Text;
+                bc.Results.MessageChanged += (_, _) =>
+                {
+                    _ = Dispatcher.InvokeAsync(() => { message.Text = m + bc.Results.Message + "\n"; },
+                        DispatcherPriority.ApplicationIdle);
+                };
                 using var results = await BackupManager.StartBackupAsync(bc);
                 if (results != null)
                     message.Text = m + results.Message + "\n";
@@ -163,6 +166,11 @@ namespace SkyziBackup
             catch (OperationCanceledException)
             {
                 message.Text = m + "バックアップはキャンセルされました。" + "\n";
+            }
+            catch (Exception e)
+            {
+                Logger.Error(e, "バックアップ中に予期しない例外が発生しました");
+                message.Text = m + $"バックアップ失敗: 予期しない例外({e.GetType().Name})が発生しました。\n{e.Message}\n";
             }
             finally
             {
@@ -174,13 +182,15 @@ namespace SkyziBackup
         /// <summary>
         /// データベースを削除するかどうかの確認ウィンドウを出してから削除する。
         /// </summary>
-        /// <returns>削除したなら true</returns>
+        /// <returns>削除対象がないか削除したなら true、削除を拒否したなら false</returns>
         private bool DeleteDatabase()
         {
-            string databasePath;
-            if (LoadCurrentSettings.IsUseDatabase && File.Exists(databasePath = BackupDatabase.GetDatabasePath(originPath.Text, destPath.Text)))
+            var databasePaths = BackupDatabase.GetExistingDatabaseFilePaths(originPath.Text, destPath.Text).ToArray();
+            if (LoadCurrentSettings.IsUseDatabase && databasePaths.Any())
             {
-                var deleteDatabase = MessageBox.Show($"{databasePath}\n上記データベースを削除しますか？", $"{App.AssemblyName.Name} - 確認", MessageBoxButton.YesNo);
+                var deleteDatabase = MessageBox.Show($"{string.Join(Environment.NewLine, databasePaths)}\n上記データベースを削除しますか？",
+                    $"{App.AssemblyName.Name} - 確認",
+                    MessageBoxButton.YesNo);
                 switch (deleteDatabase)
                 {
                     case MessageBoxResult.Yes:
@@ -193,7 +203,7 @@ namespace SkyziBackup
                 }
             }
 
-            return false;
+            return true;
         }
 
         private void RestoreWindowMenu_Click(object sender, RoutedEventArgs args)

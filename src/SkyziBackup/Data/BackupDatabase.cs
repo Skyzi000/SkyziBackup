@@ -1,6 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json.Serialization;
 using Skyzi000.Data;
 
@@ -18,13 +18,13 @@ namespace SkyziBackup.Data
         /// originDirPathをキーとするバックアップ済みディレクトリの辞書
         /// </summary>
         [JsonPropertyName("dd")]
-        public Dictionary<string, BackedUpDirectoryData> BackedUpDirectoriesDict { get; set; } = new();
+        public IDictionary<string, BackedUpDirectoryData> BackedUpDirectoriesDict { get; set; } = new Dictionary<string, BackedUpDirectoryData>();
 
         /// <summary>
         /// originFilePathをキーとするバックアップ済みファイルの辞書
         /// </summary>
         [JsonPropertyName("fd")]
-        public Dictionary<string, BackedUpFileData> BackedUpFilesDict { get; set; } = new();
+        public IDictionary<string, BackedUpFileData> BackedUpFilesDict { get; set; } = new Dictionary<string, BackedUpFileData>();
 
         /// <summary>
         /// ファイル名は(<see cref="OriginBaseDirPath" /> + <see cref="DestBaseDirPath" />)のSHA1
@@ -33,8 +33,6 @@ namespace SkyziBackup.Data
         public override string SaveFileName => GetDatabaseFileName(OriginBaseDirPath, DestBaseDirPath);
 
         public static readonly string FileName = "Database" + DataFileWriter.DefaultExtension;
-
-        private readonly int _tempCount = 0;
 
         public BackupDatabase()
         {
@@ -45,31 +43,6 @@ namespace SkyziBackup.Data
         {
             OriginBaseDirPath = originBaseDirPath;
             DestBaseDirPath = destBaseDirPath;
-        }
-
-        public override void AutoSave()
-        {
-            ThrowIfDisposed();
-            Semaphore.Wait();
-            try
-            {
-                using var temp = new BackupDatabase(OriginBaseDirPath, DestBaseDirPath)
-                {
-                    BackedUpDirectoriesDict = new Dictionary<string, BackedUpDirectoryData>(BackedUpDirectoriesDict),
-                    BackedUpFilesDict = new Dictionary<string, BackedUpFileData>(BackedUpFilesDict),
-                };
-                var path = DataFileWriter.GetPath(temp);
-                var tempDirPath =
-                    Path.Combine(Path.GetDirectoryName(path) ?? throw new InvalidOperationException($"Path.GetDirectoryName(path) is null. (path: {path})"),
-                        "Temp");
-                var tempPath = Path.Combine(tempDirPath, $"Database{_tempCount}{DataFileWriter.TempFileExtension}");
-                DataFileWriter.Write(temp, tempPath);
-                DataFileWriter.Replace(tempPath, path, true);
-            }
-            finally
-            {
-                Semaphore.Release();
-            }
         }
 
         /// <summary>
@@ -100,7 +73,20 @@ namespace SkyziBackup.Data
         public static string GetDatabasePath(string originBaseDirPath, string destBaseDirPath) =>
             DataFileWriter.GetPath(GetDatabaseFileName(originBaseDirPath, destBaseDirPath));
 
-        public static void DeleteDatabase(string originBaseDirPath, string destBaseDirPath) =>
+        public static IEnumerable<string> GetDatabaseFilePaths(string originBaseDirPath, string destBaseDirPath)
+        {
+            yield return GetDatabasePath(originBaseDirPath, destBaseDirPath);
+            foreach (var sqlitePath in SqliteBackupStateStore.GetDatabaseFilePaths(originBaseDirPath, destBaseDirPath))
+                yield return sqlitePath;
+        }
+
+        public static IEnumerable<string> GetExistingDatabaseFilePaths(string originBaseDirPath, string destBaseDirPath) =>
+            GetDatabaseFilePaths(originBaseDirPath, destBaseDirPath).Where(File.Exists);
+
+        public static void DeleteDatabase(string originBaseDirPath, string destBaseDirPath)
+        {
             DataFileWriter.Delete<BackupDatabase>(GetDatabaseFileName(originBaseDirPath, destBaseDirPath));
+            SqliteBackupStateStore.DeleteDatabase(originBaseDirPath, destBaseDirPath);
+        }
     }
 }

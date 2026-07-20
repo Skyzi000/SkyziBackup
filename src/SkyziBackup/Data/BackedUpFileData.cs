@@ -7,7 +7,7 @@ namespace SkyziBackup.Data
     /// <summary>
     /// バックアップ済みファイルの詳細データ保管用クラス
     /// </summary>
-    public class BackedUpFileData
+    public class BackedUpFileData : IEquatable<BackedUpFileData>
     {
         [JsonPropertyName("c")]
         public DateTime? CreationTime { get; set; }
@@ -40,5 +40,22 @@ namespace SkyziBackup.Data
             FileAttributes = fileAttributes;
             Sha1 = sha1;
         }
+
+        /// <summary>
+        /// 全フィールドの値で等価比較する
+        /// </summary>
+        /// <remarks>ミュータブルなクラスなので、ハッシュベースのコレクションのキーには使用しないこと</remarks>
+        public bool Equals(BackedUpFileData? other) =>
+            other is not null &&
+            (ReferenceEquals(this, other) ||
+             CreationTime == other.CreationTime &&
+             LastWriteTime == other.LastWriteTime &&
+             OriginSize == other.OriginSize &&
+             FileAttributes == other.FileAttributes &&
+             Sha1 == other.Sha1);
+
+        public override bool Equals(object? obj) => Equals(obj as BackedUpFileData);
+
+        public override int GetHashCode() => HashCode.Combine(CreationTime, LastWriteTime, OriginSize, FileAttributes, Sha1);
     }
 }

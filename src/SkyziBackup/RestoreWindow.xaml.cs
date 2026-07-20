@@ -57,44 +57,55 @@ namespace SkyziBackup
 
             RestoreButton.IsEnabled = false;
             progressBar.Visibility = Visibility.Visible;
-            var settings = LoadCurrentSettings;
-            if (settings.IsRecordPassword && settings.IsDifferentPassword(password.Password))
+            var m = string.Empty;
+            // async voidハンドラなので、ボタン無効化以降の例外は全てここで握りつぶし、finallyでUIを復帰させる
+            try
             {
-                var changePassword = MessageBox.Show("入力されたパスワードが保存されているパスワードと異なります。\nこのまま続行しますか？",
-                    $"{App.AssemblyName.Name} - パスワードの確認",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Information);
-                switch (changePassword)
+                var settings = LoadCurrentSettings;
+                if (settings.IsRecordPassword && settings.IsDifferentPassword(password.Password))
                 {
-                    case MessageBoxResult.Yes:
-                        break;
-                    case MessageBoxResult.No:
-                    default:
-                        MessageBox.Show("リストアを中止します。");
-                        RestoreButton.IsEnabled = true;
-                        progressBar.Visibility = Visibility.Collapsed;
-                        return;
+                    var changePassword = MessageBox.Show("入力されたパスワードが保存されているパスワードと異なります。\nこのまま続行しますか？",
+                        $"{App.AssemblyName.Name} - パスワードの確認",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Information);
+                    switch (changePassword)
+                    {
+                        case MessageBoxResult.Yes:
+                            break;
+                        case MessageBoxResult.No:
+                        default:
+                            MessageBox.Show("リストアを中止します。");
+                            return; // UIの復帰はfinallyに任せる
+                    }
                 }
-            }
 
-            Message.Text = $"'{originPath.Text.Trim()}' => '{destPath.Text.Trim()}'";
-            Message.Text += $"\nリストア開始: {DateTime.Now}\n";
-            var restore = new RestoreController(originPath.Text.Trim(),
-                destPath.Text.Trim(),
-                password.Password,
-                settings,
-                copyAttributesOnDatabaseCheck.IsChecked,
-                copyOnlyAttributesCheck.IsChecked,
-                isEnableWriteDatabaseCheck.IsChecked);
-            var m = Message.Text;
-            restore.Results.MessageChanged += (_, _) =>
+                Message.Text = $"'{originPath.Text.Trim()}' => '{destPath.Text.Trim()}'";
+                Message.Text += $"\nリストア開始: {DateTime.Now}\n";
+                m = Message.Text;
+                using var restore = new RestoreController(originPath.Text.Trim(),
+                    destPath.Text.Trim(),
+                    password.Password,
+                    settings,
+                    copyAttributesOnDatabaseCheck.IsChecked,
+                    copyOnlyAttributesCheck.IsChecked,
+                    isEnableWriteDatabaseCheck.IsChecked);
+                restore.Results.MessageChanged += (_, _) =>
+                {
+                    _ = Dispatcher.InvokeAsync(() => { Message.Text = m + restore.Results.Message + "\n"; },
+                        DispatcherPriority.ApplicationIdle);
+                };
+                await Task.Run(() => restore.StartRestore());
+            }
+            catch (Exception e)
             {
-                _ = Dispatcher.InvokeAsync(() => { Message.Text = m + restore.Results.Message + "\n"; },
-                    DispatcherPriority.ApplicationIdle);
-            };
-            await Task.Run(() => restore.StartRestore());
-            RestoreButton.IsEnabled = true;
-            progressBar.Visibility = Visibility.Collapsed;
+                Logger.Error(e, "リストア中に予期しない例外が発生しました");
+                Message.Text = m + $"リストア失敗: 予期しない例外({e.GetType().Name})が発生しました。\n{e.Message}\n";
+            }
+            finally
+            {
+                RestoreButton.IsEnabled = true;
+                progressBar.Visibility = Visibility.Collapsed;
+            }
         }
 
         private void CloseButton_Click(object sender, RoutedEventArgs args) => Close();

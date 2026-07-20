@@ -32,9 +32,14 @@ namespace Skyzi000.IO
                         }
                     }));
 
+        /// <param name="onEnumerationError">
+        /// 配下の列挙に失敗してその部分を空列挙として飛ばす際に呼ばれる。
+        /// 「列挙が全域を網羅できたか」を呼び出し元が判定する必要がある場合に指定する。
+        /// </param>
         public static IEnumerable<string> EnumerateAllFilesIgnoringReparsePoints(string path,
             IEnumerable<Regex>? ignoreDirectoryRegexes,
-            int matchingStartIndex = -1)
+            int matchingStartIndex = -1,
+            Action<Exception>? onEnumerationError = null)
         {
             if (ignoreDirectoryRegexes is null)
             {
@@ -46,7 +51,7 @@ namespace Skyzi000.IO
                             {
                                 try
                                 {
-                                    return EnumerateAllFilesIgnoringReparsePoints(s);
+                                    return EnumerateAllFilesIgnoringReparsePoints(s, null, -1, onEnumerationError);
                                 }
                                 catch (Exception e) when (e is UnauthorizedAccessException
                                                               or DirectoryNotFoundException
@@ -54,6 +59,7 @@ namespace Skyzi000.IO
                                                               or PathTooLongException)
                                 {
                                     Logger.Error(e, "'{0}'の列挙に失敗", s);
+                                    onEnumerationError?.Invoke(e);
                                     return Enumerable.Empty<string>();
                                 }
                             }));
@@ -74,7 +80,7 @@ namespace Skyzi000.IO
                         {
                             try
                             {
-                                return EnumerateAllFilesIgnoringReparsePoints(s, ignoreDirectoryRegexes, matchingStartIndex);
+                                return EnumerateAllFilesIgnoringReparsePoints(s, ignoreDirectoryRegexes, matchingStartIndex, onEnumerationError);
                             }
                             catch (Exception e) when (e is UnauthorizedAccessException
                                                           or DirectoryNotFoundException
@@ -82,6 +88,7 @@ namespace Skyzi000.IO
                                                           or PathTooLongException)
                             {
                                 Logger.Error(e, "'{0}'の列挙に失敗", s);
+                                onEnumerationError?.Invoke(e);
                                 return Enumerable.Empty<string>();
                             }
                         }));
@@ -109,9 +116,14 @@ namespace Skyzi000.IO
                             }
                         }));
 
+        /// <param name="onEnumerationError">
+        /// 配下の列挙に失敗してその部分を空列挙として飛ばす際に呼ばれる。
+        /// 「列挙が全域を網羅できたか」を呼び出し元が判定する必要がある場合に指定する。
+        /// </param>
         public static IEnumerable<string> EnumerateAllDirectoriesIgnoringReparsePoints(string path,
             IEnumerable<Regex>? ignoreDirectoryRegexes = null,
-            int matchingStartIndex = -1)
+            int matchingStartIndex = -1,
+            Action<Exception>? onEnumerationError = null)
         {
             if (ignoreDirectoryRegexes is null)
             {
@@ -124,7 +136,7 @@ namespace Skyzi000.IO
                             {
                                 try
                                 {
-                                    return EnumerateAllDirectoriesIgnoringReparsePoints(s);
+                                    return EnumerateAllDirectoriesIgnoringReparsePoints(s, null, -1, onEnumerationError);
                                 }
                                 catch (Exception e) when (e is UnauthorizedAccessException
                                                               or DirectoryNotFoundException
@@ -132,6 +144,7 @@ namespace Skyzi000.IO
                                                               or PathTooLongException)
                                 {
                                     Logger.Error(e, "'{0}'の列挙に失敗", s);
+                                    onEnumerationError?.Invoke(e);
                                     return Enumerable.Empty<string>();
                                 }
                             }));
@@ -153,7 +166,7 @@ namespace Skyzi000.IO
                         {
                             try
                             {
-                                return EnumerateAllDirectoriesIgnoringReparsePoints(s, ignoreDirectoryRegexes, matchingStartIndex);
+                                return EnumerateAllDirectoriesIgnoringReparsePoints(s, ignoreDirectoryRegexes, matchingStartIndex, onEnumerationError);
                             }
                             catch (Exception e) when (e is UnauthorizedAccessException
                                                           or DirectoryNotFoundException
@@ -161,6 +174,7 @@ namespace Skyzi000.IO
                                                           or PathTooLongException)
                             {
                                 Logger.Error(e, "'{0}'の列挙に失敗", s);
+                                onEnumerationError?.Invoke(e);
                                 return Enumerable.Empty<string>();
                             }
                         }));
@@ -189,7 +203,14 @@ namespace Skyzi000.IO
                     }
                 }));
 
-        public static IEnumerable<string> EnumerateAllFiles(string path, IEnumerable<Regex>? ignoreDirectoryRegexes, int matchingStartIndex = -1)
+        /// <param name="onEnumerationError">
+        /// 配下の列挙に失敗してその部分を空列挙として飛ばす際に呼ばれる。
+        /// 「列挙が全域を網羅できたか」を呼び出し元が判定する必要がある場合に指定する。
+        /// </param>
+        public static IEnumerable<string> EnumerateAllFiles(string path,
+            IEnumerable<Regex>? ignoreDirectoryRegexes,
+            int matchingStartIndex = -1,
+            Action<Exception>? onEnumerationError = null)
         {
             if (ignoreDirectoryRegexes is null)
             {
@@ -199,11 +220,12 @@ namespace Skyzi000.IO
                         {
                             try
                             {
-                                return EnumerateAllFiles(s);
+                                return EnumerateAllFiles(s, null, -1, onEnumerationError);
                             }
                             catch (IOException e)
                             {
                                 Logger.Error(e, SymLoopMessage);
+                                onEnumerationError?.Invoke(e);
                                 return Enumerable.Empty<string>();
                             }
                             catch (Exception e) when (e is UnauthorizedAccessException
@@ -212,6 +234,7 @@ namespace Skyzi000.IO
                                                           or PathTooLongException)
                             {
                                 Logger.Error(e, "'{0}'の列挙に失敗", s);
+                                onEnumerationError?.Invoke(e);
                                 return Enumerable.Empty<string>();
                             }
                         }));
@@ -230,11 +253,12 @@ namespace Skyzi000.IO
                     {
                         try
                         {
-                            return EnumerateAllFiles(s, ignoreDirectoryRegexes, matchingStartIndex);
+                            return EnumerateAllFiles(s, ignoreDirectoryRegexes, matchingStartIndex, onEnumerationError);
                         }
                         catch (IOException e)
                         {
                             Logger.Error(e, SymLoopMessage);
+                            onEnumerationError?.Invoke(e);
                             return Enumerable.Empty<string>();
                         }
                         catch (Exception e) when (e is UnauthorizedAccessException
@@ -243,6 +267,7 @@ namespace Skyzi000.IO
                                                       or PathTooLongException)
                         {
                             Logger.Error(e, "'{0}'の列挙に失敗", s);
+                            onEnumerationError?.Invoke(e);
                             return Enumerable.Empty<string>();
                         }
                     }));
@@ -272,7 +297,14 @@ namespace Skyzi000.IO
                     }
                 }));
 
-        public static IEnumerable<string> EnumerateAllDirectories(string path, IEnumerable<Regex>? ignoreDirectoryRegexes, int matchingStartIndex = -1)
+        /// <param name="onEnumerationError">
+        /// 配下の列挙に失敗してその部分を空列挙として飛ばす際に呼ばれる。
+        /// 「列挙が全域を網羅できたか」を呼び出し元が判定する必要がある場合に指定する。
+        /// </param>
+        public static IEnumerable<string> EnumerateAllDirectories(string path,
+            IEnumerable<Regex>? ignoreDirectoryRegexes,
+            int matchingStartIndex = -1,
+            Action<Exception>? onEnumerationError = null)
         {
             if (ignoreDirectoryRegexes is null)
             {
@@ -283,11 +315,12 @@ namespace Skyzi000.IO
                         {
                             try
                             {
-                                return EnumerateAllDirectories(s);
+                                return EnumerateAllDirectories(s, null, -1, onEnumerationError);
                             }
                             catch (IOException e)
                             {
                                 Logger.Error(e, SymLoopMessage);
+                                onEnumerationError?.Invoke(e);
                                 return Enumerable.Empty<string>();
                             }
                             catch (Exception e) when (e is UnauthorizedAccessException
@@ -296,6 +329,7 @@ namespace Skyzi000.IO
                                                           or PathTooLongException)
                             {
                                 Logger.Error(e, "'{0}'の列挙に失敗", s);
+                                onEnumerationError?.Invoke(e);
                                 return Enumerable.Empty<string>();
                             }
                         }));
@@ -315,11 +349,12 @@ namespace Skyzi000.IO
                     {
                         try
                         {
-                            return EnumerateAllDirectories(s, ignoreDirectoryRegexes, matchingStartIndex);
+                            return EnumerateAllDirectories(s, ignoreDirectoryRegexes, matchingStartIndex, onEnumerationError);
                         }
                         catch (IOException e)
                         {
                             Logger.Error(e, SymLoopMessage);
+                            onEnumerationError?.Invoke(e);
                             return Enumerable.Empty<string>();
                         }
                         catch (Exception e) when (e is UnauthorizedAccessException
@@ -328,6 +363,7 @@ namespace Skyzi000.IO
                                                       or PathTooLongException)
                         {
                             Logger.Error(e, "'{0}'の列挙に失敗", s);
+                            onEnumerationError?.Invoke(e);
                             return Enumerable.Empty<string>();
                         }
                     }));
