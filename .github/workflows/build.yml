@@ -48,11 +48,6 @@ on:
       - "**.md"
     # Publish version tags as releases.
     tags: ["v*.*"]
-  # pull_request:
-  #   types: [opened, synchronize, reopened]
-  #   paths-ignore:
-  #     - "**.md"
-
 jobs:
   build:
     strategy:
@@ -67,43 +62,40 @@ jobs:
 #      Test_Project_Path: your-test-project-path                 # Replace with the path to your test project, i.e. MyWpfApp.Tests\MyWpfApp.Tests.csproj.
 #      Wap_Project_Directory: your-wap-project-directory-name    # Replace with the Wap project directory relative to the solution, i.e. MyWpfApp.Package.
       Wap_Project_Path: SkyziBackup.csproj                      # Replace with the path to your Wap project, i.e. MyWpf.App.Package\MyWpfApp.Package.wapproj.
+      SONAR_ENABLED: ${{ secrets.SONAR_TOKEN != '' }}
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       with:
         fetch-depth: 0
 
     # Install the .NET Core workload
     - name: Install .NET
-      uses: actions/setup-dotnet@v1
+      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
       with:
         dotnet-version: 6.0.x
-
-    # Add  MSBuild to the PATH: https://github.com/microsoft/setup-msbuild
-    - name: Setup MSBuild.exe
-      uses: microsoft/setup-msbuild@v1.0.2
 
 #     # Execute all unit tests in the solution
 #     - name: Execute unit tests
 #       run: dotnet test
 
     - name: Cache SonarCloud packages
-      if: github.event_name != 'pull_request' && github.event_name != 'pull_request_target'
-      uses: actions/cache@v4
+      if: env.SONAR_ENABLED == 'true'
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ~\sonar\cache
         key: ${{ runner.os }}-sonar
         restore-keys: ${{ runner.os }}-sonar
         
     - name: Install SonarScanner (tool)
-      if: github.event_name != 'pull_request' && github.event_name != 'pull_request_target'
+      if: env.SONAR_ENABLED == 'true'
       run: dotnet tool install --global dotnet-sonarscanner
       shell: pwsh
         
     # Restore the application to populate the obj folder with RuntimeIdentifiers
     - name: Restore the application
-      run: msbuild $env:Solution_Name /t:Restore /p:Configuration=$env:Configuration
+      run: dotnet restore $env:Solution_Name -r win-x64 /p:Configuration=$env:Configuration /p:Platform="x64" /p:PublishReadyToRun=true
       env:
         Configuration: ${{ matrix.configuration }}
 
@@ -124,7 +116,7 @@ jobs:
 #         Configuration: ${{ matrix.configuration }}
 
     - name: Sonar Begin
-      if: github.event_name != 'pull_request' && github.event_name != 'pull_request_target'
+      if: env.SONAR_ENABLED == 'true'
       shell: pwsh
       env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -138,19 +130,17 @@ jobs:
         if ($LASTEXITCODE -ne 0) { throw "Sonar BEGIN failed $LASTEXITCODE" }
 
     - name: Build
-      if: github.event_name != 'pull_request' && github.event_name != 'pull_request_target'
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         Configuration: ${{ matrix.configuration }}
       shell: pwsh
       run: |
         $ErrorActionPreference = 'Stop'
-        dotnet publish $env:Solution_Name -r win-x64 -v n /p:Configuration=$env:Configuration /p:Platform="x64" /p:PublishSingleFile=true /p:PublishReadyToRun=true /p:SelfContained=false
+        dotnet publish $env:Solution_Name -r win-x64 -v n --no-restore /p:Configuration=$env:Configuration /p:Platform="x64" /p:PublishSingleFile=true /p:PublishReadyToRun=true /p:SelfContained=false
         if ($LASTEXITCODE -ne 0) { throw "BUILD failed $LASTEXITCODE" }
         
     - name: Sonar End
-      if: github.event_name != 'pull_request' && github.event_name != 'pull_request_target'
+      if: env.SONAR_ENABLED == 'true'
       shell: pwsh
       env:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -159,21 +149,13 @@ jobs:
         dotnet sonarscanner end /d:sonar.token="$env:SONAR_TOKEN"
         if ($LASTEXITCODE -ne 0) { throw "Sonar END failed $LASTEXITCODE" }
         
-    - name: Build without analyze
-      if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
-      shell: pwsh
-      env:
-        Configuration: ${{ matrix.configuration }}
-      run: |
-        dotnet publish $env:Solution_Name -r win-x64 -v n /p:Configuration=$env:Configuration /p:Platform="x64" /p:PublishSingleFile=true /p:PublishReadyToRun=true /p:SelfContained=false
-
 #     # Remove the pfx
 #     - name: Remove the pfx
 #       run: Remove-Item -path $env:Wap_Project_Directory\$env:Signing_Certificate
 
     # Upload the MSIX package: https://github.com/marketplace/actions/upload-artifact
     - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
         name: Win-x64-${{ matrix.configuration }}-${{ github.sha }}
         path: bin\x64\${{ matrix.configuration }}\net6.0-windows\win-x64\publish\
@@ -196,15 +178,15 @@ jobs:
       #     sudo apt install p7zip
 
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Get tag name
         id: get_tag
-        run: echo ::set-output name=TAG::${GITHUB_REF/refs\/tags\//}
+        run: echo "TAG=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
         shell: bash
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: Win-x64-Release-${{ github.sha }}
           path: ${{ env.APPLICATION_NAME }}_${{ steps.get_tag.outputs.TAG }}
@@ -236,7 +218,7 @@ jobs:
 
       # https://github.com/softprops/action-gh-release
       - name: Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
         if: startsWith(github.ref, 'refs/tags/')
         with:
           body_path: ./release.md
