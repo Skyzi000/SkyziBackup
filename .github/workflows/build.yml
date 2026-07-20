@@ -48,6 +48,10 @@ on:
       - "**.md"
     # Publish version tags as releases.
     tags: ["v*.*"]
+
+permissions:
+  contents: read
+
 jobs:
   build:
     strategy:
@@ -165,6 +169,8 @@ jobs:
   release:
     needs: [ build ]
     if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
     env:
       APPLICATION_NAME: SkyziBackup
     runs-on: ubuntu-latest
