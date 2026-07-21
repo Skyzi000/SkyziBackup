@@ -162,7 +162,7 @@ namespace Skyzi000.Cryptography
         }
 
         private byte[] GenerateKIV(byte[] salt, byte[] password, HashAlgorithmName hashAlgorithm, int iterationCount, int size) =>
-            new Rfc2898DeriveBytes(password, salt, iterationCount, hashAlgorithm).GetBytes(size);
+            Rfc2898DeriveBytes.Pbkdf2(password, salt, iterationCount, hashAlgorithm, size);
 
         public void Dispose() => ((IDisposable) _aes).Dispose();
     }
